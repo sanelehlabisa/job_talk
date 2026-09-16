@@ -132,13 +132,18 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [chat?.messages, recommendations]);
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
 
+  async function sendPrompt(message) {
+    if (sending) return;
+    setSending(true);
+    try { await onSend(message); } finally { setSending(false); }
+  }
+
   async function submit(event) {
     event.preventDefault();
     if (!text.trim() || sending) return;
-    const message = text;
+    const message = text.trim();
     setText("");
-    setSending(true);
-    try { await onSend(message); } finally { setSending(false); }
+    await sendPrompt(message);
   }
 
   async function apply(jobId) {
@@ -163,6 +168,13 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
               <div className="message"><p>{message.content}</p><time>{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
             </div>
           ))}
+          {!chat.messages.some((message) => message.sender === "user") && (
+            <div className="starter-prompts">
+              <span>TRY AN EXAMPLE</span>
+              <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking for a job. I have three years of welding and forklift experience in Cape Town.")}>Find trade work</button>
+              <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Hire a welder</button>
+            </div>
+          )}
           {sending && <div className="message-wrap assistant"><div className="avatar"><Sparkles size={16} /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
           {!!recommendations.length && (

@@ -104,6 +104,11 @@ button { cursor: pointer; }
 .typing { border: 1px solid #e3e7df; background: white; padding: 12px 15px; border-radius: 6px 16px 16px 16px; display: flex; gap: 4px; }
 .typing i { width: 5px; height: 5px; border-radius: 50%; background: #91a39a; animation: bounce 1s infinite alternate; }.typing i:nth-child(2) { animation-delay: .2s; }.typing i:nth-child(3) { animation-delay: .4s; }
 @keyframes bounce { to { transform: translateY(-4px); } }
+.starter-prompts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 16px 0 14px 38px; }
+.starter-prompts span { width: 100%; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; }
+.starter-prompts button { border: 1px solid #c9d9ca; background: #f4f8f2; color: var(--green); border-radius: 999px; padding: 8px 12px; font-size: 11px; }
+.starter-prompts button:hover { background: #e8f1e8; }
+.starter-prompts button:disabled { opacity: .55; cursor: default; }
 .profile-chips { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 19px 0 8px; }
 .profile-chips span { font-size: 9px; text-transform: capitalize; background: #ecf3ec; color: #557162; border: 1px solid #dae8dc; border-radius: 99px; padding: 6px 9px; display: flex; align-items: center; gap: 5px; }
 .recommendations { margin: 28px 0 5px 38px; }
@@ -152,6 +157,7 @@ button { cursor: pointer; }
   .mobile-close { display: block; }.backdrop { display: block; position: fixed; inset: 0; z-index: 9; background: rgba(18,43,31,.25); }
   .menu-button { display: block; border: 0; background: transparent; font-size: 18px; color: var(--ink); margin-right: 12px; }
   .chat-header { padding: 0 17px; justify-content: flex-start; }.status-pill { margin-left: auto; }
+  .starter-prompts { margin-left: 0; }
   .recommendations { margin-left: 0; }.conversation-inner { width: calc(100% - 26px); }.message { max-width: 84%; }
   .publish-bar { padding: 10px 17px; }.publish-bar span { display: none; }.composer { padding: 10px 13px 12px; }
 }

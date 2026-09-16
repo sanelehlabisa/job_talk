@@ -63,5 +63,39 @@ def test_matching_explains_location_and_experience_differences():
     assert "Durban" in result["criteria"]["location"]["reason"]
 
 
+def test_trade_worker_can_find_and_apply_to_trade_role():
+    with TestClient(app) as client:
+        employer = login(client, "trade-employer@example.com")
+        employer_chat = client.post(f"/api/chats?user_id={employer['id']}").json()
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."},
+        ).json()
+        assert response["chat"]["intent"] == "employer"
+        assert response["chat"]["job_post"]["title"] == "Welder"
+        assert response["chat"]["can_publish"] is True
+        job_id = response["chat"]["job_post"]["id"]
+        assert client.post(f"/api/jobs/{job_id}/publish").status_code == 200
+
+        candidate = login(client, "trade-candidate@example.com")
+        candidate_chat = client.post(f"/api/chats?user_id={candidate['id']}").json()
+        response = client.post(
+            f"/api/chats/{candidate_chat['id']}/messages",
+            json={"content": "I am looking for a job. I have three years of welding and forklift experience in Cape Town."},
+        ).json()
+        assert response["chat"]["intent"] == "candidate"
+        assert {"welding", "forklift_operation"} <= response["chat"]["profile"].keys()
+        assert response["recommendations"][0]["job"]["id"] == job_id
+        assert response["recommendations"][0]["match_score"] > 0.8
+        assert client.post(
+            f"/api/jobs/{job_id}/apply", json={"candidate_chat_id": candidate_chat["id"]}
+        ).status_code == 201
+
+
+def test_trade_intent_from_plain_language():
+    assert detect_intent("We need a plumber for our site.") == "employer"
+    assert detect_intent("I am a welder with three years of experience.") == "candidate"
+
+
 def test_brief_employer_example_detects_intent():
     assert detect_intent("I need a junior Python developer with FastAPI experience in Cape Town.") == "employer"

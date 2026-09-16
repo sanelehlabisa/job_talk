@@ -32,17 +32,37 @@ SKILLS = {
     "marketing": "Marketing",
     "accounting": "Accounting",
     "project management": "Project management",
+    "welder": "Welder",
+    "welding": "Welding",
+    "electrician": "Electrician",
+    "electrical wiring": "Electrical wiring",
+    "plumber": "Plumber",
+    "plumbing": "Plumbing",
+    "carpenter": "Carpenter",
+    "carpentry": "Carpentry",
+    "bricklayer": "Bricklayer",
+    "bricklaying": "Bricklaying",
+    "cleaner": "Cleaner",
+    "cleaning": "Cleaning",
+    "driver": "Driver",
+    "driving": "Driving",
+    "forklift": "Forklift operation",
+    "3-phase lathe": "3-phase lathe",
+    "mechanic": "Mechanic",
+    "cook": "Cook",
 }
 
 
 def detect_intent(text: str) -> str | None:
     lower = text.lower()
-    candidate_phrases = ("looking for a job", "find a job", "need a job", "job seeker", "i want a job", "hire me", "candidate")
+    candidate_phrases = ("looking for a job", "find a job", "need a job", "looking for work", "need work", "looking for employment", "job seeker", "i want a job", "hire me", "candidate")
     employer_phrases = ("looking to hire", "someone to hire", "need a developer", "need an engineer", "hiring", "recruit", "employer")
-    hiring_pattern = r"\b(?:need|hire|hiring|find)\b.{0,45}\b(?:developer|engineer|designer|manager|analyst|specialist|assistant|accountant|candidate|person|someone)\b"
+    hiring_pattern = r"\b(?:need|hire|hiring|find)\b.{0,45}\b(?:developer|engineer|designer|manager|analyst|specialist|assistant|accountant|welder|electrician|plumber|carpenter|bricklayer|cleaner|driver|operator|mechanic|cook|candidate|person|someone)\b"
     if any(phrase in lower for phrase in employer_phrases) or re.search(hiring_pattern, lower):
         return "employer"
     if any(phrase in lower for phrase in candidate_phrases):
+        return "candidate"
+    if re.search(r"\b(?:i am|i'm|im)\s+(?:an?\s+)?(?:welder|electrician|plumber|carpenter|bricklayer|cleaner|driver|operator|mechanic|cook)\b", lower):
         return "candidate"
     return None
 
@@ -101,7 +121,12 @@ def update_employer_profile(profile: dict, text: str) -> tuple[dict, dict]:
         arrangement = "remote" if "remote" in lower else "hybrid" if "hybrid" in lower else "on-site"
         profile["working_arrangement"] = {"weight": 0.5, "description": f"The working arrangement is {arrangement}."}
 
-    title_match = re.search(r"(?:need|hire|hiring|for) (?:an? )?([A-Za-z][A-Za-z +#.-]{2,55}?(?:developer|engineer|designer|manager|analyst|specialist|assistant|accountant))\b", text, re.I)
+    role_words = r"developer|engineer|designer|manager|analyst|specialist|assistant|accountant|welder|electrician|plumber|carpenter|bricklayer|cleaner|driver|operator|mechanic|cook"
+    title_match = re.search(
+        rf"(?:need|hire|hiring|for)\s+(?:an?\s+)?((?:[A-Za-z][A-Za-z +#.-]{{0,55}}\s+)?(?:{role_words}))\b",
+        text,
+        re.I,
+    )
     title = title_match.group(1).strip().title() if title_match else None
     return profile, {"title": title}
 
