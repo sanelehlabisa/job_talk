@@ -25,7 +25,13 @@ def _output_text(result: dict) -> str:
     return ""
 
 
-def generate_reply(intent: str | None, profile: dict, user_text: str, fallback: str) -> str:
+def generate_reply(
+    intent: str | None,
+    profile: dict,
+    user_text: str,
+    fallback: str,
+    history: list[dict[str, str]],
+) -> str:
     """Generate a concise reply with OpenAI, falling back when unavailable."""
     if not OPENAI_API_KEY:
         return fallback
@@ -46,7 +52,11 @@ def generate_reply(intent: str | None, profile: dict, user_text: str, fallback: 
         {
             "model": OPENAI_MODEL,
             "instructions": system_prompt,
-            "input": f"{context}\n\nLatest user message: {user_text}",
+            "input": [
+                {"role": "developer", "content": context},
+                *history,
+                {"role": "user", "content": user_text},
+            ],
             "max_output_tokens": 120,
             "temperature": 0.25,
             "store": False,

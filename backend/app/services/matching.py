@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import JobPost
 
@@ -78,16 +79,20 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
 
 def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
     criteria = {}
-    weighted_total = 0.0
-    total_weight = 0.0
+    weighted_total = Decimal("0")
+    total_weight = Decimal("0")
     for key, requirement in target_profile.items():
-        weight = float(requirement.get("weight", 0.5))
+        weight = Decimal(str(requirement.get("weight", 0.5)))
         score, reason = criterion_score(key, requirement, candidate_profile)
-        criteria[key] = {"score": round(score, 2), "reason": reason, "weight": weight}
-        weighted_total += score * weight
+        rounded_score = Decimal(str(score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        criteria[key] = {"score": float(rounded_score), "reason": reason, "weight": float(weight)}
+        weighted_total += rounded_score * weight
         total_weight += weight
-    overall = weighted_total / total_weight if total_weight else 0.0
-    return {"criteria": criteria, "overall_score": round(overall, 2)}
+    overall = (
+        (weighted_total / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if total_weight else Decimal("0")
+    )
+    return {"criteria": criteria, "overall_score": float(overall)}
 
 
 def rank_jobs(candidate_profile: dict, jobs: list[JobPost]) -> list[tuple[JobPost, dict]]:

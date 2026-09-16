@@ -112,7 +112,7 @@ function Recommendation({ item, onApply, applied, skipped, onSkip }) {
       </div>
       <p>{item.explanation}</p>
       <div className="criteria-row">
-        {Object.keys(item.job.target_profile).slice(0, 4).map((key) => <span key={key}>{key.replaceAll("_", " ")}</span>)}
+        {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
       </div>
       <div className="job-actions">
         <button className="primary" disabled={applied} onClick={onApply}>{applied ? <><Check size={17} /> Applied</> : <>Apply now <ChevronRight size={17} /></>}</button>
@@ -129,7 +129,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
   const [skipped, setSkipped] = useState({});
   const bottomRef = useRef(null);
 
-  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [chat?.messages, recommendations]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
 
   async function sendPrompt(message) {

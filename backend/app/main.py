@@ -109,6 +109,9 @@ def get_chat(chat_id: int, db: Session = Depends(get_db)):
 def send_message(chat_id: int, payload: schemas.MessageCreate, db: Session = Depends(get_db)):
     chat = get_chat_or_404(db, chat_id)
     text = payload.content.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Message cannot be empty")
+    history = [{"role": message.sender, "content": message.content} for message in chat.messages[-12:]]
     db.add(models.Message(chat_id=chat.id, sender="user", content=text))
 
     if not chat.intent:
@@ -145,7 +148,7 @@ def send_message(chat_id: int, payload: schemas.MessageCreate, db: Session = Dep
         published_jobs = db.scalars(select(models.JobPost).where(models.JobPost.published.is_(True))).all()
         reply = candidate_reply(chat.profile, bool(published_jobs and len(chat.profile) >= 2))
 
-    reply = generate_reply(chat.intent, chat.profile, text, reply)
+    reply = generate_reply(chat.intent, chat.profile, text, reply, history)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()
@@ -161,6 +164,7 @@ def send_message(chat_id: int, payload: schemas.MessageCreate, db: Session = Dep
                     job=schemas.JobOut.model_validate(job),
                     match_score=result["overall_score"],
                     explanation=summarize_match(result),
+                    criteria=result["criteria"],
                 )
             )
     return schemas.MessageResponse(
@@ -207,6 +211,7 @@ def get_recommendations(chat_id: int, db: Session = Depends(get_db)):
             job=schemas.JobOut.model_validate(job),
             match_score=result["overall_score"],
             explanation=summarize_match(result),
+            criteria=result["criteria"],
         )
         for job, result in rank_jobs(chat.profile, jobs)
     ]

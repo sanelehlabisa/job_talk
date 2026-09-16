@@ -94,6 +94,10 @@ pytest
 
 For the frontend, run `npm run build` inside `frontend`.
 
+## Match score data
+
+Each recommendation includes a `criteria` object for a future multidimensional plot. Each criterion has a `score` between 0 and 1, a `weight`, and a plain language `reason`. The overall `match_score` is the weighted mean of the reported criterion scores: `sum(score * weight) / sum(weight)`, rounded to two decimals using half-up rounding (or 0 when there are no criteria). The chat currently uses a deterministic scorer; the LLM generates replies and receives the most recent 12 prior chat messages for context.
+
 ## Current limits and next steps
 
 The app uses text only, a small rule based vocabulary, and heuristic scores. It does not verify skills or employers. Application data is not anonymous in the current API. The brief proposes WhatsApp and voice notes, verified employers, anonymous top five candidate previews, privacy controls, and subscription plus placement fees; those are not implemented yet.

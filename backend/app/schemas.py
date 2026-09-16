@@ -36,10 +36,17 @@ class JobOut(ORMModel):
     published: bool
 
 
+class CriterionScoreOut(BaseModel):
+    score: float
+    weight: float
+    reason: str
+
+
 class RecommendationOut(BaseModel):
     job: JobOut
     match_score: float
     explanation: str
+    criteria: dict[str, CriterionScoreOut]
 
 
 class ChatSummary(ORMModel):

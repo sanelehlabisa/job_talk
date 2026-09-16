@@ -1,4 +1,6 @@
+import json
 import os
+from decimal import Decimal, ROUND_HALF_UP
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_job_talk.db"
 
@@ -8,6 +10,7 @@ from app.database import Base, engine
 from app.main import app
 from app.services.conversation import detect_intent
 from app.services.matching import match_profiles
+from app.services import llm
 
 
 def setup_function():
@@ -86,10 +89,96 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         assert response["chat"]["intent"] == "candidate"
         assert {"welding", "forklift_operation"} <= response["chat"]["profile"].keys()
         assert response["recommendations"][0]["job"]["id"] == job_id
-        assert response["recommendations"][0]["match_score"] > 0.8
+        recommendation = response["recommendations"][0]
+        assert recommendation["match_score"] > 0.8
+        criteria = recommendation["criteria"]
+        assert {"welding", "forklift_operation", "experience"} <= criteria.keys()
+        weighted = sum(
+            (Decimal(str(item["score"])) * Decimal(str(item["weight"])) for item in criteria.values()),
+            Decimal("0"),
+        )
+        total_weight = sum((Decimal(str(item["weight"])) for item in criteria.values()), Decimal("0"))
+        expected = (weighted / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        assert Decimal(str(recommendation["match_score"])) == expected
+        refreshed = client.get(f"/api/chats/{candidate_chat['id']}/recommendations").json()
+        assert refreshed[0]["criteria"] == criteria
         assert client.post(
             f"/api/jobs/{job_id}/apply", json={"candidate_chat_id": candidate_chat["id"]}
         ).status_code == 201
+
+
+def test_send_replays_previous_chat_messages(monkeypatch):
+    calls = []
+
+    def fake_reply(intent, profile, user_text, fallback, history):
+        calls.append((user_text, history))
+        return fallback
+
+    monkeypatch.setattr("app.main.generate_reply", fake_reply)
+    with TestClient(app) as client:
+        user = login(client, "history@example.com")
+        chat = client.post(f"/api/chats?user_id={user['id']}").json()
+        first_text = "I am looking for a job."
+        first = client.post(
+            f"/api/chats/{chat['id']}/messages", json={"content": first_text}
+        ).json()
+        second_text = "I have welding experience."
+        client.post(f"/api/chats/{chat['id']}/messages", json={"content": second_text})
+
+    assert calls[0][1] == [{"role": "assistant", "content": chat["messages"][0]["content"]}]
+    assert calls[1] == (
+        second_text,
+        [
+            {"role": "assistant", "content": chat["messages"][0]["content"]},
+            {"role": "user", "content": first_text},
+            {"role": "assistant", "content": first["assistant_message"]["content"]},
+        ],
+    )
+
+
+def test_llm_request_has_role_order_and_current_message_once(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"output": [{"type": "message", "content": [
+                {"type": "output_text", "text": "I remember your welding experience."}
+            ]}]}).encode()
+
+    def fake_urlopen(request, timeout):
+        captured.update(json.loads(request.data))
+        return FakeResponse()
+
+    monkeypatch.setattr(llm, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_urlopen)
+    history = [
+        {"role": "assistant", "content": "Welcome"},
+        {"role": "user", "content": "I know welding"},
+        {"role": "assistant", "content": "Tell me more"},
+    ]
+    reply = llm.generate_reply("candidate", {}, "I also drive forklifts", "fallback", history)
+    assert reply == "I remember your welding experience."
+    assert captured["store"] is False
+    assert [item["role"] for item in captured["input"]] == [
+        "developer", "assistant", "user", "assistant", "user"
+    ]
+    assert captured["input"][-1]["content"] == "I also drive forklifts"
+
+
+def test_whitespace_message_is_rejected_without_saving():
+    with TestClient(app) as client:
+        user = login(client, "blank@example.com")
+        chat = client.post(f"/api/chats?user_id={user['id']}").json()
+        response = client.post(f"/api/chats/{chat['id']}/messages", json={"content": "   "})
+        assert response.status_code == 422
+        saved = client.get(f"/api/chats/{chat['id']}").json()
+        assert len(saved["messages"]) == 1
 
 
 def test_trade_intent_from_plain_language():
