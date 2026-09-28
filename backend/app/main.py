@@ -17,7 +17,7 @@ from .services.conversation import (
     update_employer_profile,
 )
 from .services.matching import match_profiles, rank_jobs, summarize_match
-from .services.llm import generate_reply
+from .services.ai import generate_reply
 
 
 @asynccontextmanager
@@ -148,7 +148,7 @@ def send_message(chat_id: int, payload: schemas.MessageCreate, db: Session = Dep
         published_jobs = db.scalars(select(models.JobPost).where(models.JobPost.published.is_(True))).all()
         reply = candidate_reply(chat.profile, bool(published_jobs and len(chat.profile) >= 2))
 
-    reply = generate_reply(chat.intent, chat.profile, text, reply, history)
+    reply = generate_reply(chat.id, chat.intent, chat.profile, text, reply, history)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()

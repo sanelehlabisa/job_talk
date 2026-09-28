@@ -17,7 +17,7 @@ The proposed business model keeps candidate use free. For employers, the brief s
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - One application per candidate chat and job, submitted without another form.
-- Optional OpenAI Responses API replies. Profile extraction, matching, and fallback replies work without an API key.
+- A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
 
 ## Stack
 
@@ -37,7 +37,7 @@ You need Docker Desktop with Compose. Copy the example settings:
 Copy-Item .env.example .env
 ```
 
-On macOS or Linux, use `cp .env.example .env`. Leave `OPENAI_API_KEY` empty for deterministic replies, or add a key for generated replies. Start the stack:
+On macOS or Linux, use `cp .env.example .env`. Start the stack:
 
 ```bash
 docker compose up --build
@@ -64,7 +64,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The backend creates `backend/job_talk.db` automatically. Set `OPENAI_API_KEY` in this terminal if you want generated replies. In another terminal:
+The backend creates `backend/job_talk.db` automatically. In another terminal:
 
 ```bash
 cd frontend
@@ -96,8 +96,16 @@ For the frontend, run `npm run build` inside `frontend`.
 
 ## Match score data
 
-Each recommendation includes a `criteria` object for a future multidimensional plot. Each criterion has a `score` between 0 and 1, a `weight`, and a plain language `reason`. The overall `match_score` is the weighted mean of the reported criterion scores: `sum(score * weight) / sum(weight)`, rounded to two decimals using half-up rounding (or 0 when there are no criteria). The chat currently uses a deterministic scorer; the LLM generates replies and receives the most recent 12 prior chat messages for context.
+Each recommendation includes a `criteria` object for a future multidimensional plot. Each criterion has a `score` between 0 and 1, a `weight`, and a plain language `reason`. The overall `match_score` is the weighted mean of the reported criterion scores: `sum(score * weight) / sum(weight)`, rounded to two decimals using half-up rounding (or 0 when there are no criteria).
+
+## Mock AI mode
+
+The app currently makes no external AI calls. `backend/app/services/ai.py` exposes one `generate_reply` function backed by a deterministic generator. Every reply starts with a preview of the current user message. Messages longer than ten characters show the first five and last five source characters. The reply also identifies the chat, reports how many saved messages were supplied as context, and previews the previous user message. This makes message and context flow visible while testing. The backend supplies at most the latest 12 earlier messages from the current chat. A real API or local model can later replace the function without changing the chat endpoint.
 
 ## Current limits and next steps
 
 The app uses text only, a small rule based vocabulary, and heuristic scores. It does not verify skills or employers. Application data is not anonymous in the current API. The brief proposes WhatsApp and voice notes, verified employers, anonymous top five candidate previews, privacy controls, and subscription plus placement fees; those are not implemented yet.
+
+## Deployment goal
+
+The next milestone after the local chat flow is stable is deployment to a user-owned VM under a subdomain. The first VM release should remain a private demo behind HTTPS and reverse proxy access control because the current email-only demo login does not authenticate users or enforce resource ownership. A later deployment ticket should cover DNS and TLS, production secrets, database migrations and backups, and real application authentication before public testing.

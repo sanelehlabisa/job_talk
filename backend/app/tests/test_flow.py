@@ -1,4 +1,3 @@
-import json
 import os
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -8,9 +7,9 @@ from fastapi.testclient import TestClient
 
 from app.database import Base, engine
 from app.main import app
+from app.services.ai import _preview, generate_reply
 from app.services.conversation import detect_intent
 from app.services.matching import match_profiles
-from app.services import llm
 
 
 def setup_function():
@@ -110,8 +109,8 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
 def test_send_replays_previous_chat_messages(monkeypatch):
     calls = []
 
-    def fake_reply(intent, profile, user_text, fallback, history):
-        calls.append((user_text, history))
+    def fake_reply(chat_id, intent, profile, user_text, fallback, history):
+        calls.append((chat_id, user_text, history))
         return fallback
 
     monkeypatch.setattr("app.main.generate_reply", fake_reply)
@@ -125,8 +124,13 @@ def test_send_replays_previous_chat_messages(monkeypatch):
         second_text = "I have welding experience."
         client.post(f"/api/chats/{chat['id']}/messages", json={"content": second_text})
 
-    assert calls[0][1] == [{"role": "assistant", "content": chat["messages"][0]["content"]}]
+    assert calls[0] == (
+        chat["id"],
+        first_text,
+        [{"role": "assistant", "content": chat["messages"][0]["content"]}],
+    )
     assert calls[1] == (
+        chat["id"],
         second_text,
         [
             {"role": "assistant", "content": chat["messages"][0]["content"]},
@@ -136,39 +140,43 @@ def test_send_replays_previous_chat_messages(monkeypatch):
     )
 
 
-def test_llm_request_has_role_order_and_current_message_once(monkeypatch):
-    captured = {}
-
-    class FakeResponse:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def read(self):
-            return json.dumps({"output": [{"type": "message", "content": [
-                {"type": "output_text", "text": "I remember your welding experience."}
-            ]}]}).encode()
-
-    def fake_urlopen(request, timeout):
-        captured.update(json.loads(request.data))
-        return FakeResponse()
-
-    monkeypatch.setattr(llm, "OPENAI_API_KEY", "test-key")
-    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_urlopen)
+def test_mock_ai_previews_current_message_and_chat_context():
     history = [
         {"role": "assistant", "content": "Welcome"},
         {"role": "user", "content": "I know welding"},
         {"role": "assistant", "content": "Tell me more"},
     ]
-    reply = llm.generate_reply("candidate", {}, "I also drive forklifts", "fallback", history)
-    assert reply == "I remember your welding experience."
-    assert captured["store"] is False
-    assert [item["role"] for item in captured["input"]] == [
-        "developer", "assistant", "user", "assistant", "user"
-    ]
-    assert captured["input"][-1]["content"] == "I also drive forklifts"
+    reply = generate_reply(42, "candidate", {}, "I also drive forklifts", "fallback", history)
+    assert reply.startswith('"I alslifts"')
+    assert "Chat #42 context: 3 earlier message(s)" in reply
+    assert 'previous user message "I knolding"' in reply
+    assert "Mode: job seeker." in reply
+    assert reply.endswith("fallback")
+
+
+def test_mock_ai_preview_has_at_most_ten_source_characters():
+    assert _preview("short") == "short"
+    assert _preview("1234567890") == "1234567890"
+    assert _preview("12345678901") == "1234578901"
+    assert _preview("  five   spaces  ") == "five paces"
+
+
+def test_mock_ai_keeps_short_messages_and_chat_context_separate():
+    first_chat = generate_reply(1, None, {}, "hello", "choose a path", [])
+    second_chat = generate_reply(
+        2,
+        "employer",
+        {},
+        "new role",
+        "describe the job",
+        [{"role": "user", "content": "old role"}],
+    )
+    assert first_chat.startswith('"hello"')
+    assert "Chat #1 context: 0 earlier message(s); no previous user message." in first_chat
+    assert "old role" not in first_chat
+    assert "Chat #2 context: 1 earlier message(s)" in second_chat
+    assert 'previous user message "old role"' in second_chat
+    assert "Mode: hiring." in second_chat
 
 
 def test_whitespace_message_is_rejected_without_saving():
