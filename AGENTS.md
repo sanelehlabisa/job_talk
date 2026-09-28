@@ -8,8 +8,9 @@ simple enough to explain in a short video: an employer describes a job, a
 candidate describes their experience, and the app shows an explainable match.
 
 The current milestone is a reliable local demo. The next milestone is a private
-deployment on a user-owned VM and subdomain. Do not present the current
-email-only account flow as production authentication.
+deployment on a user-owned VM and subdomain. Do not present the current account
+flow as production identity until email verification, password recovery, rate
+limits, and versioned migrations are complete.
 
 ## Demo contract
 

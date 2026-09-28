@@ -20,6 +20,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_talk}
+      AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:

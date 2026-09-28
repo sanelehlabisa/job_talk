@@ -17,6 +17,32 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     chats: Mapped[list["Chat"]] = relationship(back_populates="user")
+    credential: Mapped["UserCredential | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    sessions: Mapped[list["AuthSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class UserCredential(Base):
+    __tablename__ = "user_credentials"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    user: Mapped[User] = relationship(back_populates="credential")
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    user: Mapped[User] = relationship(back_populates="sessions")
 
 
 class Chat(Base):

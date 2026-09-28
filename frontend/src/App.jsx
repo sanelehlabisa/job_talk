@@ -12,7 +12,7 @@ import {
   UserRound,
   UserRoundSearch,
 } from "lucide-react";
-import { api } from "./api";
+import { api, SESSION_KEY } from "./api";
 
 function Brand() {
   return (
@@ -23,8 +23,10 @@ function Brand() {
   );
 }
 
-function Login({ onLogin }) {
+function Login({ onAuthenticated }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +35,8 @@ function Login({ onLogin }) {
     setLoading(true);
     setError("");
     try {
-      onLogin(await api.login(email));
+      const authenticate = mode === "register" ? api.register : api.login;
+      onAuthenticated(await authenticate(email, password));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -57,13 +60,17 @@ function Login({ onLogin }) {
         </div>
         <form className="login-card" onSubmit={submit}>
           <div className="card-icon"><ArrowRight size={20} /></div>
-          <h2>Let’s get talking</h2>
-          <p>Enter your email to continue. New here? We’ll create your space automatically.</p>
+          <h2>{mode === "register" ? "Create your space" : "Welcome back"}</h2>
+          <p>{mode === "register" ? "Use your email and a password to keep your conversations private." : "Sign in to continue your Job Talk conversations."}</p>
           <label htmlFor="email">Email address</label>
-          <input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength="12" maxLength="128" placeholder="At least 12 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
           {error && <div className="error">{error}</div>}
-          <button className="primary full" disabled={loading}>{loading ? "Opening…" : "Continue"}<ArrowRight size={17} /></button>
-          <small>No password needed for this demo.</small>
+          <button className="primary full" disabled={loading}>{loading ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}<ArrowRight size={17} /></button>
+          <button className="auth-toggle" type="button" onClick={() => { setMode((value) => value === "login" ? "register" : "login"); setError(""); }}>
+            {mode === "register" ? "Already have an account? Sign in" : "New to Job Talk? Create an account"}
+          </button>
         </form>
       </section>
       <footer className="brand-credit">
@@ -204,12 +211,16 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
 }
 
 export default function App() {
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem("job-talk-user") || "null"));
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
+    catch { sessionStorage.removeItem(SESSION_KEY); return null; }
+  });
   const [chats, setChats] = useState([]);
   const [chat, setChat] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const user = session?.user;
 
   async function loadChat(id) {
     setError("");
@@ -221,24 +232,36 @@ export default function App() {
     } catch (err) { setError(err.message); }
   }
 
-  async function loadChats(currentUser, selectFirst = true) {
-    const result = await api.listChats(currentUser.id);
+  async function loadChats(selectFirst = true) {
+    const result = await api.listChats();
     setChats(result);
     if (selectFirst && result.length) await loadChat(result[0].id);
   }
 
-  useEffect(() => { if (user) loadChats(user).catch((err) => setError(err.message)); }, [user]);
+  useEffect(() => {
+    const clearExpiredSession = () => {
+      setSession(null);
+      setChat(null);
+      setChats([]);
+      setRecommendations([]);
+    };
+    window.addEventListener("job-talk:unauthorized", clearExpiredSession);
+    return () => window.removeEventListener("job-talk:unauthorized", clearExpiredSession);
+  }, []);
 
-  function login(nextUser) {
-    localStorage.setItem("job-talk-user", JSON.stringify(nextUser));
-    setUser(nextUser);
+  useEffect(() => { if (user) loadChats().catch((err) => setError(err.message)); }, [user?.id]);
+
+  function authenticate(nextSession) {
+    localStorage.removeItem("job-talk-user");
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+    setSession(nextSession);
   }
 
   async function newChat() {
-    const created = await api.createChat(user.id);
+    const created = await api.createChat();
     setChat(created);
     setRecommendations([]);
-    await loadChats(user, false);
+    await loadChats(false);
   }
 
   async function send(content) {
@@ -246,7 +269,7 @@ export default function App() {
       const response = await api.sendMessage(chat.id, content);
       setChat(response.chat);
       setRecommendations(response.recommendations);
-      await loadChats(user, false);
+      await loadChats(false);
     } catch (err) { setError(err.message); }
   }
 
@@ -258,10 +281,19 @@ export default function App() {
     try { await api.apply(jobId, chat.id); } catch (err) { setError(err.message); throw err; }
   }
 
-  if (!user) return <Login onLogin={login} />;
+  async function logout() {
+    try { await api.logout(); } catch { /* Clear the browser session even when it already expired. */ }
+    sessionStorage.removeItem(SESSION_KEY);
+    setSession(null);
+    setChat(null);
+    setChats([]);
+    setRecommendations([]);
+  }
+
+  if (!user) return <Login onAuthenticated={authenticate} />;
   return (
     <main className="app-layout">
-      <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => { localStorage.removeItem("job-talk-user"); setUser(null); setChat(null); }} />
+      <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} />
       {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
       {error && <div className="toast" onClick={() => setError("")}>{error}<span>×</span></div>}
       {chat ? <ChatView chat={chat} recommendations={recommendations} onSend={send} onPublish={publish} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}

@@ -12,7 +12,7 @@ The proposed business model keeps candidate use free. For employers, the brief s
 
 ## What works
 
-- Email based demo users and saved conversations. A user can start either a job search or hiring chat.
+- Password protected accounts with expiring sessions and saved conversations. A user can start either a job search or hiring chat.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
@@ -27,7 +27,7 @@ React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide th
 Browser :3000 -> Nginx frontend -> /api/ -> FastAPI :8000 -> PostgreSQL
 ```
 
-**Demo only:** entering an email creates or opens an account without a password. The API has no access control. Use fictional data and run it locally.
+Accounts use Argon2 password hashes and opaque, expiring bearer sessions stored in the database. Chat, job-publishing, recommendation, and application endpoints derive the account from the session and enforce resource ownership. Rate limiting, password recovery, email verification, and production migrations are still pending, so use fictional data and keep the current release private.
 
 ## Run with Docker
 
@@ -76,14 +76,16 @@ Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api`
 
 ## Five minute demo
 
-1. Enter `employer@example.com` and start a chat.
+1. Create an account such as `employer-demo@example.com` with a password of at least 12 characters, then start a chat.
 2. Select **Hire a welder**, or say: "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."
 3. Publish the job.
-4. Log out, enter `candidate@example.com`, and start a chat.
+4. Log out, create a separate account such as `candidate-demo@example.com`, and start a chat.
 5. Select **Find trade work**, or say: "I am looking for a job. I have three years of welding and forklift experience in Cape Town."
 6. Review the match and apply.
 
 The earlier software example also works: publish a junior Python developer role requiring FastAPI and Docker, then describe a matching candidate.
+
+Sessions last 24 hours by default and are kept in browser session storage, so closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in `.env` to change the server-side expiry. Accounts created by the older email-only build that already contain chats cannot be claimed through registration; use a new email for local testing or intentionally reset the local Docker volume.
 
 ## Tests
 
@@ -104,11 +106,11 @@ The app currently makes no external AI calls. `backend/app/services/ai.py` expos
 
 ## Current limits and next steps
 
-The app uses text only, a small rule based vocabulary, and heuristic scores. It does not verify skills or employers. Application data is not anonymous in the current API. The brief proposes WhatsApp and voice notes, verified employers, anonymous top five candidate previews, privacy controls, and subscription plus placement fees; those are not implemented yet.
+The app uses text only, a small rule based vocabulary, and heuristic scores. It does not verify email addresses, skills, or employers. Application data is visible to the candidate and the account that owns the relevant job. The brief proposes WhatsApp and voice notes, verified employers, anonymous top five candidate previews, privacy controls, and subscription plus placement fees; those are not implemented yet.
 
 ## Deployment goal
 
-The next milestone after the local chat flow is stable is deployment to a user-owned VM under a subdomain. The first VM release should remain a private demo behind HTTPS and reverse proxy access control because the current email-only demo login does not authenticate users or enforce resource ownership. A later deployment ticket should cover DNS and TLS, production secrets, database migrations and backups, and real application authentication before public testing.
+The next milestone after the local chat flow is stable is deployment to a user-owned VM under a subdomain. The first VM release should remain a private demo behind HTTPS and reverse proxy access control while rate limits, email verification, password recovery, versioned migrations, and operational controls are unfinished. Later deployment tickets cover DNS and TLS, production secrets, database migrations, backups, and public-pilot safety checks.
 
 The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). It separates the private VM demo from a later public pilot and includes the development Compose rename, production Nginx ingress, environment and secret packaging, safety controls, score visualization, and demo video with QR code.
 

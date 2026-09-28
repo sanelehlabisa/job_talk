@@ -8,13 +8,29 @@ class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class LoginRequest(BaseModel):
+class CredentialsRequest(BaseModel):
     email: EmailStr
+    password: str = Field(min_length=12, max_length=128)
+
+
+class LoginRequest(CredentialsRequest):
+    pass
+
+
+class RegisterRequest(CredentialsRequest):
+    pass
 
 
 class UserOut(ORMModel):
     id: int
     email: EmailStr
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_at: datetime
+    user: UserOut
 
 
 class MessageCreate(BaseModel):
@@ -81,4 +97,3 @@ class ApplicationOut(ORMModel):
     match_result: dict
     submitted: bool
     created_at: datetime
-

@@ -41,15 +41,19 @@ private VM demo, authenticated limited test, then public availability.
 
 ### JT-005 - Real authentication and resource ownership
 
-- [ ] Replace email-only account opening with a bounded authentication flow.
-- [ ] Require an authenticated identity on every user, chat, job, recommendation,
+- [x] Replace email-only account opening with a bounded authentication flow.
+- [x] Require an authenticated identity on every user, chat, job, recommendation,
   and application endpoint.
-- [ ] Enforce user ownership of chats and candidate applications in backend queries.
-- [ ] Define the employer permissions needed to view applicants.
-- [ ] Add tests proving one account cannot read or change another account's data.
+- [x] Enforce user ownership of chats and candidate applications in backend queries.
+- [x] Let only the account that owns a job list its applicants.
+- [x] Add tests proving one account cannot read or change another account's data.
 
 **Done when:** knowing another person's email or record ID cannot expose or alter
-their data. This ticket blocks public access.
+their data.
+
+**Status:** Complete. Accounts use Argon2 password hashes and opaque, expiring
+database sessions. Thirteen backend tests and a live PostgreSQL smoke test verify
+session lifecycle and cross-account boundaries (2026-09-28).
 
 ### JT-006 - Mark the current Compose stack as development
 
