@@ -109,3 +109,9 @@ The app uses text only, a small rule based vocabulary, and heuristic scores. It 
 ## Deployment goal
 
 The next milestone after the local chat flow is stable is deployment to a user-owned VM under a subdomain. The first VM release should remain a private demo behind HTTPS and reverse proxy access control because the current email-only demo login does not authenticate users or enforce resource ownership. A later deployment ticket should cover DNS and TLS, production secrets, database migrations and backups, and real application authentication before public testing.
+
+The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). It separates the private VM demo from a later public pilot and includes the development Compose rename, production Nginx ingress, environment and secret packaging, safety controls, score visualization, and demo video with QR code.
+
+## Project workflow
+
+[`AGENTS.md`](AGENTS.md) records the product boundaries, mock AI contract, safety requirements, and completion checks used for future tickets. The small robot artwork used for assistant messages is existing Roventics branding; Job Talk remains the primary product name in the interface.
