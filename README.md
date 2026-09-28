@@ -1,6 +1,6 @@
 # Job Talk
 
-Job Talk is a hackathon proof of concept for people who can do the work but may not have a polished CV. Candidates describe their skills in a chat; employers describe a role the same way. The app builds structured profiles, ranks jobs, explains matches, and lets candidates apply from the chat.
+Job Talk is an early product experiment for people who can do the work but may not have a polished CV. Candidates describe their experience in a job-specific conversation. Recruiters receive structured evidence and explainable match differences that make candidates easier to compare.
 
 The project brief focuses on informal, trade, and entry level job seekers and small employers seeking local talent. Its proposed product includes low data web or WhatsApp chat, voice notes, and anonymous candidate previews. **This repository currently implements a text only web demo.** WhatsApp, voice notes, identity checks, anonymous employer shortlists, and payments are future work.
 
@@ -8,7 +8,18 @@ The project brief focuses on informal, trade, and entry level job seekers and sm
 
 The brief identifies three barriers: job seekers may not want a public search, practical skills can be missed by CV screening, and conventional applications often give little feedback. Job Talk explores a private conversation that draws out work experience and gives both sides a clearer reason for a match.
 
-The proposed business model keeps candidate use free. For employers, the brief suggests R399 per month per active posting for access to a top five anonymous, verified candidate list, plus R500 after a confirmed placement. It estimates about R250 per month for a proof of concept using WhatsApp and AI. These are planning assumptions, not features or validated prices in this demo.
+The experiment is free. Payments, subscriptions, recruiter-verification automation,
+advanced job discovery, and external integrations are deferred until usage and
+recruiter feedback show that the core workflow is useful.
+
+## Current experiment
+
+The question is: **will recruiters find conversational applications and
+structured candidate comparison useful?** Recruiters will be manually approved.
+Candidates will open a published job and apply without an account, using a secure
+guest application session. The implementation subtasks and acceptance checks are
+in [`TASKS.md`](TASKS.md); the pitch, demo, video, distribution, and measurement
+plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 
 ## What works
 
@@ -110,7 +121,10 @@ The app uses text only, a small rule based vocabulary, and heuristic scores. It 
 
 ## Deployment goal
 
-The next milestone after the local chat flow is stable is deployment to a user-owned VM under a subdomain. The first VM release should remain a private demo behind HTTPS and reverse proxy access control while rate limits, email verification, password recovery, versioned migrations, and operational controls are unfinished. Later deployment tickets cover DNS and TLS, production secrets, database migrations, backups, and public-pilot safety checks.
+The next milestone is deployment to a user-owned VM under a subdomain. Staging
+remains private while the production package and guest application boundary are
+verified. The experiment then exposes published job pages and scoped guest
+applications while recruiter data stays behind authenticated ownership checks.
 
 The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). It separates the private VM demo from a later public pilot and includes the development Compose rename, production Nginx ingress, environment and secret packaging, safety controls, score visualization, and demo video with QR code.
 
