@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -15,7 +13,7 @@ from .auth import (
     issue_session,
     verify_password,
 )
-from .database import Base, engine, get_db
+from .database import get_db
 from .services.conversation import (
     can_publish,
     candidate_reply,
@@ -29,14 +27,8 @@ from .services.ai import generate_reply
 from .settings import get_settings
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
-
 settings = get_settings()
-app = FastAPI(title="Job Talk API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Job Talk API", version="0.1.0")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
 app.add_middleware(
     CORSMiddleware,

@@ -38,7 +38,7 @@ React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide th
 Browser :3000 -> Nginx frontend -> /api/ -> FastAPI :8000 -> PostgreSQL
 ```
 
-Accounts use Argon2 password hashes and opaque, expiring bearer sessions stored in the database. Chat, job-publishing, recommendation, and application endpoints derive the account from the session and enforce resource ownership. Rate limiting, password recovery, email verification, and production migrations are still pending, so use fictional data and keep the current release private.
+Accounts currently use Argon2 password hashes and opaque, expiring bearer sessions stored in the database. Chat, job-publishing, recommendation, and application endpoints derive the account from the session and enforce resource ownership. Versioned Alembic migrations run before FastAPI starts. Rate limiting, passwordless recruiter access, and email verification are still pending, so use fictional data and keep the current release private.
 
 ## Run with Docker
 
@@ -76,10 +76,11 @@ python -m venv .venv
 # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-The backend creates `backend/job_talk.db` automatically. In another terminal:
+Alembic creates or upgrades `backend/job_talk.db`. In another terminal:
 
 ```bash
 cd frontend
@@ -141,6 +142,14 @@ production Compose and deployment tickets will provide the exact VM commands.
 To rotate the SMTP password, replace `SMTP_PASSWORD` in the VM environment file
 and recreate the backend service. Existing recruiter sessions remain valid;
 new sign-in codes use the updated SMTP credentials.
+
+## Database migrations and recovery
+
+The backend container runs `alembic upgrade head` before Uvicorn. If a migration
+fails, the API does not start. Create a verified backup before each deployment
+and keep a copy outside the VM. The backup, restore drill, retention, upgrade,
+and rollback commands are documented in
+[`docs/database-operations.md`](docs/database-operations.md).
 
 ## Tests
 

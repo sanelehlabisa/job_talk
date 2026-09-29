@@ -93,10 +93,18 @@ are documented (2026-09-29).
 
 ### JT-008 - Database migrations, backups, and recovery
 
-- [ ] Replace startup-only table creation with versioned migrations.
-- [ ] Add a VM backup command and retention policy for PostgreSQL data.
-- [ ] Test restoring the database into a clean stack.
-- [ ] Document rollback for both application image and database migration.
+- [x] Replace startup-only table creation with versioned migrations.
+- [x] Add a VM backup command and retention policy for PostgreSQL data.
+- [x] Test restoring the database into a clean stack.
+- [x] Document the clean-stack restore drill and rollback for both application
+  image and database migration.
+
+**Status:** Complete. Alembic migration `20260929_01` adopts the existing schema
+and runs before the API starts. Backup and guarded restore scripts use PostgreSQL
+custom-format dumps, verification, checksums, and configurable retention. A live
+drill restored the development database into an isolated Compose project and new
+volume, started the API successfully, and matched the migration revision and row
+counts across users, chats, messages, jobs, and applications (2026-09-29).
 
 ### JT-009 - Production Compose package
 
