@@ -14,6 +14,24 @@ recruiters and accountless candidate applications. The product hypothesis is:
 Deployment follows in stages: private staging, a small public candidate flow,
 then an evidence-based decision about further investment.
 
+## Remaining path to a usable pilot
+
+The smallest useful release still needs these pieces, in this order:
+
+1. Finish the job-specific candidate conversation and its boundary tests
+   (`JT-020`, `JT-021`, and `JT-026`).
+2. Give a recruiter one job workspace with submitted candidates, closing, a
+   top-five shortlist, and clear comparison (`JT-022`).
+3. Add rate limits, privacy and deletion information, log filtering, and basic
+   abuse controls (`JT-012` and the open checks in `JT-018`).
+4. Package and deploy the private HTTPS stack (`JT-009` through `JT-011`).
+5. Add minimal usage and feedback measurement (`JT-024`), then complete a mobile
+   and accessibility check (`JT-015`).
+
+The deterministic mock remains the default until this flow works end to end.
+The local model and visualization work can then be evaluated without blocking
+the first usable pilot.
+
 ## Completed foundation
 
 ### JT-001 - Local conversation and matching flow
@@ -146,6 +164,19 @@ counts across users, chats, messages, jobs, and applications (2026-09-29).
 
 ## P0-B - Build the recruiter experiment
 
+### JT-025 - Use consistent chat participant icons
+
+- [ ] Replace the Roventics robot image inside assistant chat bubbles and typing
+  state with a simple circular assistant icon, such as Lucide `Bot`.
+- [ ] Keep the assistant and person icons the same shape and size while using
+  distinct colors and accessible labels.
+- [ ] Keep the small Roventics project credit in the footer instead of using the
+  company robot as the conversational assistant identity.
+- [ ] Check the icons at phone and desktop sizes.
+
+**Done when:** assistant and user messages are immediately distinguishable and
+both participants use the same simple avatar style.
+
 ### JT-018 - Manual recruiter approval and email-code sign-in
 
 - [x] Let a recruiter submit an email access request without choosing a password.
@@ -220,14 +251,45 @@ cannot see or change each other's conversation or application.
 **Done when:** a candidate can finish a coherent application from one job page
 without a CV, account, or separate form.
 
+### JT-026 - Per-chat retrieval and context boundary
+
+This is Job Talk's first RAG-like component. It is a small context assembler over
+existing relational data, rather than a vector database or document search
+system.
+
+- [ ] Build one backend context function that retrieves only the selected job's
+  criteria, the current structured draft, and a bounded window of messages from
+  the current chat.
+- [ ] Scope retrieval by the authenticated owner or guest session and the chat's
+  job ID; reject cross-chat, cross-job, and cross-candidate context.
+- [ ] Use that same context for deterministic follow-up selection and any future
+  model provider.
+- [ ] Keep recruiter job conversations and every candidate application in
+  separate contexts, even when they refer to the same job.
+- [ ] Add tests proving refresh preserves the right context and that another
+  chat's messages, contact details, and evidence never enter a response.
+- [ ] Do not add embeddings, a vector store, or external knowledge retrieval
+  until a real source corpus and retrieval need exist.
+
+**Done when:** every generated response can list exactly which current chat, job,
+draft, and bounded messages supplied its context.
+
 ### JT-022 - Recruiter candidate comparison
 
+- [ ] Treat each recruiter hiring chat as one job workspace with `draft`,
+  `published`, and `closed` states.
 - [ ] Add a recruiter-owned job view with submitted candidate count and status.
 - [ ] Show every candidate in the same structure: experience, skills, location,
   availability, evidence, overall match, criterion scores, and clear gaps.
 - [ ] Add a compact side-by-side comparison for at least two candidates.
 - [ ] Link every score explanation to candidate-provided evidence.
 - [ ] Reveal contact details only for submitted applications owned by that recruiter.
+- [ ] Let the recruiter close recruitment, stop new applications, and preserve
+  the submitted candidate snapshots used for comparison.
+- [ ] When a job closes, show up to five candidates ranked by the existing
+  transparent weighted score, with ties and missing evidence handled explicitly.
+- [ ] Describe the shortlist as decision support and never as an automated hiring
+  decision.
 - [ ] Add empty, one-candidate, two-candidate, and unauthorized-access tests.
 
 **Done when:** the stronger and weaker demo candidates are visibly comparable
@@ -236,12 +298,23 @@ without reading their full transcripts.
 ### JT-023 - Replace the mock for invited-user conversations
 
 - [ ] Keep the existing provider function and deterministic test implementation.
-- [ ] Add one configured API or local model provider for deployed conversations.
-- [ ] Send the selected job, structured draft, and bounded current-chat history.
+- [ ] Complete `JT-026` and pass its context object to every provider.
+- [ ] Experiment with one small quantized Llama-family model through a pinned
+  Docker service such as Ollama; keep it disabled by default.
+- [ ] Benchmark the actual entry-level VPS CPU, RAM use, startup time, tokens per
+  second, and concurrent-request behavior before selecting it for deployment.
+- [ ] Compare that local model with one configured API provider for response
+  quality, latency, operating effort, and cost.
+- [ ] Send only the selected job, structured draft, and bounded current-chat history.
 - [ ] Require structured output validation and fall back to deterministic prompts.
 - [ ] Bound latency, retries, input size, output size, and per-application cost.
+- [ ] Apply container memory and CPU limits so a local model cannot make the web
+  app or database unavailable on a small VPS.
 - [ ] Prevent secrets and other candidates' data from entering model context.
 - [ ] Evaluate the same strong, partial, and unrelated candidate examples before release.
+
+**Done when:** a measured provider improves follow-up quality on the target VPS
+without weakening context isolation or making the application unreliable.
 
 ### JT-024 - Minimal experiment analytics and feedback
 
@@ -281,8 +354,14 @@ compared, returned, and reported the workflow useful.
 ### JT-014 - Match-score visualization
 
 - [ ] Confirm the criterion names and weights used in the recruiter experiment.
-- [ ] Add an accessible multidimensional plot with a readable text equivalent.
+- [ ] Add a parallel coordinates plot for no more than the top five candidates,
+  with one normalized 0-100 axis per criterion.
+- [ ] Draw the job's ideal criterion profile as a clearly labelled reference line
+  and each candidate as a separate selectable line.
+- [ ] Keep the score table, evidence, criterion weights, and gaps as the readable
+  text equivalent; the plot must not be the only source of information.
 - [ ] Show why a criterion scored high or low without overstating certainty.
+- [ ] Handle missing evidence explicitly rather than drawing it as a confirmed zero.
 - [ ] Test empty, partial, and perfect-match profiles on mobile and desktop.
 
 ### JT-015 - Usability and accessibility pass
