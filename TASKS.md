@@ -28,9 +28,12 @@ The smallest useful release still needs these pieces, in this order:
 5. Add minimal usage and feedback measurement (`JT-024`), then complete a mobile
    and accessibility check (`JT-015`).
 
-The deterministic mock remains the default until this flow works end to end.
-The local model and visualization work can then be evaluated without blocking
-the first usable pilot.
+The deterministic mock remains the deployed default until this flow works end
+to end. A personal ChatGPT subscription may support manual development and
+evaluation, but it is not an application backend and does not include API usage.
+Any hosted API integration needs separate billing and an explicit spend limit.
+Local model and visualization work remain demand-gated experiments and do not
+block the first usable pilot.
 
 ## Completed foundation
 
@@ -295,16 +298,23 @@ draft, and bounded messages supplied its context.
 **Done when:** the stronger and weaker demo candidates are visibly comparable
 without reading their full transcripts.
 
-### JT-023 - Replace the mock for invited-user conversations
+### JT-023 - Demand-gated AI provider experiment
 
 - [ ] Keep the existing provider function and deterministic test implementation.
+- [ ] Start this ticket only after candidate and recruiter usage shows that better
+  conversational follow-ups would materially improve the experiment.
+- [ ] Keep personal ChatGPT subscription use outside the deployed application;
+  record that ChatGPT subscriptions and API billing are separate products.
 - [ ] Complete `JT-026` and pass its context object to every provider.
-- [ ] Experiment with one small quantized Llama-family model through a pinned
-  Docker service such as Ollama; keep it disabled by default.
-- [ ] Benchmark the actual entry-level VPS CPU, RAM use, startup time, tokens per
-  second, and concurrent-request behavior before selecting it for deployment.
-- [ ] Compare that local model with one configured API provider for response
-  quality, latency, operating effort, and cost.
+- [ ] If a hosted provider is tested, use separately billed API access with a hard
+  monthly spend limit, per-application usage limits, and no browser-visible key.
+- [ ] Compare provider privacy and retention terms before sending invited-user data.
+- [ ] Do not run a Llama model on the entry-level pilot VPS. Revisit one small,
+  quantized, pinned Docker model only if demand justifies a larger server.
+- [ ] On that larger server, benchmark CPU or GPU support, RAM use, startup time,
+  tokens per second, concurrent requests, and operating effort.
+- [ ] Compare the measured local model with the hosted API for response quality,
+  latency, privacy, reliability, and total cost.
 - [ ] Send only the selected job, structured draft, and bounded current-chat history.
 - [ ] Require structured output validation and fall back to deterministic prompts.
 - [ ] Bound latency, retries, input size, output size, and per-application cost.
@@ -313,8 +323,9 @@ without reading their full transcripts.
 - [ ] Prevent secrets and other candidates' data from entering model context.
 - [ ] Evaluate the same strong, partial, and unrelated candidate examples before release.
 
-**Done when:** a measured provider improves follow-up quality on the target VPS
-without weakening context isolation or making the application unreliable.
+**Done when:** real usage justifies the change and a measured provider improves
+follow-up quality without weakening context isolation, privacy, cost control, or
+application reliability.
 
 ### JT-024 - Minimal experiment analytics and feedback
 
