@@ -64,6 +64,6 @@ Use `TASKS.md` as the ordered source of truth. Work from the first unchecked P0
 ticket unless the user changes priority. Mark a ticket complete only after its
 acceptance checks pass, and update the README when commands or behavior change.
 
-Local development currently uses `docker-compose.yml`. Ticket `JT-006` owns its
-rename to `dev.docker-compose.yaml`; update every documented command in the same
-change so there is no ambiguous default stack.
+Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
+`docker compose -f dev.docker-compose.yaml ...` so development and production
+commands cannot be confused.

@@ -51,16 +51,16 @@ Copy-Item .env.example .env
 On macOS or Linux, use `cp .env.example .env`. Start the stack:
 
 ```bash
-docker compose up --build
+docker compose -f dev.docker-compose.yaml up --build
 ```
 
 Open [the app](http://localhost:3000) or [the API docs](http://localhost:8000/docs). Both ports bind to localhost. Change `FRONTEND_PORT` or `BACKEND_PORT` in `.env` if needed. Demo data persists in the `job_talk_data` volume.
 
 ```bash
-docker compose down
+docker compose -f dev.docker-compose.yaml down
 ```
 
-Run `docker compose down -v` only when you intend to delete the demo database. The sample PostgreSQL credentials are for local development. Keep `.env` out of Git.
+Run `docker compose -f dev.docker-compose.yaml down -v` only when you intend to delete the demo database. The sample PostgreSQL credentials are for local development. Keep `.env` out of Git.
 
 ## Run without Docker
 

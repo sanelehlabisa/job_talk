@@ -63,11 +63,15 @@ session lifecycle and cross-account boundaries (2026-09-28).
 
 ### JT-006 - Mark the current Compose stack as development
 
-- [ ] Rename `docker-compose.yml` to `dev.docker-compose.yaml`.
-- [ ] Keep development host ports bound to `127.0.0.1` by default.
-- [ ] Update README commands and any scripts to use `docker compose -f
+- [x] Rename `docker-compose.yml` to `dev.docker-compose.yaml`.
+- [x] Keep development host ports bound to `127.0.0.1` by default.
+- [x] Update README commands and any scripts to use `docker compose -f
   dev.docker-compose.yaml ...` explicitly.
-- [ ] Confirm the clean development stack starts, becomes healthy, and retains data.
+- [x] Confirm the clean development stack starts, becomes healthy, and retains data.
+
+**Status:** Complete. Compose configuration validated and the renamed stack
+restarted with healthy services while retaining the existing PostgreSQL volume
+(2026-09-29).
 
 ### JT-007 - Production environment and secret contract
 
