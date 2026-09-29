@@ -1,5 +1,5 @@
 import hashlib
-import os
+import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -11,11 +11,12 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import get_db
+from .settings import get_settings
 
 
 password_hash = PasswordHash.recommended()
 bearer_scheme = HTTPBearer(auto_error=False)
-SESSION_HOURS = int(os.getenv("AUTH_SESSION_HOURS", "24"))
+settings = get_settings()
 
 
 def hash_password(password: str) -> str:
@@ -27,12 +28,16 @@ def verify_password(password: str, encoded_hash: str) -> bool:
 
 
 def token_digest(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return hmac.new(
+        settings.session_token_pepper.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def issue_session(db: Session, user: models.User) -> schemas.AuthResponse:
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(hours=SESSION_HOURS)
+    expires_at = now + timedelta(hours=settings.auth_session_hours)
     token = secrets.token_urlsafe(32)
     db.execute(
         delete(models.AuthSession).where(

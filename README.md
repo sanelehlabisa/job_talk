@@ -54,7 +54,11 @@ On macOS or Linux, use `cp .env.example .env`. Start the stack:
 docker compose -f dev.docker-compose.yaml up --build
 ```
 
-Open [the app](http://localhost:3000) or [the API docs](http://localhost:8000/docs). Both ports bind to localhost. Change `FRONTEND_PORT` or `BACKEND_PORT` in `.env` if needed. Demo data persists in the `job_talk_data` volume.
+Open [the app](http://localhost:3000), [the API docs](http://localhost:8000/docs),
+or [the Mailpit inbox](http://localhost:8025). All published development ports
+bind to localhost. Change `FRONTEND_PORT`, `BACKEND_PORT`, or
+`MAILPIT_UI_PORT` in `.env` if needed. Demo data persists in the
+`job_talk_data` volume; local email is disposable.
 
 ```bash
 docker compose -f dev.docker-compose.yaml down
@@ -97,6 +101,46 @@ Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api`
 The earlier software example also works: publish a junior Python developer role requiring FastAPI and Docker, then describe a matching candidate.
 
 Sessions last 24 hours by default and are kept in browser session storage, so closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in `.env` to change the server-side expiry. Accounts created by the older email-only build that already contain chats cannot be claimed through registration; use a new email for local testing or intentionally reset the local Docker volume.
+
+The current email/password screen is temporary. `JT-018` replaces it with a
+passwordless recruiter flow: a recruiter requests access, the project owner
+approves the email, and the recruiter signs in with a short-lived code delivered
+to that address. Candidates do not log in. Local development will use a seeded
+approved recruiter and a local email inbox, so testing stays fast while following
+the production authentication path. The development stack now runs Mailpit as
+that inbox. FastAPI sends to `mailpit:1025` inside Compose and messages appear
+immediately at `http://localhost:8025`; no external SMTP account is needed locally.
+
+## Production environment contract
+
+Copy `.env.production.example` to an ignored VM environment file and replace
+every placeholder. FastAPI refuses to start in `APP_ENV=production` unless:
+
+- `PUBLIC_ORIGIN` is the HTTPS root of `APP_DOMAIN`;
+- `ALLOWED_HOSTS` contains the configured subdomain;
+- `CORS_ORIGINS` contains the public origin;
+- `TLS_EMAIL` is a monitored, non-placeholder address;
+- SMTP host, credentials, and sender address are non-placeholder values;
+- PostgreSQL uses a non-placeholder password of at least 16 characters; and
+- `SESSION_TOKEN_PEPPER` is a non-placeholder value of at least 32 characters.
+
+The session pepper is used only by FastAPI to hash opaque session tokens before
+database storage. Keep it out of frontend build arguments and browser code.
+
+### Rotate secrets
+
+Rotating `SESSION_TOKEN_PEPPER` invalidates existing sessions. Replace it in the
+VM environment file and recreate only the backend service; users then sign in
+again. The frontend image does not need rebuilding.
+
+To rotate the PostgreSQL password, first take a backup, change the `job_talk`
+database role password in PostgreSQL, update both `POSTGRES_PASSWORD` and the
+URL-encoded password in `DATABASE_URL`, then recreate the backend service. The
+production Compose and deployment tickets will provide the exact VM commands.
+
+To rotate the SMTP password, replace `SMTP_PASSWORD` in the VM environment file
+and recreate the backend service. Existing recruiter sessions remain valid;
+new sign-in codes use the updated SMTP credentials.
 
 ## Tests
 

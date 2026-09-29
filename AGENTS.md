@@ -8,10 +8,10 @@ will recruiters find conversational applications and structured candidate
 comparison useful?
 
 Optimize for real usage and feedback. Keep the experiment free. Recruiters are
-manually approved and use authenticated accounts. Candidates open a published
-job and apply without creating an account; the backend must still issue an
-opaque guest token scoped to that application. Do not weaken ownership checks
-to create an accountless flow.
+manually approved, then sign in with a short-lived code sent to their approved
+email address. Candidates open a published job and apply without creating an
+account; the backend must still issue an opaque guest token scoped to that
+application. Do not weaken ownership checks to create an accountless flow.
 
 ## Demo contract
 
@@ -46,6 +46,11 @@ The primary experiment must support this sequence:
   HTTPS reverse proxy may publish host ports.
 - Enforce recruiter authentication and ownership. Scope every guest candidate
   request to one unguessable, expiring application token.
+- Recruiter authentication uses emailed, short-lived, single-use codes after
+  manual approval. Do not add passwords, Keycloak, open recruiter registration,
+  or a production authentication bypass.
+- Keep local sign-in fast with a seeded approved recruiter and a local email
+  inbox that exercises the same code path used in production.
 - Keep secrets in ignored environment files or the VM secret store.
 - Add focused tests for backend behavior and run the frontend production build
   for UI changes.

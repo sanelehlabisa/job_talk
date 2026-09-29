@@ -14,17 +14,44 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit@sha256:ed9b00c609e77e99c79b93f1178255ebc271868920f2c69a8d166bd5634ed10d
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build: ./backend
     init: true
     restart: unless-stopped
     environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-login@example.com}
+      RECRUITER_CODE_TTL_MINUTES: ${RECRUITER_CODE_TTL_MINUTES:-10}
+      RECRUITER_CODE_MAX_ATTEMPTS: ${RECRUITER_CODE_MAX_ATTEMPTS:-5}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_talk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
+      SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:-dev-only-session-token-pepper}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]

@@ -57,9 +57,11 @@ then an evidence-based decision about further investment.
 **Done when:** knowing another person's email or record ID cannot expose or alter
 their data.
 
-**Status:** Complete. Accounts use Argon2 password hashes and opaque, expiring
-database sessions. Thirteen backend tests and a live PostgreSQL smoke test verify
-session lifecycle and cross-account boundaries (2026-09-28).
+**Status:** Complete as the ownership and session foundation. Accounts currently
+use Argon2 password hashes and opaque, expiring database sessions. `JT-018` will
+replace password entry with approved-email codes while preserving the resource
+boundaries. Thirteen backend tests and a live PostgreSQL smoke test verify session
+lifecycle and cross-account boundaries (2026-09-28).
 
 ### JT-006 - Mark the current Compose stack as development
 
@@ -75,13 +77,19 @@ restarted with healthy services while retaining the existing PostgreSQL volume
 
 ### JT-007 - Production environment and secret contract
 
-- [ ] Add a documented production environment template with placeholder values.
-- [ ] Configure the Job Talk subdomain, public HTTPS origin, certificate email,
+- [x] Add a documented production environment template with placeholder values.
+- [x] Configure the Job Talk subdomain, public HTTPS origin, certificate email,
   trusted proxy addresses, and allowed hosts through production environment values.
-- [ ] Require strong database and authentication secrets at startup.
-- [ ] Keep environment files, certificates, private keys, and backups out of Git.
-- [ ] Validate the public origin, trusted hosts, and subdomain configuration.
-- [ ] Document secret rotation without rebuilding frontend assets.
+- [x] Require strong database and authentication secrets at startup.
+- [x] Keep environment files, certificates, private keys, and backups out of Git.
+- [x] Validate the public origin, trusted hosts, and subdomain configuration.
+- [x] Document secret rotation without rebuilding frontend assets.
+
+**Status:** Complete. FastAPI now loads one validated settings contract, rejects
+unsafe production origins, database, session, and email sender settings, hashes
+session tokens with a server-side pepper, and applies configured trusted hosts
+and CORS origins. Production and development templates plus rotation instructions
+are documented (2026-09-29).
 
 ### JT-008 - Database migrations, backups, and recovery
 
@@ -130,16 +138,31 @@ restarted with healthy services while retaining the existing PostgreSQL volume
 
 ## P0-B - Build the recruiter experiment
 
-### JT-018 - Manual recruiter access
+### JT-018 - Manual recruiter approval and email-code sign-in
 
-- [ ] Disable open recruiter registration in the deployed experiment.
-- [ ] Add an idempotent command for creating or approving a recruiter account.
-- [ ] Keep recruiter login, logout, session expiry, and job ownership checks.
-- [ ] Show a clear message explaining that recruiter access is currently by invite.
-- [ ] Add tests proving an unapproved account cannot create jobs or view candidates.
+- [ ] Let a recruiter submit an email access request without choosing a password.
+- [ ] Add an idempotent owner command to list, approve, or reject access requests;
+  this approval is the only routine manual account action.
+- [ ] Return the same request-code response for unknown, pending, rejected, and
+  approved addresses so the endpoint does not reveal approved recruiter emails.
+- [ ] For an approved recruiter, email a random short-lived code and store only its
+  hash, expiry, attempt count, and consumed state.
+- [ ] Make each code single use, limit verification attempts, rate limit requests,
+  and invalidate an older code when a new one is issued.
+- [ ] Issue the existing opaque recruiter session after successful verification;
+  keep logout, session expiry, recruiter ownership, and job ownership checks.
+- [ ] Remove password registration, password hashes, and password fields from the
+  recruiter API and UI after the migration is in place.
+- [x] Add a pinned local Mailpit SMTP inbox to the development stack.
+- [ ] Add a seeded approved recruiter so local testing uses the real email-code
+  path without an authentication bypass.
+- [ ] Show clear pending-approval, code-sent, invalid-code, and expired-code states.
+- [ ] Test approval boundaries, address enumeration responses, expiry, reuse,
+  attempt limits, replacement codes, and cross-recruiter access.
 
-**Done when:** only a manually approved recruiter can enter the recruiter flow,
-and approval requires no database editing by hand.
+**Done when:** a recruiter can request access, the owner can approve the request
+without editing the database, and only that approved email can complete the same
+email-code flow in development and production. Candidates never see a login flow.
 
 ### JT-019 - Seed three to five realistic jobs
 
@@ -282,4 +305,5 @@ compared, returned, and reported the workflow useful.
 - [ ] Advanced recruiter dashboards beyond job and candidate comparison.
 - [ ] Complex job discovery, search, recommendations, or external job feeds.
 - [ ] WhatsApp, voice notes, third-party HR integrations, and identity providers.
+- [ ] Keycloak or another external authentication platform.
 - [ ] Branding work beyond a clear logo and usable mobile interface.
