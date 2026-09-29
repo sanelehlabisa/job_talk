@@ -48,7 +48,11 @@ def get_chat_or_404(db: Session, chat_id: int, user_id: int) -> models.Chat:
     chat = db.scalar(
         select(models.Chat)
         .where(models.Chat.id == chat_id, models.Chat.user_id == user_id)
-        .options(selectinload(models.Chat.messages), selectinload(models.Chat.job_post))
+        .options(
+            selectinload(models.Chat.messages),
+            selectinload(models.Chat.job_post),
+            selectinload(models.Chat.target_job),
+        )
     )
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -71,8 +75,40 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/public/jobs", response_model=list[schemas.JobOut])
+def list_public_jobs(db: Session = Depends(get_db)):
+    return db.scalars(
+        select(models.JobPost)
+        .where(models.JobPost.published.is_(True))
+        .order_by(models.JobPost.created_at, models.JobPost.id)
+    ).all()
+
+
+@app.get("/api/public/jobs/{job_id}", response_model=schemas.JobOut)
+def get_public_job(job_id: int, db: Session = Depends(get_db)):
+    job = db.scalar(
+        select(models.JobPost).where(
+            models.JobPost.id == job_id,
+            models.JobPost.published.is_(True),
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Published job not found")
+    return job
+
+
 @app.post("/api/auth/guest", response_model=schemas.AuthResponse, status_code=status.HTTP_201_CREATED)
-def start_guest_session(db: Session = Depends(get_db)):
+def start_guest_session(
+    payload: schemas.GuestSessionRequest, db: Session = Depends(get_db)
+):
+    job = db.scalar(
+        select(models.JobPost).where(
+            models.JobPost.id == payload.job_id,
+            models.JobPost.published.is_(True),
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Published job not found")
     guest_id = secrets.token_urlsafe(24)
     user = models.User(
         email=f"guest-{guest_id}@guest.invalid",
@@ -81,14 +117,17 @@ def start_guest_session(db: Session = Depends(get_db)):
     )
     db.add(user)
     db.flush()
-    chat = models.Chat(user_id=user.id, intent="candidate")
+    chat = models.Chat(user_id=user.id, intent="candidate", target_job_id=job.id)
     db.add(chat)
     db.flush()
     db.add(
         models.Message(
             chat_id=chat.id,
             sender="assistant",
-            content="Tell me about the work you can do and the experience you have.",
+            content=(
+                f"You're applying for {job.title}. Tell me about the work you can do "
+                "and the experience you have that fits this role."
+            ),
         )
     )
     return issue_session(db, user)
@@ -295,7 +334,16 @@ def send_message(
         reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
     else:
         chat.profile = update_candidate_profile(chat.profile, text)
-        published_jobs = db.scalars(select(models.JobPost).where(models.JobPost.published.is_(True))).all()
+        published_jobs = db.scalars(
+            select(models.JobPost).where(
+                models.JobPost.published.is_(True),
+                *(
+                    (models.JobPost.id == chat.target_job_id,)
+                    if chat.target_job_id is not None
+                    else ()
+                ),
+            )
+        ).all()
         reply = candidate_reply(chat.profile, bool(published_jobs and len(chat.profile) >= 2))
 
     reply = generate_reply(chat.id, chat.intent, chat.profile, text, reply, history)
@@ -307,7 +355,16 @@ def send_message(
 
     recommendations = []
     if chat.intent == "candidate" and len(chat.profile) >= 2:
-        jobs = db.scalars(select(models.JobPost).where(models.JobPost.published.is_(True))).all()
+        jobs = db.scalars(
+            select(models.JobPost).where(
+                models.JobPost.published.is_(True),
+                *(
+                    (models.JobPost.id == chat.target_job_id,)
+                    if chat.target_job_id is not None
+                    else ()
+                ),
+            )
+        ).all()
         for job, result in rank_jobs(chat.profile, jobs):
             recommendations.append(
                 schemas.RecommendationOut(
@@ -371,7 +428,16 @@ def get_recommendations(
     chat = get_chat_or_404(db, chat_id, current_user.id)
     if chat.intent != "candidate":
         return []
-    jobs = db.scalars(select(models.JobPost).where(models.JobPost.published.is_(True))).all()
+    jobs = db.scalars(
+        select(models.JobPost).where(
+            models.JobPost.published.is_(True),
+            *(
+                (models.JobPost.id == chat.target_job_id,)
+                if chat.target_job_id is not None
+                else ()
+            ),
+        )
+    ).all()
     return [
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
@@ -405,6 +471,8 @@ def apply(
         raise HTTPException(status_code=404, detail="Candidate chat not found")
     if chat.intent != "candidate":
         raise HTTPException(status_code=400, detail="A candidate chat is required")
+    if chat.target_job_id is not None and chat.target_job_id != job.id:
+        raise HTTPException(status_code=403, detail="This guest session belongs to another job")
     result = match_profiles(chat.profile, job.target_profile)
     application = models.Application(
         candidate_user_id=chat.user_id,

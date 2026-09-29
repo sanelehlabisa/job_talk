@@ -62,6 +62,14 @@ button { cursor: pointer; }
 .entry-choice small { color: var(--muted); font-size: 10px; margin-top: 4px; text-align: left; }
 .login-card .code-input { font-size: 24px; letter-spacing: 8px; text-align: center; font-variant-numeric: tabular-nums; }
 .mailbox-link { display: block; color: var(--green); font-size: 11px; margin-top: 11px; text-align: center; }
+.entry-jobs { display: grid; gap: 8px; max-height: 330px; overflow-y: auto; }
+.entry-job { width: 100%; border: 1px solid #d5ddd3; border-radius: 12px; background: white; color: var(--green); padding: 12px 13px; display: flex; align-items: center; gap: 10px; text-align: left; }
+.entry-job:hover { background: #f4f8f2; border-color: #98ae9b; }
+.entry-job-copy { flex: 1; }
+.entry-job strong, .entry-job small { display: block; }
+.entry-job strong { color: var(--ink); font-size: 12px; }
+.entry-job small { color: var(--muted); font-size: 9px; line-height: 1.4; margin-top: 4px; text-align: left; }
+.entry-job .entry-job-action { color: var(--green); display: block; font-size: 9px; font-weight: 700; margin-top: 7px; }
 .error { color: #b64537; font-size: 12px; margin-top: 8px; }
 .login-page footer { color: #87928b; font-size: 11px; position: relative; z-index: 1; }
 .brand-credit { display: flex; align-items: center; gap: 7px; }

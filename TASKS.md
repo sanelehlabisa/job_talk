@@ -175,25 +175,30 @@ email-code flow in development and production. Candidates never see a login flow
 
 ### JT-019 - Seed three to five realistic jobs
 
-- [ ] Define 3-5 realistic trade or entry level jobs with title, location,
+- [x] Define 3-5 realistic trade or entry level jobs with title, location,
   description, requirements, and criterion weights.
-- [ ] Add an idempotent seed command owned by the approved demo recruiter.
-- [ ] Publish a read-only public job list and job-detail endpoint.
-- [ ] Add simple mobile job cards with one clear `Apply through chat` action.
-- [ ] Keep search, filters, recommendations, and external job feeds out of scope.
+- [x] Add an idempotent seed command owned by the approved demo recruiter.
+- [x] Publish a read-only public job list and job-detail endpoint.
+- [x] Add simple mobile job cards with one clear `Apply through chat` action.
+- [x] Keep search, filters, recommendations, and external job feeds out of scope.
 
 **Done when:** a new environment can be seeded once and a candidate can open a
 stable public URL for every job.
+
+**Status:** Complete. Development startup publishes three deterministic roles
+for the approved demo recruiter. The public API, `/?job=<id>` links, and seeker
+job picker expose the same jobs, and repeated seed runs create no duplicates
+(2026-09-29).
 
 ### JT-020 - Scoped guest candidate application
 
 - [x] Let a job seeker start one private candidate conversation without an account,
   email address, or password.
-- [ ] Start an application from a published job without account registration.
-- [ ] Issue a high-entropy, expiring guest token scoped to one application and job.
-- [ ] Store only the guest token in browser session storage; store only its hash
+- [x] Start an application from a published job without account registration.
+- [x] Issue a high-entropy, expiring guest token scoped to one candidate chat and job.
+- [x] Store only the guest token in browser session storage; store only its hash
   in the database.
-- [ ] Reject reads or writes to another guest application, recruiter chat, or job.
+- [x] Reject reads or writes to another guest application, recruiter chat, or job.
 - [ ] Collect candidate name and preferred contact only at review or submission.
 - [ ] Explain what will be shared with the recruiter and capture explicit consent.
 - [ ] Add expiry, replay, ownership, and cross-application boundary tests.

@@ -20,6 +20,10 @@ class MessageResponseStatus(BaseModel):
     message: str
 
 
+class GuestSessionRequest(BaseModel):
+    job_id: int = Field(gt=0)
+
+
 class UserOut(ORMModel):
     id: int
     email: str
@@ -69,6 +73,7 @@ class ChatSummary(ORMModel):
     id: int
     intent: str | None
     status: str
+    target_job_id: int | None = None
     created_at: datetime
 
 
@@ -76,6 +81,7 @@ class ChatOut(ChatSummary):
     profile: dict
     messages: list[MessageOut]
     job_post: JobOut | None = None
+    target_job: JobOut | None = None
     can_publish: bool = False
 
 

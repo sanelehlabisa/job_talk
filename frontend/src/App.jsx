@@ -30,14 +30,52 @@ function Entry({ onAuthenticated }) {
   const [code, setCode] = useState("");
   const [mode, setMode] = useState("choose");
   const [notice, setNotice] = useState("");
+  const [jobs, setJobs] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function continueAsSeeker() {
+  useEffect(() => {
+    const jobId = Number(new URLSearchParams(window.location.search).get("job"));
+    if (!Number.isInteger(jobId) || jobId < 1) return undefined;
+
+    let cancelled = false;
+    setLoading(true);
+    api.publicJob(jobId)
+      .then((job) => {
+        if (!cancelled) {
+          setJobs([job]);
+          setMode("jobs");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  async function showJobs() {
     setLoading(true);
     setError("");
     try {
-      onAuthenticated(await api.startGuest());
+      const availableJobs = await api.publicJobs();
+      setJobs(availableJobs);
+      setMode("jobs");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function continueAsSeeker(jobId) {
+    setLoading(true);
+    setError("");
+    try {
+      onAuthenticated(await api.startGuest(jobId));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -93,7 +131,7 @@ function Entry({ onAuthenticated }) {
             <h2>How are you using Job Talk?</h2>
             <p>Job seekers can begin immediately. Recruiters use an approved email address.</p>
             <div className="entry-actions">
-              <button className="entry-choice" type="button" disabled={loading} onClick={continueAsSeeker}>
+              <button className="entry-choice" type="button" disabled={loading} onClick={showJobs}>
                 <UserRoundSearch size={22} /><span><strong>I'm looking for work</strong><small>No account or password</small></span><ChevronRight size={18} />
               </button>
               <button className="entry-choice" type="button" onClick={() => setMode("recruiter")}>
@@ -101,6 +139,25 @@ function Entry({ onAuthenticated }) {
               </button>
             </div>
             {error && <div className="error">{error}</div>}
+          </>}
+          {mode === "jobs" && <>
+            <h2>Choose a role</h2>
+            <p>Select a job to start a private, job-specific conversation.</p>
+            <div className="entry-jobs">
+              {jobs.map((job) => (
+                <button className="entry-job" type="button" disabled={loading} key={job.id} onClick={() => continueAsSeeker(job.id)}>
+                  <span className="entry-job-copy">
+                    <strong>{job.title}</strong>
+                    <small>{job.description}</small>
+                    <span className="entry-job-action">Apply through chat</span>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+              {!jobs.length && <div className="error">No published jobs are available yet.</div>}
+            </div>
+            {error && <div className="error">{error}</div>}
+            <button className="auth-toggle" type="button" onClick={() => { setMode("choose"); setError(""); }}>Back</button>
           </>}
           {mode === "recruiter" && <form onSubmit={requestCode}>
             <h2>Recruiter access</h2>

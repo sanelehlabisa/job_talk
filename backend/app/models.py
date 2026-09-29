@@ -56,6 +56,15 @@ class Chat(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    target_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "job_posts.id",
+            name="fk_chats_target_job_id_job_posts",
+            use_alter=True,
+        ),
+        nullable=True,
+        index=True,
+    )
     intent: Mapped[str | None] = mapped_column(String(20), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="active")
     profile: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -64,7 +73,10 @@ class Chat(Base):
     messages: Mapped[list["Message"]] = relationship(
         back_populates="chat", cascade="all, delete-orphan", order_by="Message.created_at"
     )
-    job_post: Mapped["JobPost | None"] = relationship(back_populates="chat", uselist=False)
+    job_post: Mapped["JobPost | None"] = relationship(
+        back_populates="chat", uselist=False, foreign_keys="JobPost.chat_id"
+    )
+    target_job: Mapped["JobPost | None"] = relationship(foreign_keys=[target_job_id])
 
 
 class Message(Base):
@@ -89,7 +101,7 @@ class JobPost(Base):
     target_profile: Mapped[dict] = mapped_column(JSON, default=dict)
     published: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    chat: Mapped[Chat] = relationship(back_populates="job_post")
+    chat: Mapped[Chat] = relationship(back_populates="job_post", foreign_keys=[chat_id])
 
 
 class Application(Base):

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     recruiter_code_ttl_minutes: int = Field(default=10, ge=5, le=30)
     recruiter_code_max_attempts: int = Field(default=5, ge=3, le=10)
     demo_recruiter_email: EmailStr | None = None
+    seed_demo_jobs: bool = False
 
     database_url: str = "sqlite:///./job_talk.db"
     postgres_password: str | None = None
@@ -87,8 +88,8 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_PASSWORD must be a strong non-placeholder value")
         if self.email_from is None or str(self.email_from).lower().endswith("@example.com"):
             raise ValueError("EMAIL_FROM must be a real sender address in production")
-        if self.demo_recruiter_email is not None:
-            raise ValueError("DEMO_RECRUITER_EMAIL must not be configured in production")
+        if self.demo_recruiter_email is not None or self.seed_demo_jobs:
+            raise ValueError("Demo recruiter and job seeding must be disabled in production")
 
         if is_weak_secret(self.session_token_pepper, 32):
             raise ValueError("SESSION_TOKEN_PEPPER must be a strong value of at least 32 characters")

@@ -37,7 +37,7 @@ def test_migrations_create_fresh_schema(monkeypatch, tmp_path):
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
     assert EXPECTED_TABLES <= set(inspect(engine).get_table_names())
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_02"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_03"
     engine.dispose()
 
 
@@ -56,5 +56,5 @@ def test_initial_migration_adopts_existing_schema(monkeypatch, tmp_path):
 
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_02"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_03"
     engine.dispose()

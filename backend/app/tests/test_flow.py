@@ -34,6 +34,30 @@ def authenticate(email, role):
     return payload["user"], {"Authorization": f"Bearer {payload['access_token']}"}
 
 
+def create_published_job(email="seed-owner@example.com", title="Test Welder"):
+    with SessionLocal() as db:
+        user = models.User(email=email, role="recruiter", approval_status="approved")
+        db.add(user)
+        db.flush()
+        chat = models.Chat(user_id=user.id, intent="employer", status="published")
+        db.add(chat)
+        db.flush()
+        job = models.JobPost(
+            chat_id=chat.id,
+            user_id=user.id,
+            title=title,
+            description="A published test role.",
+            target_profile={
+                "welding": {"weight": 0.9, "description": "Welding experience is required."}
+            },
+            published=True,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        return job.id
+
+
 def test_end_to_end_employer_to_application():
     with TestClient(app) as client:
         employer, employer_headers = authenticate("employer@example.com", "recruiter")
@@ -48,7 +72,7 @@ def test_end_to_end_employer_to_application():
         job = response["chat"]["job_post"]
         assert client.post(f"/api/jobs/{job['id']}/publish", headers=employer_headers).status_code == 200
 
-        guest = client.post("/api/auth/guest").json()
+        guest = client.post("/api/auth/guest", json={"job_id": job["id"]}).json()
         candidate_headers = {"Authorization": f"Bearer {guest['access_token']}"}
         candidate_chat = client.get("/api/chats", headers=candidate_headers).json()[0]
         response = client.post(
@@ -68,20 +92,39 @@ def test_end_to_end_employer_to_application():
 
 
 def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
+    job_id = create_published_job()
     with TestClient(app) as client:
         assert client.get("/api/chats").status_code == 401
         assert client.get("/api/jobs").status_code == 401
         assert client.get("/api/applications").status_code == 401
 
-        guest = client.post("/api/auth/guest")
+        public_jobs = client.get("/api/public/jobs")
+        assert public_jobs.status_code == 200
+        assert public_jobs.json()[0]["id"] == job_id
+        assert client.get(f"/api/public/jobs/{job_id}").status_code == 200
+
+        guest = client.post("/api/auth/guest", json={"job_id": job_id})
         assert guest.status_code == 201
         payload = guest.json()
         assert payload["user"]["role"] == "candidate"
         headers = {"Authorization": f"Bearer {payload['access_token']}"}
+        with SessionLocal() as db:
+            session = db.scalar(select(models.AuthSession))
+            assert session.token_hash != payload["access_token"]
+            assert len(session.token_hash) == 64
         chats = client.get("/api/chats", headers=headers).json()
         assert len(chats) == 1
         assert chats[0]["intent"] == "candidate"
+        assert chats[0]["target_job_id"] == job_id
         assert client.post("/api/chats", headers=headers).status_code == 409
+        other_job_id = create_published_job(
+            email="other-owner@example.com", title="Other published role"
+        )
+        assert client.post(
+            f"/api/jobs/{other_job_id}/apply",
+            json={"candidate_chat_id": chats[0]["id"]},
+            headers=headers,
+        ).status_code == 403
         assert client.post("/api/auth/logout", headers=headers).status_code == 204
         assert client.get("/api/auth/me", headers=headers).status_code == 401
         assert client.post("/api/auth/register", json={}).status_code == 404

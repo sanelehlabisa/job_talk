@@ -32,7 +32,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  startGuest: () => request("/auth/guest", { method: "POST" }),
+  publicJobs: () => request("/public/jobs"),
+  publicJob: (jobId) => request(`/public/jobs/${jobId}`),
+  startGuest: (jobId) =>
+    request("/auth/guest", { method: "POST", body: JSON.stringify({ job_id: jobId }) }),
   requestRecruiterCode: (email) =>
     request("/auth/recruiter/request-code", {
       method: "POST",

@@ -25,6 +25,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 
 - Passwordless entry: job seekers start a private guest conversation immediately,
   while approved recruiters sign in with a short-lived email code.
+- Three realistic demo jobs, public links and a job picker, and a guest
+  conversation anchored to the selected role.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
@@ -99,11 +101,11 @@ Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api`
 
 1. Select **I'm hiring** and enter `recruiter@example.com`.
 2. Open [Mailpit](http://localhost:8025), copy the six-digit code, and finish signing in.
-3. Start a hiring conversation and describe: "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."
-4. Publish the job and leave the recruiter session.
-5. Select **I'm looking for work**. No email, account, or password is required.
-6. Say: "I have three years of welding and forklift experience in Cape Town."
-7. Review the match and apply.
+3. Confirm the seeded **Welder and Forklift Operator** job is available, then leave the recruiter session.
+4. Select **I'm looking for work** and choose that role. No email, account, or password is required.
+   You can also open a job directly at `http://localhost:3000/?job=<job-id>`.
+5. Say: "I have three years of welding and forklift experience in Cape Town."
+6. Review the match and apply.
 
 The earlier software example also works: publish a junior Python developer role requiring FastAPI and Docker, then describe a matching candidate.
 
@@ -111,15 +113,20 @@ Sessions last 24 hours by default and are kept in browser session storage, so
 closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in
 `.env` to change the server-side expiry.
 
-The development stack seeds `DEMO_RECRUITER_EMAIL` as an approved recruiter and
-runs Mailpit as its inbox. FastAPI sends to `mailpit:1025` inside Compose and
-messages appear immediately at `http://localhost:8025`; no external SMTP account
-is needed locally. To review or approve another recruiter request:
+The development stack seeds `DEMO_RECRUITER_EMAIL` as an approved recruiter,
+publishes three demo jobs, and runs Mailpit as its inbox. FastAPI sends to
+`mailpit:1025` inside Compose and messages appear immediately at
+`http://localhost:8025`; no external SMTP account is needed locally. To review or
+approve another recruiter request:
 
 ```bash
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters list
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve recruiter@company.com
 ```
+
+Re-run `python -m app.seed_jobs` inside the backend container whenever you want
+to restore the three demo job definitions. The command updates them without
+creating duplicates.
 
 ## Production environment contract
 
