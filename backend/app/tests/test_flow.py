@@ -1,11 +1,14 @@
 import os
 from decimal import Decimal, ROUND_HALF_UP
 
+from sqlalchemy import select
+
 os.environ["DATABASE_URL"] = "sqlite:///./test_job_talk.db"
 
 from fastapi.testclient import TestClient
 
 from app import models
+from app.auth import issue_session
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.services.ai import _preview, generate_reply
@@ -18,21 +21,22 @@ def setup_function():
     Base.metadata.create_all(bind=engine)
 
 
-TEST_PASSWORD = "correct-horse-battery-staple"
-
-
-def register(client, email):
-    response = client.post(
-        "/api/auth/register", json={"email": email, "password": TEST_PASSWORD}
-    )
-    assert response.status_code == 201
-    payload = response.json()
+def authenticate(email, role):
+    with SessionLocal() as db:
+        user = models.User(
+            email=email,
+            role=role,
+            approval_status="approved" if role == "recruiter" else "not_required",
+        )
+        db.add(user)
+        db.flush()
+        payload = issue_session(db, user).model_dump(mode="json")
     return payload["user"], {"Authorization": f"Bearer {payload['access_token']}"}
 
 
 def test_end_to_end_employer_to_application():
     with TestClient(app) as client:
-        employer, employer_headers = register(client, "employer@example.com")
+        employer, employer_headers = authenticate("employer@example.com", "recruiter")
         employer_chat = client.post("/api/chats", headers=employer_headers).json()
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
@@ -44,8 +48,9 @@ def test_end_to_end_employer_to_application():
         job = response["chat"]["job_post"]
         assert client.post(f"/api/jobs/{job['id']}/publish", headers=employer_headers).status_code == 200
 
-        candidate, candidate_headers = register(client, "candidate@example.com")
-        candidate_chat = client.post("/api/chats", headers=candidate_headers).json()
+        guest = client.post("/api/auth/guest").json()
+        candidate_headers = {"Authorization": f"Bearer {guest['access_token']}"}
+        candidate_chat = client.get("/api/chats", headers=candidate_headers).json()[0]
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
             json={"content": "I am looking for a job. I have three years of Python experience and built two FastAPI APIs."},
@@ -62,62 +67,83 @@ def test_end_to_end_employer_to_application():
         assert application.json()["match_result"]["overall_score"] > 0.5
 
 
-def test_registration_login_logout_and_protected_routes():
+def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
     with TestClient(app) as client:
         assert client.get("/api/chats").status_code == 401
         assert client.get("/api/jobs").status_code == 401
         assert client.get("/api/applications").status_code == 401
 
-        registration = client.post(
-            "/api/auth/register",
-            json={"email": "secure@example.com", "password": TEST_PASSWORD},
-        )
-        assert registration.status_code == 201
-        registered = registration.json()
-        assert registered["token_type"] == "bearer"
-        assert "password" not in registered["user"]
-        headers = {"Authorization": f"Bearer {registered['access_token']}"}
-        assert client.get("/api/auth/me", headers=headers).json()["email"] == "secure@example.com"
-
-        duplicate = client.post(
-            "/api/auth/register",
-            json={"email": "secure@example.com", "password": TEST_PASSWORD},
-        )
-        assert duplicate.status_code == 409
-        assert client.post(
-            "/api/auth/login",
-            json={"email": "secure@example.com", "password": "wrong-password-value"},
-        ).status_code == 401
-
-        login = client.post(
-            "/api/auth/login",
-            json={"email": "secure@example.com", "password": TEST_PASSWORD},
-        )
-        assert login.status_code == 200
-        login_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-        assert client.post("/api/auth/logout", headers=login_headers).status_code == 204
-        assert client.get("/api/auth/me", headers=login_headers).status_code == 401
+        guest = client.post("/api/auth/guest")
+        assert guest.status_code == 201
+        payload = guest.json()
+        assert payload["user"]["role"] == "candidate"
+        headers = {"Authorization": f"Bearer {payload['access_token']}"}
+        chats = client.get("/api/chats", headers=headers).json()
+        assert len(chats) == 1
+        assert chats[0]["intent"] == "candidate"
+        assert client.post("/api/chats", headers=headers).status_code == 409
+        assert client.post("/api/auth/logout", headers=headers).status_code == 204
+        assert client.get("/api/auth/me", headers=headers).status_code == 401
+        assert client.post("/api/auth/register", json={}).status_code == 404
+        assert client.post("/api/auth/login", json={}).status_code == 404
 
 
-def test_existing_account_with_chat_cannot_be_claimed_by_email():
+def test_approved_recruiter_signs_in_with_single_use_email_code(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(
+        "app.main.send_recruiter_login_code",
+        lambda recipient, code: sent.update(recipient=recipient, code=code),
+    )
     with SessionLocal() as db:
-        user = models.User(email="legacy@example.com")
-        db.add(user)
-        db.flush()
-        db.add(models.Chat(user_id=user.id))
+        db.add(
+            models.User(
+                email="recruiter@example.com",
+                role="recruiter",
+                approval_status="approved",
+            )
+        )
         db.commit()
 
     with TestClient(app) as client:
-        response = client.post(
-            "/api/auth/register",
-            json={"email": "legacy@example.com", "password": TEST_PASSWORD},
+        requested = client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "recruiter@example.com"},
         )
-        assert response.status_code == 409
+        assert requested.status_code == 202
+        assert sent["recipient"] == "recruiter@example.com"
+        verified = client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "recruiter@example.com", "code": sent["code"]},
+        )
+        assert verified.status_code == 200
+        assert verified.json()["user"]["role"] == "recruiter"
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "recruiter@example.com", "code": sent["code"]},
+        ).status_code == 401
+
+
+def test_unknown_recruiter_request_stays_pending_without_revealing_status(monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        "app.main.send_recruiter_login_code",
+        lambda recipient, code: sent.append((recipient, code)),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "pending@example.com"},
+        )
+        assert response.status_code == 202
+        assert sent == []
+    with SessionLocal() as db:
+        user = db.scalar(select(models.User).where(models.User.email == "pending@example.com"))
+        assert user.approval_status == "pending"
 
 
 def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
     with TestClient(app) as client:
-        employer, employer_headers = register(client, "owner@example.com")
+        employer, employer_headers = authenticate("owner@example.com", "recruiter")
         employer_chat = client.post("/api/chats", headers=employer_headers).json()
         employer_response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
@@ -126,7 +152,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         ).json()
         job_id = employer_response["chat"]["job_post"]["id"]
 
-        candidate, candidate_headers = register(client, "worker@example.com")
+        candidate, candidate_headers = authenticate("worker@example.com", "candidate")
         assert client.get(
             f"/api/chats?user_id={employer['id']}", headers=candidate_headers
         ).json() == []
@@ -143,7 +169,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         ).status_code == 404
         assert client.post(
             f"/api/jobs/{job_id}/publish", headers=candidate_headers
-        ).status_code == 404
+        ).status_code == 403
 
         assert client.post(
             f"/api/jobs/{job_id}/publish", headers=employer_headers
@@ -155,7 +181,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
             headers=candidate_headers,
         )
 
-        stranger, stranger_headers = register(client, "stranger@example.com")
+        stranger, stranger_headers = authenticate("stranger@example.com", "candidate")
         assert client.post(
             f"/api/jobs/{job_id}/apply",
             json={"candidate_chat_id": candidate_chat["id"]},
@@ -173,7 +199,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         ).json()) == 1
         assert client.get(
             f"/api/applications?job_id={job_id}", headers=stranger_headers
-        ).status_code == 404
+        ).status_code == 403
         assert client.get("/api/applications", headers=stranger_headers).json() == []
 
 
@@ -195,7 +221,7 @@ def test_matching_explains_location_and_experience_differences():
 
 def test_trade_worker_can_find_and_apply_to_trade_role():
     with TestClient(app) as client:
-        employer, employer_headers = register(client, "trade-employer@example.com")
+        employer, employer_headers = authenticate("trade-employer@example.com", "recruiter")
         employer_chat = client.post("/api/chats", headers=employer_headers).json()
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
@@ -208,7 +234,7 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         job_id = response["chat"]["job_post"]["id"]
         assert client.post(f"/api/jobs/{job_id}/publish", headers=employer_headers).status_code == 200
 
-        candidate, candidate_headers = register(client, "trade-candidate@example.com")
+        candidate, candidate_headers = authenticate("trade-candidate@example.com", "candidate")
         candidate_chat = client.post("/api/chats", headers=candidate_headers).json()
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
@@ -249,7 +275,7 @@ def test_send_replays_previous_chat_messages(monkeypatch):
 
     monkeypatch.setattr("app.main.generate_reply", fake_reply)
     with TestClient(app) as client:
-        user, headers = register(client, "history@example.com")
+        user, headers = authenticate("history@example.com", "candidate")
         chat = client.post("/api/chats", headers=headers).json()
         first_text = "I am looking for a job."
         first = client.post(
@@ -317,7 +343,7 @@ def test_mock_ai_keeps_short_messages_and_chat_context_separate():
 
 def test_whitespace_message_is_rejected_without_saving():
     with TestClient(app) as client:
-        user, headers = register(client, "blank@example.com")
+        user, headers = authenticate("blank@example.com", "candidate")
         chat = client.post("/api/chats", headers=headers).json()
         response = client.post(
             f"/api/chats/{chat['id']}/messages", json={"content": "   "}, headers=headers

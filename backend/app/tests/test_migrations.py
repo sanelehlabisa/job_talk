@@ -17,7 +17,7 @@ EXPECTED_TABLES = {
     "chats",
     "job_posts",
     "messages",
-    "user_credentials",
+    "recruiter_login_codes",
     "users",
 }
 
@@ -37,19 +37,24 @@ def test_migrations_create_fresh_schema(monkeypatch, tmp_path):
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
     assert EXPECTED_TABLES <= set(inspect(engine).get_table_names())
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_01"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_02"
     engine.dispose()
 
 
 def test_initial_migration_adopts_existing_schema(monkeypatch, tmp_path):
     database_path = tmp_path / "existing.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
+    get_settings.cache_clear()
+    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    command.upgrade(config, "20260929_01")
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
-    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.execute(text("DELETE FROM alembic_version"))
     engine.dispose()
-
-    upgrade_database(monkeypatch, database_path)
+    command.upgrade(config, "head")
+    get_settings.cache_clear()
 
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_01"
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "20260929_02"
     engine.dispose()

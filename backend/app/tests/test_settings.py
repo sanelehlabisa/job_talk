@@ -56,6 +56,7 @@ def test_valid_production_settings_are_parsed():
         ("tls_email", "ops@example.com"),
         ("smtp_password", "replace-with-a-strong-smtp-password"),
         ("email_from", "login@example.com"),
+        ("demo_recruiter_email", "recruiter@jobtalk.co.za"),
     ],
 )
 def test_unsafe_production_settings_are_rejected(name, value):

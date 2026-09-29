@@ -57,11 +57,11 @@ then an evidence-based decision about further investment.
 **Done when:** knowing another person's email or record ID cannot expose or alter
 their data.
 
-**Status:** Complete as the ownership and session foundation. Accounts currently
-use Argon2 password hashes and opaque, expiring database sessions. `JT-018` will
-replace password entry with approved-email codes while preserving the resource
-boundaries. Thirteen backend tests and a live PostgreSQL smoke test verify session
-lifecycle and cross-account boundaries (2026-09-28).
+**Status:** Complete as the ownership and session foundation. Opaque, expiring
+database sessions protect backend resources. The later passwordless entry work
+removed password credentials while preserving these resource boundaries. Backend
+tests and a live PostgreSQL smoke test verify session lifecycle and cross-account
+access (updated 2026-09-29).
 
 ### JT-006 - Mark the current Compose stack as development
 
@@ -148,23 +148,24 @@ counts across users, chats, messages, jobs, and applications (2026-09-29).
 
 ### JT-018 - Manual recruiter approval and email-code sign-in
 
-- [ ] Let a recruiter submit an email access request without choosing a password.
-- [ ] Add an idempotent owner command to list, approve, or reject access requests;
+- [x] Let a recruiter submit an email access request without choosing a password.
+- [x] Add an idempotent owner command to list, approve, or reject access requests;
   this approval is the only routine manual account action.
-- [ ] Return the same request-code response for unknown, pending, rejected, and
+- [x] Return the same request-code response for unknown, pending, rejected, and
   approved addresses so the endpoint does not reveal approved recruiter emails.
-- [ ] For an approved recruiter, email a random short-lived code and store only its
+- [x] For an approved recruiter, email a random short-lived code and store only its
   hash, expiry, attempt count, and consumed state.
-- [ ] Make each code single use, limit verification attempts, rate limit requests,
-  and invalidate an older code when a new one is issued.
-- [ ] Issue the existing opaque recruiter session after successful verification;
+- [x] Make each code single use, limit verification attempts, and invalidate an
+  older code when a new one is issued.
+- [ ] Rate limit recruiter code requests before public deployment.
+- [x] Issue the existing opaque recruiter session after successful verification;
   keep logout, session expiry, recruiter ownership, and job ownership checks.
-- [ ] Remove password registration, password hashes, and password fields from the
+- [x] Remove password registration, password hashes, and password fields from the
   recruiter API and UI after the migration is in place.
 - [x] Add a pinned local Mailpit SMTP inbox to the development stack.
-- [ ] Add a seeded approved recruiter so local testing uses the real email-code
+- [x] Add a seeded approved recruiter so local testing uses the real email-code
   path without an authentication bypass.
-- [ ] Show clear pending-approval, code-sent, invalid-code, and expired-code states.
+- [x] Show clear pending-approval, code-sent, invalid-code, and expired-code states.
 - [ ] Test approval boundaries, address enumeration responses, expiry, reuse,
   attempt limits, replacement codes, and cross-recruiter access.
 
@@ -186,6 +187,8 @@ stable public URL for every job.
 
 ### JT-020 - Scoped guest candidate application
 
+- [x] Let a job seeker start one private candidate conversation without an account,
+  email address, or password.
 - [ ] Start an application from a published job without account registration.
 - [ ] Issue a high-entropy, expiring guest token scoped to one application and job.
 - [ ] Store only the guest token in browser session storage; store only its hash

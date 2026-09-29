@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pwdlib import PasswordHash
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -14,17 +13,8 @@ from .database import get_db
 from .settings import get_settings
 
 
-password_hash = PasswordHash.recommended()
 bearer_scheme = HTTPBearer(auto_error=False)
 settings = get_settings()
-
-
-def hash_password(password: str) -> str:
-    return password_hash.hash(password)
-
-
-def verify_password(password: str, encoded_hash: str) -> bool:
-    return password_hash.verify(password, encoded_hash)
 
 
 def token_digest(token: str) -> str:
@@ -33,6 +23,14 @@ def token_digest(token: str) -> str:
         token.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def recruiter_code_digest(user_id: int, code: str) -> str:
+    return token_digest(f"recruiter-code:{user_id}:{code}")
+
+
+def generate_recruiter_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def issue_session(db: Session, user: models.User) -> schemas.AuthResponse:
@@ -88,4 +86,6 @@ def get_current_session(
 
 
 def get_current_user(session: models.AuthSession = Depends(get_current_session)) -> models.User:
+    if session.user.role == "recruiter" and session.user.approval_status != "approved":
+        raise _unauthorized()
     return session.user

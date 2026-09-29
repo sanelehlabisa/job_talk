@@ -23,7 +23,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 
 ## What works
 
-- Password protected accounts with expiring sessions and saved conversations. A user can start either a job search or hiring chat.
+- Passwordless entry: job seekers start a private guest conversation immediately,
+  while approved recruiters sign in with a short-lived email code.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
@@ -38,7 +39,11 @@ React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide th
 Browser :3000 -> Nginx frontend -> /api/ -> FastAPI :8000 -> PostgreSQL
 ```
 
-Accounts currently use Argon2 password hashes and opaque, expiring bearer sessions stored in the database. Chat, job-publishing, recommendation, and application endpoints derive the account from the session and enforce resource ownership. Versioned Alembic migrations run before FastAPI starts. Rate limiting, passwordless recruiter access, and email verification are still pending, so use fictional data and keep the current release private.
+Opaque, expiring bearer sessions are stored in the database. Chat, job-publishing,
+recommendation, and application endpoints derive the user and role from the
+session and enforce resource ownership. Versioned Alembic migrations run before
+FastAPI starts. Broad abuse rate limiting is still pending, so use fictional data
+and keep the current release private.
 
 ## Run with Docker
 
@@ -92,25 +97,29 @@ Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api`
 
 ## Five minute demo
 
-1. Create an account such as `employer-demo@example.com` with a password of at least 12 characters, then start a chat.
-2. Select **Hire a welder**, or say: "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."
-3. Publish the job.
-4. Log out, create a separate account such as `candidate-demo@example.com`, and start a chat.
-5. Select **Find trade work**, or say: "I am looking for a job. I have three years of welding and forklift experience in Cape Town."
-6. Review the match and apply.
+1. Select **I'm hiring** and enter `recruiter@example.com`.
+2. Open [Mailpit](http://localhost:8025), copy the six-digit code, and finish signing in.
+3. Start a hiring conversation and describe: "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."
+4. Publish the job and leave the recruiter session.
+5. Select **I'm looking for work**. No email, account, or password is required.
+6. Say: "I have three years of welding and forklift experience in Cape Town."
+7. Review the match and apply.
 
 The earlier software example also works: publish a junior Python developer role requiring FastAPI and Docker, then describe a matching candidate.
 
-Sessions last 24 hours by default and are kept in browser session storage, so closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in `.env` to change the server-side expiry. Accounts created by the older email-only build that already contain chats cannot be claimed through registration; use a new email for local testing or intentionally reset the local Docker volume.
+Sessions last 24 hours by default and are kept in browser session storage, so
+closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in
+`.env` to change the server-side expiry.
 
-The current email/password screen is temporary. `JT-018` replaces it with a
-passwordless recruiter flow: a recruiter requests access, the project owner
-approves the email, and the recruiter signs in with a short-lived code delivered
-to that address. Candidates do not log in. Local development will use a seeded
-approved recruiter and a local email inbox, so testing stays fast while following
-the production authentication path. The development stack now runs Mailpit as
-that inbox. FastAPI sends to `mailpit:1025` inside Compose and messages appear
-immediately at `http://localhost:8025`; no external SMTP account is needed locally.
+The development stack seeds `DEMO_RECRUITER_EMAIL` as an approved recruiter and
+runs Mailpit as its inbox. FastAPI sends to `mailpit:1025` inside Compose and
+messages appear immediately at `http://localhost:8025`; no external SMTP account
+is needed locally. To review or approve another recruiter request:
+
+```bash
+docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters list
+docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve recruiter@company.com
+```
 
 ## Production environment contract
 
@@ -170,7 +179,12 @@ The app currently makes no external AI calls. `backend/app/services/ai.py` expos
 
 ## Current limits and next steps
 
-The app uses text only, a small rule based vocabulary, and heuristic scores. It does not verify email addresses, skills, or employers. Application data is visible to the candidate and the account that owns the relevant job. The brief proposes WhatsApp and voice notes, verified employers, anonymous top five candidate previews, privacy controls, and subscription plus placement fees; those are not implemented yet.
+The app uses text only, a small rule based vocabulary, and heuristic scores. It
+does not verify candidate skills or automate employer identity checks.
+Application data is visible to the candidate guest session and the recruiter
+that owns the relevant job. The brief proposes WhatsApp and voice notes, verified
+employers, anonymous top five candidate previews, privacy controls, and
+subscription plus placement fees; those are not implemented yet.
 
 ## Deployment goal
 

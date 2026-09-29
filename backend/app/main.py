@@ -1,33 +1,38 @@
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from . import models, schemas
 from .auth import (
+    generate_recruiter_code,
     get_current_session,
     get_current_user,
-    hash_password,
     issue_session,
-    verify_password,
+    recruiter_code_digest,
 )
 from .database import get_db
 from .services.conversation import (
     can_publish,
     candidate_reply,
-    detect_intent,
     employer_reply,
     update_candidate_profile,
     update_employer_profile,
 )
 from .services.matching import match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply
+from .services.email import send_recruiter_login_code
 from .settings import get_settings
 
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 app = FastAPI(title="Job Talk API", version="0.1.0")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
 app.add_middleware(
@@ -66,37 +71,118 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/api/auth/register", response_model=schemas.AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
-    email = str(payload.email).lower()
-    user = db.scalar(select(models.User).where(models.User.email == email))
-    if user and db.get(models.UserCredential, user.id):
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
-    if user and db.scalar(select(models.Chat.id).where(models.Chat.user_id == user.id).limit(1)):
-        raise HTTPException(
-            status_code=409,
-            detail="This existing demo account needs an administrator reset before it can be secured",
+@app.post("/api/auth/guest", response_model=schemas.AuthResponse, status_code=status.HTTP_201_CREATED)
+def start_guest_session(db: Session = Depends(get_db)):
+    guest_id = secrets.token_urlsafe(24)
+    user = models.User(
+        email=f"guest-{guest_id}@guest.invalid",
+        role="candidate",
+        approval_status="not_required",
+    )
+    db.add(user)
+    db.flush()
+    chat = models.Chat(user_id=user.id, intent="candidate")
+    db.add(chat)
+    db.flush()
+    db.add(
+        models.Message(
+            chat_id=chat.id,
+            sender="assistant",
+            content="Tell me about the work you can do and the experience you have.",
         )
-    try:
-        if not user:
-            user = models.User(email=email)
-            db.add(user)
-            db.flush()
-        db.add(models.UserCredential(user_id=user.id, password_hash=hash_password(payload.password)))
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
+    )
     return issue_session(db, user)
 
 
-@app.post("/api/auth/login", response_model=schemas.AuthResponse)
-def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+@app.post(
+    "/api/auth/recruiter/request-code",
+    response_model=schemas.MessageResponseStatus,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def request_recruiter_code(
+    payload: schemas.RecruiterEmailRequest, db: Session = Depends(get_db)
+):
     email = str(payload.email).lower()
     user = db.scalar(select(models.User).where(models.User.email == email))
-    credential = db.get(models.UserCredential, user.id) if user else None
-    if not credential or not verify_password(payload.password, credential.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not user:
+        user = models.User(email=email, role="recruiter", approval_status="pending")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    if user.role == "recruiter" and user.approval_status == "approved":
+        now = datetime.now(timezone.utc)
+        db.execute(
+            update(models.RecruiterLoginCode)
+            .where(
+                models.RecruiterLoginCode.user_id == user.id,
+                models.RecruiterLoginCode.consumed_at.is_(None),
+            )
+            .values(consumed_at=now)
+        )
+        code = generate_recruiter_code()
+        db.add(
+            models.RecruiterLoginCode(
+                user_id=user.id,
+                code_hash=recruiter_code_digest(user.id, code),
+                expires_at=now + timedelta(minutes=settings.recruiter_code_ttl_minutes),
+            )
+        )
+        db.commit()
+        try:
+            send_recruiter_login_code(email, code)
+        except Exception:
+            logger.exception("Could not deliver recruiter login code")
+
+    return schemas.MessageResponseStatus(
+        message=(
+            "If this recruiter email is approved, a sign-in code has been sent. "
+            "New access requests wait for approval."
+        )
+    )
+
+
+@app.post("/api/auth/recruiter/verify-code", response_model=schemas.AuthResponse)
+def verify_recruiter_code(
+    payload: schemas.RecruiterCodeVerifyRequest, db: Session = Depends(get_db)
+):
+    email = str(payload.email).lower()
+    user = db.scalar(select(models.User).where(models.User.email == email))
+    now = datetime.now(timezone.utc)
+    code_record = None
+    if user and user.role == "recruiter" and user.approval_status == "approved":
+        code_record = db.scalar(
+            select(models.RecruiterLoginCode)
+            .where(
+                models.RecruiterLoginCode.user_id == user.id,
+                models.RecruiterLoginCode.consumed_at.is_(None),
+            )
+            .order_by(models.RecruiterLoginCode.created_at.desc())
+            .limit(1)
+        )
+
+    valid = False
+    if code_record:
+        expires_at = code_record.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        valid = (
+            expires_at > now
+            and code_record.attempt_count < settings.recruiter_code_max_attempts
+            and secrets.compare_digest(
+                code_record.code_hash,
+                recruiter_code_digest(user.id, payload.code),
+            )
+        )
+        if not valid:
+            code_record.attempt_count += 1
+            if code_record.attempt_count >= settings.recruiter_code_max_attempts:
+                code_record.consumed_at = now
+            db.commit()
+
+    if not valid:
+        raise HTTPException(status_code=401, detail="Invalid or expired sign-in code")
+    code_record.consumed_at = now
     return issue_session(db, user)
 
 
@@ -130,14 +216,23 @@ def list_chats(
 def create_chat(
     current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    chat = models.Chat(user_id=current_user.id)
+    if current_user.role == "candidate" and db.scalar(
+        select(models.Chat.id).where(models.Chat.user_id == current_user.id).limit(1)
+    ):
+        raise HTTPException(status_code=409, detail="This guest session already has a conversation")
+    intent = "candidate" if current_user.role == "candidate" else "employer"
+    chat = models.Chat(user_id=current_user.id, intent=intent)
     db.add(chat)
     db.flush()
     db.add(
         models.Message(
             chat_id=chat.id,
             sender="assistant",
-            content="Hi! Are you looking for a job, or looking for someone to hire?",
+            content=(
+                "Tell me about the work you can do and the experience you have."
+                if intent == "candidate"
+                else "Tell me about the role and the person you need to hire."
+            ),
         )
     )
     db.commit()
@@ -167,11 +262,13 @@ def send_message(
     history = [{"role": message.sender, "content": message.content} for message in chat.messages[-12:]]
     db.add(models.Message(chat_id=chat.id, sender="user", content=text))
 
+    expected_intent = "candidate" if current_user.role == "candidate" else "employer"
+    if chat.intent and chat.intent != expected_intent:
+        raise HTTPException(status_code=403, detail="This conversation belongs to another account type")
+
     if not chat.intent:
-        chat.intent = detect_intent(text)
-        if not chat.intent:
-            reply = "I can help with either path. Are you looking for a job, or looking for someone to hire?"
-        elif chat.intent == "employer":
+        chat.intent = expected_intent
+        if chat.intent == "employer":
             chat.profile, details = update_employer_profile(chat.profile, text)
             job = models.JobPost(
                 chat_id=chat.id,
@@ -231,6 +328,8 @@ def publish_job(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role != "recruiter":
+        raise HTTPException(status_code=403, detail="Recruiter access required")
     job = db.scalar(
         select(models.JobPost).where(
             models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
@@ -291,6 +390,8 @@ def apply(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role != "candidate":
+        raise HTTPException(status_code=403, detail="Candidate access required")
     job = db.get(models.JobPost, job_id)
     chat = db.scalar(
         select(models.Chat).where(
@@ -337,6 +438,8 @@ def list_applications(
 ):
     query = select(models.Application).order_by(models.Application.created_at.desc())
     if job_id is not None:
+        if current_user.role != "recruiter":
+            raise HTTPException(status_code=403, detail="Recruiter access required")
         job = db.scalar(
             select(models.JobPost).where(
                 models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
@@ -346,5 +449,7 @@ def list_applications(
             raise HTTPException(status_code=404, detail="Job not found")
         query = query.where(models.Application.job_post_id == job_id)
     else:
+        if current_user.role != "candidate":
+            return []
         query = query.where(models.Application.candidate_user_id == current_user.id)
     return db.scalars(query).all()

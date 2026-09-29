@@ -23,20 +23,49 @@ function Brand() {
   );
 }
 
-function Login({ onAuthenticated }) {
+const DEV_MAILBOX_URL = import.meta.env.VITE_DEV_MAILBOX_URL;
+
+function Entry({ onAuthenticated }) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login");
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState("choose");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(event) {
+  async function continueAsSeeker() {
+    setLoading(true);
+    setError("");
+    try {
+      onAuthenticated(await api.startGuest());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function requestCode(event) {
     event.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const authenticate = mode === "register" ? api.register : api.login;
-      onAuthenticated(await authenticate(email, password));
+      const response = await api.requestRecruiterCode(email);
+      setNotice(response.message);
+      setMode("code");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyCode(event) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      onAuthenticated(await api.verifyRecruiterCode(email, code));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,27 +80,48 @@ function Login({ onAuthenticated }) {
         <div className="hero-copy">
           <div className="eyebrow"><Sparkles size={15} /> Work starts with a conversation</div>
           <h1>Skip the forms.<br /><em>Tell your story.</em></h1>
-          <p>Find your next opportunity—or the person who can shape it—through a natural conversation.</p>
+          <p>Find your next opportunity or the person who can shape it through a natural conversation.</p>
           <div className="trust-row">
             <div><strong>No CV</strong><span>required</span></div>
-            <div><strong>No forms</strong><span>to wrestle with</span></div>
+            <div><strong>No passwords</strong><span>to remember</span></div>
             <div><strong>Real context</strong><span>behind every match</span></div>
           </div>
         </div>
-        <form className="login-card" onSubmit={submit}>
+        <section className="login-card">
           <div className="card-icon"><ArrowRight size={20} /></div>
-          <h2>{mode === "register" ? "Create your space" : "Welcome back"}</h2>
-          <p>{mode === "register" ? "Use your email and a password to keep your conversations private." : "Sign in to continue your Job Talk conversations."}</p>
-          <label htmlFor="email">Email address</label>
-          <input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <label htmlFor="password">Password</label>
-          <input id="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength="12" maxLength="128" placeholder="At least 12 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          {error && <div className="error">{error}</div>}
-          <button className="primary full" disabled={loading}>{loading ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}<ArrowRight size={17} /></button>
-          <button className="auth-toggle" type="button" onClick={() => { setMode((value) => value === "login" ? "register" : "login"); setError(""); }}>
-            {mode === "register" ? "Already have an account? Sign in" : "New to Job Talk? Create an account"}
-          </button>
-        </form>
+          {mode === "choose" && <>
+            <h2>How are you using Job Talk?</h2>
+            <p>Job seekers can begin immediately. Recruiters use an approved email address.</p>
+            <div className="entry-actions">
+              <button className="entry-choice" type="button" disabled={loading} onClick={continueAsSeeker}>
+                <UserRoundSearch size={22} /><span><strong>I'm looking for work</strong><small>No account or password</small></span><ChevronRight size={18} />
+              </button>
+              <button className="entry-choice" type="button" onClick={() => setMode("recruiter")}>
+                <BriefcaseBusiness size={22} /><span><strong>I'm hiring</strong><small>Sign in with an email code</small></span><ChevronRight size={18} />
+              </button>
+            </div>
+            {error && <div className="error">{error}</div>}
+          </>}
+          {mode === "recruiter" && <form onSubmit={requestCode}>
+            <h2>Recruiter access</h2>
+            <p>Enter your work email. Approved recruiters receive a short-lived sign-in code.</p>
+            <label htmlFor="email">Email address</label>
+            <input id="email" type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            {error && <div className="error">{error}</div>}
+            <button className="primary full" disabled={loading}>{loading ? "Sending..." : "Send sign-in code"}<ArrowRight size={17} /></button>
+            <button className="auth-toggle" type="button" onClick={() => { setMode("choose"); setError(""); }}>Back</button>
+          </form>}
+          {mode === "code" && <form onSubmit={verifyCode}>
+            <h2>Check your email</h2>
+            <p>{notice}</p>
+            <label htmlFor="code">Six-digit code</label>
+            <input id="code" className="code-input" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" placeholder="000000" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} required />
+            {DEV_MAILBOX_URL && <a className="mailbox-link" href={DEV_MAILBOX_URL} target="_blank" rel="noreferrer">Open the local email inbox</a>}
+            {error && <div className="error">{error}</div>}
+            <button className="primary full" disabled={loading || code.length !== 6}>{loading ? "Checking..." : "Continue as recruiter"}<ArrowRight size={17} /></button>
+            <button className="auth-toggle" type="button" onClick={() => { setMode("recruiter"); setCode(""); setError(""); }}>Use another email</button>
+          </form>}
+        </section>
       </section>
       <footer className="brand-credit">
         <img src="/branding/roventics-robot.svg" alt="" />
@@ -85,7 +135,7 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onLogout, open, onClo
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="side-head"><Brand /><button className="mobile-close" onClick={onClose}>×</button></div>
-      <button className="new-chat" onClick={onNew}><Plus size={18} /> New conversation</button>
+      {user.role === "recruiter" && <button className="new-chat" onClick={onNew}><Plus size={18} /> New hiring conversation</button>}
       <div className="chat-list-label">YOUR CONVERSATIONS</div>
       <div className="chat-list">
         {chats.map((item, index) => (
@@ -97,9 +147,9 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onLogout, open, onClo
         {!chats.length && <p className="empty-side">Your conversations will live here.</p>}
       </div>
       <div className="user-panel">
-        <span>{user.email.slice(0, 1).toUpperCase()}</span>
-        <div><strong>{user.email.split("@")[0]}</strong><small>{user.email}</small></div>
-        <button aria-label="Log out" onClick={onLogout}><LogOut size={17} /></button>
+        <span>{user.role === "candidate" ? <UserRound size={16} /> : user.email.slice(0, 1).toUpperCase()}</span>
+        <div><strong>{user.role === "candidate" ? "Job seeker" : user.email.split("@")[0]}</strong><small>{user.role === "candidate" ? "Private guest session" : user.email}</small></div>
+        <button aria-label={user.role === "candidate" ? "Leave session" : "Log out"} onClick={onLogout}><LogOut size={17} /></button>
       </div>
     </aside>
   );
@@ -183,8 +233,8 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
           {!chat.messages.some((message) => message.sender === "user") && (
             <div className="starter-prompts">
               <span>TRY AN EXAMPLE</span>
-              <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking for a job. I have three years of welding and forklift experience in Cape Town.")}>Find trade work</button>
-              <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Hire a welder</button>
+              {chat.intent === "candidate" && <button type="button" disabled={sending} onClick={() => sendPrompt("I have three years of welding and forklift experience in Cape Town.")}>Describe trade experience</button>}
+              {chat.intent === "employer" && <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Describe a welder role</button>}
             </div>
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><img src="/branding/roventics-robot.svg" alt="" /></div><div className="typing"><i /><i /><i /></div></div>}
@@ -290,7 +340,7 @@ export default function App() {
     setRecommendations([]);
   }
 
-  if (!user) return <Login onAuthenticated={authenticate} />;
+  if (!user) return <Entry onAuthenticated={authenticate} />;
   return (
     <main className="app-layout">
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} />

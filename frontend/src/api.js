@@ -22,7 +22,7 @@ async function request(path, options = {}) {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    if (response.status === 401 && !path.startsWith("/auth/login")) {
+    if (response.status === 401 && !path.startsWith("/auth/")) {
       sessionStorage.removeItem(SESSION_KEY);
       window.dispatchEvent(new Event("job-talk:unauthorized"));
     }
@@ -32,10 +32,17 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  register: (email, password) =>
-    request("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
-  login: (email, password) =>
-    request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  startGuest: () => request("/auth/guest", { method: "POST" }),
+  requestRecruiterCode: (email) =>
+    request("/auth/recruiter/request-code", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  verifyRecruiterCode: (email, code) =>
+    request("/auth/recruiter/verify-code", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    }),
   me: () => request("/auth/me"),
   logout: () => request("/auth/logout", { method: "POST" }),
   listChats: () => request("/chats"),

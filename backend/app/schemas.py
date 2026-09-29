@@ -8,22 +8,22 @@ class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CredentialsRequest(BaseModel):
+class RecruiterEmailRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=12, max_length=128)
 
 
-class LoginRequest(CredentialsRequest):
-    pass
+class RecruiterCodeVerifyRequest(RecruiterEmailRequest):
+    code: str = Field(pattern=r"^\d{6}$")
 
 
-class RegisterRequest(CredentialsRequest):
-    pass
+class MessageResponseStatus(BaseModel):
+    message: str
 
 
 class UserOut(ORMModel):
     id: int
-    email: EmailStr
+    email: str
+    role: Literal["candidate", "recruiter"]
 
 
 class AuthResponse(BaseModel):
