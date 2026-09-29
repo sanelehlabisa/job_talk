@@ -69,6 +69,13 @@ Use `TASKS.md` as the ordered source of truth. Work from the first unchecked P0
 ticket unless the user changes priority. Mark a ticket complete only after its
 acceptance checks pass, and update the README when commands or behavior change.
 
+Develop completed tickets on feature branches and keep those branches pushed.
+Merge completed work into `master` only after the user explicitly approves the
+merge. After approval, include the final workflow or ticket documentation,
+fast-forward `master` when the history permits, push `master`, and verify that the
+working tree and remote tracking branch are clean. A request to commit and push a
+feature branch does not by itself approve merging it.
+
 Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
