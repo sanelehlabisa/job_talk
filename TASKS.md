@@ -76,6 +76,8 @@ restarted with healthy services while retaining the existing PostgreSQL volume
 ### JT-007 - Production environment and secret contract
 
 - [ ] Add a documented production environment template with placeholder values.
+- [ ] Configure the Job Talk subdomain, public HTTPS origin, certificate email,
+  trusted proxy addresses, and allowed hosts through production environment values.
 - [ ] Require strong database and authentication secrets at startup.
 - [ ] Keep environment files, certificates, private keys, and backups out of Git.
 - [ ] Validate the public origin, trusted hosts, and subdomain configuration.
@@ -91,8 +93,14 @@ restarted with healthy services while retaining the existing PostgreSQL volume
 ### JT-009 - Production Compose package
 
 - [ ] Add an explicit production Compose file with pinned image versions.
-- [ ] Keep PostgreSQL and FastAPI on the internal Compose network with `expose` only.
-- [ ] Publish only reverse-proxy ports 80 and 443 on the VM.
+- [ ] Keep PostgreSQL, FastAPI, and the frontend container on the internal Compose
+  network; use `expose` for service-to-service traffic without host bindings.
+- [ ] Publish only reverse-proxy host ports `80:80` and `443:443` on the VM.
+- [ ] Treat the browser frontend as an untrusted API client. Keep authentication,
+  authorization, ownership, recruiter approval, input validation, matching,
+  scoring, application state changes, and data filtering in FastAPI.
+- [ ] Never place secrets or authoritative business rules in Vite build arguments,
+  browser storage, or frontend-only checks.
 - [ ] Add database-aware readiness checks, restart policies, resource limits, and
   persistent named volumes.
 - [ ] Document build, start, health check, logs, upgrade, rollback, and shutdown.
@@ -100,8 +108,12 @@ restarted with healthy services while retaining the existing PostgreSQL volume
 ### JT-010 - HTTPS ingress and staging access
 
 - [ ] Add a root `nginx/` directory for the public reverse proxy.
-- [ ] Redirect HTTP to HTTPS and terminate TLS for the selected subdomain.
-- [ ] Serve the frontend at `/` and proxy `/api/` to the private backend service.
+- [ ] Listen publicly on port 80 only to redirect requests to HTTPS on port 443.
+- [ ] Terminate TLS on port 443 for the configured Job Talk subdomain.
+- [ ] Serve the internal frontend service at `/` and proxy `/api/` to the internal
+  FastAPI service, preserving one browser origin.
+- [ ] Confirm the VM exposes no frontend, backend, or PostgreSQL host port other
+  than Nginx ports 80 and 443.
 - [ ] Forward trusted proxy headers, set conservative security headers, limit API
   requests, and cap request body size.
 - [ ] Keep staging behind proxy authentication or an IP allowlist until the guest
