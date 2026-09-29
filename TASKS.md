@@ -199,8 +199,8 @@ job picker expose the same jobs, and repeated seed runs create no duplicates
 - [x] Store only the guest token in browser session storage; store only its hash
   in the database.
 - [x] Reject reads or writes to another guest application, recruiter chat, or job.
-- [ ] Collect candidate name and preferred contact only at review or submission.
-- [ ] Explain what will be shared with the recruiter and capture explicit consent.
+- [x] Collect candidate name and preferred contact only at review or submission.
+- [x] Explain what will be shared with the recruiter and capture explicit consent.
 - [ ] Add expiry, replay, ownership, and cross-application boundary tests.
 
 **Done when:** two candidates can use the same job link without accounts and
@@ -208,13 +208,13 @@ cannot see or change each other's conversation or application.
 
 ### JT-021 - Job-specific conversational application
 
-- [ ] Anchor every candidate conversation to the selected job and its criteria.
-- [ ] Extract skills, experience, location, availability, and evidence into a
+- [x] Anchor every candidate conversation to the selected job and its criteria.
+- [x] Extract skills, experience, location, availability, and evidence into a
   structured draft after each answer.
 - [ ] Ask deterministic follow-up questions for missing job-relevant information.
-- [ ] Show simple progress and let the candidate review the structured result.
-- [ ] Require an explicit submit action and freeze the recruiter-visible snapshot.
-- [ ] Preserve current-chat context across every follow-up and page refresh.
+- [x] Show simple progress and let the candidate review the structured result.
+- [x] Require an explicit submit action and freeze the recruiter-visible snapshot.
+- [x] Preserve current-chat context across every follow-up and page refresh.
 - [ ] Test strong, partial, unrelated, empty, and interrupted applications.
 
 **Done when:** a candidate can finish a coherent application from one job page

@@ -93,6 +93,9 @@ class MessageResponse(BaseModel):
 
 class ApplyRequest(BaseModel):
     candidate_chat_id: int
+    candidate_name: str = Field(min_length=2, max_length=100)
+    preferred_contact: str = Field(min_length=3, max_length=320)
+    consent_to_share: Literal[True]
 
 
 class ApplicationOut(ORMModel):

@@ -30,7 +30,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
-- One application per candidate chat and job, submitted without another form.
+- A review and consent step that collects contact details only when the candidate
+  submits, then freezes the structured application snapshot.
 - A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
 
 ## Stack
@@ -105,7 +106,8 @@ Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api`
 4. Select **I'm looking for work** and choose that role. No email, account, or password is required.
    You can also open a job directly at `http://localhost:3000/?job=<job-id>`.
 5. Say: "I have three years of welding and forklift experience in Cape Town."
-6. Review the match and apply.
+6. Review the extracted evidence, add a name and preferred contact, consent to
+   sharing the structured application, and submit it.
 
 The earlier software example also works: publish a junior Python developer role requiring FastAPI and Docker, then describe a matching candidate.
 

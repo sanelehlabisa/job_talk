@@ -233,10 +233,53 @@ function Recommendation({ item, onApply, applied, skipped, onSkip }) {
         {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
       </div>
       <div className="job-actions">
-        <button className="primary" disabled={applied} onClick={onApply}>{applied ? <><Check size={17} /> Applied</> : <>Apply now <ChevronRight size={17} /></>}</button>
+        <button className="primary" disabled={applied} onClick={onApply}>{applied ? <><Check size={17} /> Submitted</> : <>Review application <ChevronRight size={17} /></>}</button>
         {!applied && <button className="ghost" onClick={onSkip}>Not for me</button>}
       </div>
     </article>
+  );
+}
+
+function ApplicationReview({ item, profile, onSubmit, onCancel }) {
+  const [candidateName, setCandidateName] = useState("");
+  const [preferredContact, setPreferredContact] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const evidence = Object.entries(profile || {}).slice(0, 8);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!consent || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(candidateName.trim(), preferredContact.trim());
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form className="application-review" onSubmit={submit}>
+      <div className="review-heading">
+        <div><span>REVIEW BEFORE SHARING</span><h3>{item.job.title}</h3></div>
+        <button type="button" className="ghost" onClick={onCancel}>Cancel</button>
+      </div>
+      <p>The recruiter will receive the structured evidence below, your match breakdown, and the contact details you enter here. Your full chat is not shared.</p>
+      <div className="review-evidence">
+        {evidence.map(([key, value]) => (
+          <div key={key}><strong>{key.replaceAll("_", " ")}</strong><span>{value.evidence || "Included in your structured profile"}</span></div>
+        ))}
+      </div>
+      <label htmlFor="candidate-name">Your name</label>
+      <input id="candidate-name" value={candidateName} onChange={(event) => setCandidateName(event.target.value)} minLength="2" maxLength="100" autoComplete="name" required />
+      <label htmlFor="candidate-contact">Preferred email or phone number</label>
+      <input id="candidate-contact" value={preferredContact} onChange={(event) => setPreferredContact(event.target.value)} minLength="3" maxLength="320" autoComplete="email" required />
+      <label className="consent-check">
+        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />
+        <span>I agree to share this application and my contact details with the recruiter for this role.</span>
+      </label>
+      <button className="primary full" disabled={!consent || submitting}>{submitting ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button>
+    </form>
   );
 }
 
@@ -245,7 +288,9 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
   const [sending, setSending] = useState(false);
   const [applied, setApplied] = useState({});
   const [skipped, setSkipped] = useState({});
+  const [reviewing, setReviewing] = useState(null);
   const bottomRef = useRef(null);
+  const submitted = chat?.status === "submitted";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
@@ -264,9 +309,10 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
     await sendPrompt(message);
   }
 
-  async function apply(jobId) {
-    await onApply(jobId);
-    setApplied((value) => ({ ...value, [jobId]: true }));
+  async function apply(candidateName, preferredContact) {
+    await onApply(reviewing.job.id, candidateName, preferredContact);
+    setApplied((value) => ({ ...value, [reviewing.job.id]: true }));
+    setReviewing(null);
     await onReload();
   }
 
@@ -275,7 +321,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
       <header className="chat-header">
         <button className="menu-button" onClick={onMenu}>☰</button>
         <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? "Build your role" : chat.intent === "candidate" ? "Find your next role" : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
-        <div className="status-pill"><span /> Live profile</div>
+        <div className="status-pill"><span /> {submitted ? "Application submitted" : "Live profile"}</div>
       </header>
       <div className="messages">
         <div className="conversation-inner">
@@ -299,20 +345,21 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>
-              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={applied[item.job.id]} skipped={skipped[item.job.id]} onApply={() => apply(item.job.id)} onSkip={() => setSkipped((value) => ({ ...value, [item.job.id]: true }))} />)}
+              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={submitted || applied[item.job.id]} skipped={skipped[item.job.id]} onApply={() => setReviewing(item)} onSkip={() => setSkipped((value) => ({ ...value, [item.job.id]: true }))} />)}
+              {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}
           <div ref={bottomRef} />
         </div>
       </div>
       {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>You can keep refining it after publishing.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
-      <form className="composer" onSubmit={submit}>
+      {submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted</strong>Your approved snapshot is now frozen for the recruiter.</span></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
           <textarea rows="1" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
         </div>
         <small>Job Talk turns your conversation into a structured profile.</small>
-      </form>
+      </form>}
     </section>
   );
 }
@@ -384,8 +431,8 @@ export default function App() {
     try { await api.publish(chat.job_post.id); await loadChat(chat.id); } catch (err) { setError(err.message); }
   }
 
-  async function apply(jobId) {
-    try { await api.apply(jobId, chat.id); } catch (err) { setError(err.message); throw err; }
+  async function apply(jobId, candidateName, preferredContact) {
+    try { await api.apply(jobId, chat.id, candidateName, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
 
   async function logout() {

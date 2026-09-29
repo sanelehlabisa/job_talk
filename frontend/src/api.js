@@ -55,10 +55,15 @@ export const api = {
     request(`/chats/${chatId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   recommendations: (chatId) => request(`/chats/${chatId}/recommendations`),
   publish: (jobId) => request(`/jobs/${jobId}/publish`, { method: "POST" }),
-  apply: (jobId, chatId) =>
+  apply: (jobId, chatId, candidateName, preferredContact) =>
     request(`/jobs/${jobId}/apply`, {
       method: "POST",
-      body: JSON.stringify({ candidate_chat_id: chatId }),
+      body: JSON.stringify({
+        candidate_chat_id: chatId,
+        candidate_name: candidateName,
+        preferred_contact: preferredContact,
+        consent_to_share: true,
+      }),
     }),
 };
 

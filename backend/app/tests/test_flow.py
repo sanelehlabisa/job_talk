@@ -58,6 +58,15 @@ def create_published_job(email="seed-owner@example.com", title="Test Welder"):
         return job.id
 
 
+def application_payload(chat_id, name="Nomsa Dlamini", contact="nomsa@example.com"):
+    return {
+        "candidate_chat_id": chat_id,
+        "candidate_name": name,
+        "preferred_contact": contact,
+        "consent_to_share": True,
+    }
+
+
 def test_end_to_end_employer_to_application():
     with TestClient(app) as client:
         employer, employer_headers = authenticate("employer@example.com", "recruiter")
@@ -84,11 +93,22 @@ def test_end_to_end_employer_to_application():
         assert len(response["recommendations"]) == 1
         application = client.post(
             f"/api/jobs/{job['id']}/apply",
-            json={"candidate_chat_id": candidate_chat["id"]},
+            json=application_payload(candidate_chat["id"]),
             headers=candidate_headers,
         )
         assert application.status_code == 201
-        assert application.json()["match_result"]["overall_score"] > 0.5
+        submitted = application.json()
+        assert submitted["match_result"]["overall_score"] > 0.5
+        assert submitted["candidate_profile"]["candidate_details"] == {
+            "name": "Nomsa Dlamini",
+            "preferred_contact": "nomsa@example.com",
+        }
+        assert submitted["candidate_profile"]["consent"]["share_with_recruiter"] is True
+        assert client.post(
+            f"/api/chats/{candidate_chat['id']}/messages",
+            json={"content": "Change my frozen application"},
+            headers=candidate_headers,
+        ).status_code == 409
 
 
 def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
@@ -122,7 +142,7 @@ def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
         )
         assert client.post(
             f"/api/jobs/{other_job_id}/apply",
-            json={"candidate_chat_id": chats[0]["id"]},
+            json=application_payload(chats[0]["id"]),
             headers=headers,
         ).status_code == 403
         assert client.post("/api/auth/logout", headers=headers).status_code == 204
@@ -227,19 +247,31 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         stranger, stranger_headers = authenticate("stranger@example.com", "candidate")
         assert client.post(
             f"/api/jobs/{job_id}/apply",
-            json={"candidate_chat_id": candidate_chat["id"]},
+            json=application_payload(candidate_chat["id"]),
             headers=stranger_headers,
         ).status_code == 404
+        no_consent = application_payload(candidate_chat["id"])
+        no_consent["consent_to_share"] = False
         assert client.post(
             f"/api/jobs/{job_id}/apply",
-            json={"candidate_chat_id": candidate_chat["id"]},
+            json=no_consent,
+            headers=candidate_headers,
+        ).status_code == 422
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(candidate_chat["id"]),
             headers=candidate_headers,
         ).status_code == 201
 
         assert len(client.get("/api/applications", headers=candidate_headers).json()) == 1
-        assert len(client.get(
+        recruiter_applications = client.get(
             f"/api/applications?job_id={job_id}", headers=employer_headers
-        ).json()) == 1
+        ).json()
+        assert len(recruiter_applications) == 1
+        assert recruiter_applications[0]["candidate_profile"]["candidate_details"] == {
+            "name": "Nomsa Dlamini",
+            "preferred_contact": "nomsa@example.com",
+        }
         assert client.get(
             f"/api/applications?job_id={job_id}", headers=stranger_headers
         ).status_code == 403
@@ -304,7 +336,7 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         assert refreshed[0]["criteria"] == criteria
         assert client.post(
             f"/api/jobs/{job_id}/apply",
-            json={"candidate_chat_id": candidate_chat["id"]},
+            json=application_payload(candidate_chat["id"]),
             headers=candidate_headers,
         ).status_code == 201
 

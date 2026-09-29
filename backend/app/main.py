@@ -295,6 +295,8 @@ def send_message(
     db: Session = Depends(get_db),
 ):
     chat = get_chat_or_404(db, chat_id, current_user.id)
+    if chat.status == "submitted":
+        raise HTTPException(status_code=409, detail="This application has already been submitted")
     text = payload.content.strip()
     if not text:
         raise HTTPException(status_code=422, detail="Message cannot be empty")
@@ -473,20 +475,40 @@ def apply(
         raise HTTPException(status_code=400, detail="A candidate chat is required")
     if chat.target_job_id is not None and chat.target_job_id != job.id:
         raise HTTPException(status_code=403, detail="This guest session belongs to another job")
+    candidate_name = payload.candidate_name.strip()
+    preferred_contact = payload.preferred_contact.strip()
+    if len(candidate_name) < 2 or len(preferred_contact) < 3:
+        raise HTTPException(status_code=422, detail="Add your name and preferred contact details")
+    submitted_at = datetime.now(timezone.utc)
     result = match_profiles(chat.profile, job.target_profile)
+    profile_snapshot = {
+        **chat.profile,
+        "candidate_details": {
+            "name": candidate_name,
+            "preferred_contact": preferred_contact,
+        },
+        "consent": {
+            "share_with_recruiter": True,
+            "captured_at": submitted_at.isoformat(),
+        },
+    }
     application = models.Application(
         candidate_user_id=chat.user_id,
         candidate_chat_id=chat.id,
         job_post_id=job.id,
-        candidate_profile=chat.profile,
+        candidate_profile=profile_snapshot,
         match_result=result,
     )
+    chat.status = "submitted"
     db.add(application)
     db.add(
         models.Message(
             chat_id=chat.id,
             sender="assistant",
-            content=f"Your application for {job.title} has been submitted. Your profile was shared directly — no extra form needed.",
+            content=(
+                f"Your application for {job.title} has been submitted. The recruiter can now "
+                "see your structured evidence and the contact details you approved."
+            ),
         )
     )
     try:
