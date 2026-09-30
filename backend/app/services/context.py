@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from .. import models
 
@@ -23,6 +23,7 @@ class ChatContext(TypedDict):
     job: ContextJob | None
     draft: dict
     messages: list[ContextMessage]
+    user_message_count: NotRequired[int]
 
 
 def build_chat_context(
@@ -48,4 +49,7 @@ def build_chat_context(
             {"role": message.sender, "content": message.content}
             for message in chat.messages[-message_limit:]
         ],
+        "user_message_count": sum(
+            message.sender == "user" for message in chat.messages
+        ),
     }

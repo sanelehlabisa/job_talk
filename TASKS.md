@@ -28,10 +28,10 @@ The smallest useful release still needs these pieces, in this order:
 5. Add minimal usage and feedback measurement (`JT-024`), then complete a mobile
    and accessibility check (`JT-015`).
 
-The deterministic mock remains the deployed default until this flow works end
-to end. A personal ChatGPT subscription may support manual development and
-evaluation, but it is not an application backend and does not include API usage.
-Any hosted API integration needs separate billing and an explicit spend limit.
+The deterministic mock remains the safe default. A personal ChatGPT subscription
+may support manual development and evaluation, but it is not an application
+backend and does not include API usage. The optional OpenAI provider uses separate
+API billing and must have an explicit project spend limit before public use.
 Local model and visualization work remain demand-gated experiments and do not
 block the first usable pilot.
 
@@ -345,12 +345,12 @@ snapshot (2026-09-30).
 
 ### JT-023 - Demand-gated AI provider experiment
 
-- [ ] Keep the existing provider function and deterministic test implementation.
+- [x] Keep the existing provider function and deterministic test implementation.
 - [ ] Start this ticket only after candidate and recruiter usage shows that better
   conversational follow-ups would materially improve the experiment.
-- [ ] Keep personal ChatGPT subscription use outside the deployed application;
+- [x] Keep personal ChatGPT subscription use outside the deployed application;
   record that ChatGPT subscriptions and API billing are separate products.
-- [ ] Complete `JT-026` and pass its context object to every provider.
+- [x] Complete `JT-026` and pass its context object to every provider.
 - [ ] If a hosted provider is tested, use separately billed API access with a hard
   monthly spend limit, per-application usage limits, and no browser-visible key.
 - [ ] Compare provider privacy and retention terms before sending invited-user data.
@@ -360,17 +360,23 @@ snapshot (2026-09-30).
   tokens per second, concurrent requests, and operating effort.
 - [ ] Compare the measured local model with the hosted API for response quality,
   latency, privacy, reliability, and total cost.
-- [ ] Send only the selected job, structured draft, and bounded current-chat history.
-- [ ] Require structured output validation and fall back to deterministic prompts.
-- [ ] Bound latency, retries, input size, output size, and per-application cost.
+- [x] Send only the selected job, structured draft, and bounded current-chat history.
+- [x] Require structured output validation and fall back to deterministic prompts.
+- [x] Bound latency, retries, input size, output size, and per-application cost.
 - [ ] Apply container memory and CPU limits so a local model cannot make the web
   app or database unavailable on a small VPS.
-- [ ] Prevent secrets and other candidates' data from entering model context.
+- [x] Prevent secrets and other candidates' data from entering model context.
 - [ ] Evaluate the same strong, partial, and unrelated candidate examples before release.
 
 **Done when:** real usage justifies the change and a measured provider improves
 follow-up quality without weakening context isolation, privacy, cost control, or
 application reliability.
+
+**Status:** In progress. The opt-in OpenAI Responses provider, strict reply schema,
+bounded current-chat input, `store: false`, call cap, and deterministic fallback
+are implemented. The configured local API key returned `expired_secret_key` on
+2026-09-30. Replace it, set a hard project spend limit, and run the strong,
+partial, and unrelated live examples before enabling this provider publicly.
 
 ### JT-024 - Minimal experiment analytics and feedback
 

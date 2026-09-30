@@ -192,9 +192,31 @@ For the frontend, run `npm run build` inside `frontend`.
 
 Each recommendation includes a `criteria` object for a future multidimensional plot. Each criterion has a `score` between 0 and 1, a `weight`, and a plain language `reason`. The overall `match_score` is the weighted mean of the reported criterion scores: `sum(score * weight) / sum(weight)`, rounded to two decimals using half-up rounding (or 0 when there are no criteria).
 
-## Mock AI mode
+## AI provider
 
-The app currently makes no external AI calls. `backend/app/services/ai.py` exposes one `generate_reply` function backed by a deterministic generator. Every reply starts with a preview of the current user message. Messages longer than ten characters show the first five and last five source characters. The reply also identifies the chat, reports how many saved messages were supplied as context, and previews the previous user message. This makes message and context flow visible while testing. The backend supplies at most the latest 12 earlier messages from the current chat. A real API or local model can later replace the function without changing the chat endpoint.
+`backend/app/services/ai.py` keeps response generation behind one function and
+supports `mock` and `openai` providers. Mock mode remains the example default so
+tests are deterministic and a missing provider cannot stop the application.
+
+To use OpenAI locally, place these values in the ignored `.env` file and rebuild
+the backend:
+
+```dotenv
+AI_PROVIDER=openai
+OPENAI_API_KEY=your-project-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+A ChatGPT subscription does not supply application API usage. Create a project
+API key and configure separate API billing plus a hard monthly spend limit before
+enabling it for invited users. The key is passed only to the backend container.
+
+OpenAI requests use the Responses API with strict JSON output validation and
+`store: false`. They contain the selected job, structured draft, current message,
+and at most the latest 12 messages from that authorized chat. Contact details and
+other chats are excluded. Each request has input, output, and timeout bounds, and
+each chat can make at most 12 provider calls. Invalid, unavailable, limited, or
+over-budget provider responses fall back to the deterministic generator.
 
 ## Current limits and next steps
 

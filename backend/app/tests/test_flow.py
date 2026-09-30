@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -16,6 +17,7 @@ from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
 from app.services.conversation import detect_intent, wants_to_publish
 from app.services.matching import match_profiles
+from app.settings import Settings
 
 
 def setup_function():
@@ -683,6 +685,7 @@ def test_send_replays_previous_chat_messages(monkeypatch):
             "job": None,
             "draft": {},
             "messages": [{"role": "assistant", "content": chat["messages"][0]["content"]}],
+            "user_message_count": 0,
         },
         first_text,
     )
@@ -696,6 +699,7 @@ def test_send_replays_previous_chat_messages(monkeypatch):
                 {"role": "user", "content": first_text},
                 {"role": "assistant", "content": first["assistant_message"]["content"]},
             ],
+            "user_message_count": 1,
         },
         second_text,
     )
@@ -753,6 +757,100 @@ def test_mock_ai_keeps_short_messages_and_chat_context_separate():
     assert "Chat #2 context: 1 earlier message(s)" in second_chat
     assert 'previous user message "old role"' in second_chat
     assert "Mode: hiring." in second_chat
+
+
+def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": json.dumps({"reply": "What welding work have you completed?"}),
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return FakeResponse()
+
+    monkeypatch.setattr("app.services.ai.httpx.post", fake_post)
+    settings = Settings(
+        _env_file=None,
+        ai_provider="openai",
+        openai_api_key="sk-test-only",
+        openai_model="gpt-4o-mini",
+    )
+    context = {
+        "chat_id": 9,
+        "job": {"id": 3, "title": "Welder", "criteria": {"welding": {"weight": 0.9}}},
+        "draft": {"experience": {"evidence": "Three years"}},
+        "messages": [{"role": "assistant", "content": "Tell me about your work."}],
+        "user_message_count": 1,
+    }
+
+    reply = generate_reply(
+        context,
+        "candidate",
+        "I can weld",
+        "Tell me about your welding evidence.",
+        settings=settings,
+    )
+
+    assert reply == "What welding work have you completed?"
+    assert captured["url"] == "https://api.openai.com/v1/responses"
+    assert captured["json"]["model"] == "gpt-4o-mini"
+    assert captured["json"]["store"] is False
+    assert captured["json"]["max_output_tokens"] == 180
+    assert captured["json"]["text"]["format"]["strict"] is True
+    sent = json.loads(captured["json"]["input"])
+    assert sent["selected_job"]["id"] == 3
+    assert sent["earlier_messages"] == context["messages"]
+    assert sent["current_message"] == "I can weld"
+    assert len(captured["json"]["input"]) <= 24_000
+
+
+def test_openai_provider_falls_back_and_obeys_per_chat_limit(monkeypatch):
+    calls = []
+
+    def unavailable(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise ValueError("provider unavailable")
+
+    monkeypatch.setattr("app.services.ai._openai_reply", unavailable)
+    settings = Settings(
+        _env_file=None,
+        ai_provider="openai",
+        openai_api_key="sk-test-only",
+        ai_max_calls_per_chat=2,
+    )
+    context = {
+        "chat_id": 10,
+        "job": None,
+        "draft": {},
+        "messages": [],
+        "user_message_count": 1,
+    }
+    fallback = generate_reply(context, "employer", "Need a welder", "Ask for experience", settings)
+    assert "Mock AI received your message" in fallback
+    assert len(calls) == 1
+
+    context["user_message_count"] = 2
+    limited = generate_reply(context, "employer", "Another detail", "Ask for location", settings)
+    assert "Mock AI received your message" in limited
+    assert len(calls) == 1
 
 
 def test_context_builder_is_bounded_and_never_mixes_guest_chats(monkeypatch):

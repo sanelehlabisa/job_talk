@@ -68,3 +68,13 @@ def test_unsafe_production_settings_are_rejected(name, value):
 def test_database_password_values_must_match():
     with pytest.raises(ValidationError, match="POSTGRES_PASSWORD must match"):
         production_settings(postgres_password="different-database-secret-value")
+
+
+def test_openai_provider_requires_a_server_side_api_key_in_production():
+    with pytest.raises(ValidationError, match="OPENAI_API_KEY is required"):
+        production_settings(ai_provider="openai", openai_api_key="")
+
+    settings = production_settings(
+        ai_provider="openai", openai_api_key="sk-production-secret"
+    )
+    assert settings.openai_api_key.get_secret_value() == "sk-production-secret"

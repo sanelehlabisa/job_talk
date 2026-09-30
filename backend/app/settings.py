@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import EmailStr, Field, model_validator
+from pydantic import EmailStr, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     postgres_password: str | None = None
     auth_session_hours: int = Field(default=24, ge=1, le=168)
     session_token_pepper: str = "dev-only-session-token-pepper"
+    ai_provider: Literal["mock", "openai"] = "mock"
+    openai_api_key: SecretStr | None = None
+    openai_model: str = Field(default="gpt-4o-mini", min_length=1, max_length=100)
+    ai_timeout_seconds: float = Field(default=20, ge=1, le=60)
+    ai_max_output_tokens: int = Field(default=180, ge=64, le=500)
+    ai_max_calls_per_chat: int = Field(default=12, ge=1, le=50)
 
     @property
     def allowed_host_list(self) -> list[str]:
@@ -102,6 +108,11 @@ class Settings(BaseSettings):
             raise ValueError("Production database password must be a strong value of at least 16 characters")
         if self.postgres_password and self.postgres_password != database_password:
             raise ValueError("POSTGRES_PASSWORD must match the password in DATABASE_URL")
+        if self.ai_provider == "openai" and (
+            self.openai_api_key is None
+            or not self.openai_api_key.get_secret_value().strip()
+        ):
+            raise ValueError("OPENAI_API_KEY is required when AI_PROVIDER=openai")
         return self
 
 
