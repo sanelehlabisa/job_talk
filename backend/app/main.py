@@ -24,6 +24,7 @@ from .services.conversation import (
     employer_reply,
     update_candidate_profile,
     update_employer_profile,
+    wants_to_publish,
 )
 from .services.context import build_chat_context
 from .services.matching import match_profiles, rank_jobs, summarize_match
@@ -323,16 +324,31 @@ def send_message(
         else:
             chat.profile = update_candidate_profile(chat.profile, text)
     elif chat.intent == "employer":
-        chat.profile, details = update_employer_profile(chat.profile, text)
         job = chat.job_post
-        if not job:
-            job = models.JobPost(chat_id=chat.id, user_id=chat.user_id)
-            db.add(job)
-        if details.get("title"):
-            job.title = details["title"]
-        job.description = f"{job.description}\n{text}".strip()
-        job.target_profile = chat.profile
-        reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
+        if wants_to_publish(text):
+            if not job:
+                reply = "Describe the role and at least two important criteria before publishing."
+            elif job.published:
+                reply = f"{job.title} is already published and visible to candidates."
+            elif can_publish(job.target_profile, job.title):
+                job.published = True
+                chat.status = "published"
+                reply = f"{job.title} is now published and visible to candidates."
+            else:
+                reply = (
+                    "The role is not ready to publish yet. "
+                    + employer_reply(job.target_profile, False)
+                )
+        else:
+            chat.profile, details = update_employer_profile(chat.profile, text)
+            if not job:
+                job = models.JobPost(chat_id=chat.id, user_id=chat.user_id)
+                db.add(job)
+            if details.get("title"):
+                job.title = details["title"]
+            job.description = f"{job.description}\n{text}".strip()
+            job.target_profile = chat.profile
+            reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
     else:
         chat.profile = update_candidate_profile(chat.profile, text)
 

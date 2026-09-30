@@ -25,7 +25,7 @@ function Brand() {
 
 const DEV_MAILBOX_URL = import.meta.env.VITE_DEV_MAILBOX_URL;
 
-function Entry({ onAuthenticated }) {
+function Entry({ onAuthenticated, showJobsOnOpen = false }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [mode, setMode] = useState("choose");
@@ -36,14 +36,17 @@ function Entry({ onAuthenticated }) {
 
   useEffect(() => {
     const jobId = Number(new URLSearchParams(window.location.search).get("job"));
-    if (!Number.isInteger(jobId) || jobId < 1) return undefined;
+    const request = Number.isInteger(jobId) && jobId > 0
+      ? api.publicJob(jobId).then((job) => [job])
+      : showJobsOnOpen ? api.publicJobs() : null;
+    if (!request) return undefined;
 
     let cancelled = false;
     setLoading(true);
-    api.publicJob(jobId)
-      .then((job) => {
+    request
+      .then((availableJobs) => {
         if (!cancelled) {
-          setJobs([job]);
+          setJobs(availableJobs);
           setMode("jobs");
         }
       })
@@ -55,7 +58,7 @@ function Entry({ onAuthenticated }) {
       });
 
     return () => { cancelled = true; };
-  }, []);
+  }, [showJobsOnOpen]);
 
   async function showJobs() {
     setLoading(true);
@@ -141,8 +144,8 @@ function Entry({ onAuthenticated }) {
             {error && <div className="error">{error}</div>}
           </>}
           {mode === "jobs" && <>
-            <h2>Choose a role</h2>
-            <p>Select a job to start a private, job-specific conversation.</p>
+            <h2>Available jobs</h2>
+            <p>Choose a job to start a new private conversation for that role.</p>
             <div className="entry-jobs">
               {jobs.map((job) => (
                 <button className="entry-job" type="button" disabled={loading} key={job.id} onClick={() => continueAsSeeker(job.id)}>
@@ -188,11 +191,12 @@ function Entry({ onAuthenticated }) {
   );
 }
 
-function Sidebar({ user, chats, activeId, onSelect, onNew, onLogout, open, onClose }) {
+function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogout, open, onClose }) {
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="side-head"><Brand /><button className="mobile-close" onClick={onClose}>×</button></div>
       {user.role === "recruiter" && <button className="new-chat" onClick={onNew}><Plus size={18} /> New hiring conversation</button>}
+      {user.role === "candidate" && <button className="new-chat" onClick={onBrowseJobs}><Plus size={18} /> Browse other jobs</button>}
       <div className="chat-list-label">YOUR CONVERSATIONS</div>
       <div className="chat-list">
         {chats.map((item, index) => (
@@ -291,6 +295,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
   const [reviewing, setReviewing] = useState(null);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
+  const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : "Live profile";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
@@ -320,8 +325,8 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
     <section className="chat-shell">
       <header className="chat-header">
         <button className="menu-button" onClick={onMenu}>☰</button>
-        <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? "Build your role" : chat.intent === "candidate" ? "Find your next role" : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
-        <div className="status-pill"><span /> {submitted ? "Application submitted" : "Live profile"}</div>
+        <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? (chat.job_post?.title || "Build your role") : chat.intent === "candidate" ? (chat.target_job?.title || "Find your next role") : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
+        <div className="status-pill"><span /> {statusLabel}</div>
       </header>
       <div className="messages">
         <div className="conversation-inner">
@@ -352,7 +357,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
           <div ref={bottomRef} />
         </div>
       </div>
-      {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>You can keep refining it after publishing.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
+      {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>Type “publish the job” or use this button.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted</strong>Your approved snapshot is now frozen for the recruiter.</span></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
           <textarea rows="1" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
@@ -374,6 +379,7 @@ export default function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showJobsOnEntry, setShowJobsOnEntry] = useState(false);
   const user = session?.user;
 
   async function loadChat(id) {
@@ -398,6 +404,7 @@ export default function App() {
       setChat(null);
       setChats([]);
       setRecommendations([]);
+      setShowJobsOnEntry(false);
     };
     window.addEventListener("job-talk:unauthorized", clearExpiredSession);
     return () => window.removeEventListener("job-talk:unauthorized", clearExpiredSession);
@@ -408,6 +415,7 @@ export default function App() {
   function authenticate(nextSession) {
     localStorage.removeItem("job-talk-user");
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+    setShowJobsOnEntry(false);
     setSession(nextSession);
   }
 
@@ -435,19 +443,21 @@ export default function App() {
     try { await api.apply(jobId, chat.id, candidateName, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
 
-  async function logout() {
+  async function endSession(showJobs = false) {
     try { await api.logout(); } catch { /* Clear the browser session even when it already expired. */ }
+    if (showJobs) window.history.replaceState({}, "", window.location.pathname);
     sessionStorage.removeItem(SESSION_KEY);
+    setShowJobsOnEntry(showJobs);
     setSession(null);
     setChat(null);
     setChats([]);
     setRecommendations([]);
   }
 
-  if (!user) return <Entry onAuthenticated={authenticate} />;
+  if (!user) return <Entry onAuthenticated={authenticate} showJobsOnOpen={showJobsOnEntry} />;
   return (
     <main className="app-layout">
-      <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={logout} />
+      <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
       {error && <div className="toast" onClick={() => setError("")}>{error}<span>×</span></div>}
       {chat ? <ChatView chat={chat} recommendations={recommendations} onSend={send} onPublish={publish} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}

@@ -67,6 +67,30 @@ def detect_intent(text: str) -> str | None:
     return None
 
 
+def wants_to_publish(text: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9']+", " ", text.lower()).strip()
+    return bool(
+        re.fullmatch(
+            r"(?:(?:i(?:'m| am)?|we(?:'re| are)?) )?"
+            r"(?:am |are )?(?:done|finished|ready to publish)(?: now)?",
+            normalized,
+        )
+        or normalized
+        in {
+            "publish",
+            "publish it",
+            "publish the job",
+            "publish this job",
+            "publish the role",
+            "make it public",
+            "make the job public",
+            "make this job public",
+            "the role is ready",
+            "the job is ready",
+        }
+    )
+
+
 def _skill_hits(text: str) -> list[tuple[str, str]]:
     lower = text.lower()
     found = []

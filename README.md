@@ -31,9 +31,13 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 - Deterministic follow-up questions that ask for the selected job's highest-weight
   missing evidence and resume from the saved draft after a refresh.
 - Employer job publishing once a title and two meaningful criteria are collected.
+- Conversational publishing: a recruiter can refine one role over several messages
+  and say `I am done` or `publish the job` when it is ready.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - A review and consent step that collects contact details only when the candidate
   submits, then freezes the structured application snapshot.
+- Candidates can leave one scoped guest application, browse available jobs, and
+  start a separate private conversation for another role.
 - A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
 - One bounded context assembler for response generation: selected job criteria,
   the structured draft, and only the last 12 messages from the authorized chat.

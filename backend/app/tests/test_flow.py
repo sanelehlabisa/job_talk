@@ -14,7 +14,7 @@ from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
-from app.services.conversation import detect_intent
+from app.services.conversation import detect_intent, wants_to_publish
 from app.services.matching import match_profiles
 
 
@@ -112,6 +112,51 @@ def test_end_to_end_employer_to_application():
             json={"content": "Change my frozen application"},
             headers=candidate_headers,
         ).status_code == 409
+
+
+def test_recruiter_refines_and_publishes_a_job_by_saying_done():
+    with TestClient(app) as client:
+        _, recruiter_headers = authenticate("conversation-recruiter@example.com", "recruiter")
+        chat = client.post("/api/chats", headers=recruiter_headers).json()
+
+        too_early = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "I am done"},
+            headers=recruiter_headers,
+        ).json()
+        assert too_early["chat"]["job_post"] is None
+        assert "at least two important criteria" in too_early["assistant_message"]["content"]
+        assert client.get("/api/public/jobs").json() == []
+
+        first_answer = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "I need a welder."},
+            headers=recruiter_headers,
+        ).json()
+        assert first_answer["chat"]["job_post"]["title"] == "Welder"
+        assert first_answer["chat"]["can_publish"] is False
+
+        second_answer = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Forklift operation is also required, with two years of experience."},
+            headers=recruiter_headers,
+        ).json()
+        assert second_answer["chat"]["can_publish"] is True
+        job_id = second_answer["chat"]["job_post"]["id"]
+        assert client.get("/api/public/jobs").json() == []
+
+        published = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "I am done"},
+            headers=recruiter_headers,
+        ).json()
+        assert published["chat"]["status"] == "published"
+        assert published["chat"]["job_post"]["published"] is True
+        assert "visible to candidates" in published["assistant_message"]["content"]
+        assert [job["id"] for job in client.get("/api/public/jobs").json()] == [job_id]
+
+        guest = client.post("/api/auth/guest", json={"job_id": job_id})
+        assert guest.status_code == 201
 
 
 def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
@@ -684,3 +729,10 @@ def test_trade_intent_from_plain_language():
 
 def test_brief_employer_example_detects_intent():
     assert detect_intent("I need a junior Python developer with FastAPI experience in Cape Town.") == "employer"
+
+
+def test_explicit_publish_commands_do_not_match_ordinary_job_text():
+    assert wants_to_publish("I am done") is True
+    assert wants_to_publish("Publish the job") is True
+    assert wants_to_publish("Make this job public") is True
+    assert wants_to_publish("The candidate has experience publishing job adverts") is False

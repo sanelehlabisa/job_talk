@@ -291,6 +291,31 @@ selected job criteria, structured draft, and last 12 messages to the determinist
 provider. Isolation tests cover two guests on one job, refresh continuity, bounded
 history, and exclusion of submitted contact details (2026-09-30).
 
+### JT-027 - Conversational job publishing and candidate re-entry
+
+- [x] Keep each recruiter hiring conversation attached to one job draft.
+- [x] Let the recruiter refine the title and criteria through multiple messages.
+- [x] Recognize explicit completion commands such as `I am done` or
+  `publish the job` without matching ordinary job-description text.
+- [x] Publish through the conversation only when the role has a title and enough
+  meaningful criteria; otherwise explain what is still needed.
+- [x] Make the published job immediately available through the public job list
+  and accountless candidate entry flow.
+- [x] Show candidates the available job list and let an active guest leave their
+  current scoped session to browse jobs and start another private conversation.
+- [x] Keep the existing publish button as an accessible alternative to the chat
+  command and run the frontend production build.
+- [x] Test early completion, multi-message refinement, conversational publishing,
+  public visibility, and candidate guest entry.
+
+**Done when:** a recruiter can describe one role, answer follow-up questions,
+say they are done, and see the role become available to a candidate who can later
+return to the job list for another application.
+
+**Status:** Complete. Explicit completion publishes only ready recruiter-owned
+jobs, candidate entry lists public jobs, and `Browse other jobs` ends the current
+guest session before opening a new job-specific conversation (2026-09-30).
+
 ### JT-022 - Recruiter candidate comparison
 
 - [ ] Treat each recruiter hiring chat as one job workspace with `draft`,
