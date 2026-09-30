@@ -13,6 +13,7 @@ from app.auth import issue_session, token_digest
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.services.ai import _preview, generate_reply
+from app.services.context import build_chat_context
 from app.services.conversation import detect_intent
 from app.services.matching import match_profiles
 
@@ -502,8 +503,8 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
 def test_send_replays_previous_chat_messages(monkeypatch):
     calls = []
 
-    def fake_reply(chat_id, intent, profile, user_text, fallback, history):
-        calls.append((chat_id, user_text, history))
+    def fake_reply(context, intent, user_text, fallback):
+        calls.append((context, user_text))
         return fallback
 
     monkeypatch.setattr("app.main.generate_reply", fake_reply)
@@ -520,31 +521,46 @@ def test_send_replays_previous_chat_messages(monkeypatch):
         )
 
     assert calls[0] == (
-        chat["id"],
+        {
+            "chat_id": chat["id"],
+            "job": None,
+            "draft": {},
+            "messages": [{"role": "assistant", "content": chat["messages"][0]["content"]}],
+        },
         first_text,
-        [{"role": "assistant", "content": chat["messages"][0]["content"]}],
     )
     assert calls[1] == (
-        chat["id"],
+        {
+            "chat_id": chat["id"],
+            "job": None,
+            "draft": {"welding": {"evidence": f"The candidate said: {second_text}"}},
+            "messages": [
+                {"role": "assistant", "content": chat["messages"][0]["content"]},
+                {"role": "user", "content": first_text},
+                {"role": "assistant", "content": first["assistant_message"]["content"]},
+            ],
+        },
         second_text,
-        [
-            {"role": "assistant", "content": chat["messages"][0]["content"]},
-            {"role": "user", "content": first_text},
-            {"role": "assistant", "content": first["assistant_message"]["content"]},
-        ],
     )
 
 
 def test_mock_ai_previews_current_message_and_chat_context():
-    history = [
-        {"role": "assistant", "content": "Welcome"},
-        {"role": "user", "content": "I know welding"},
-        {"role": "assistant", "content": "Tell me more"},
-    ]
-    reply = generate_reply(42, "candidate", {}, "I also drive forklifts", "fallback", history)
+    context = {
+        "chat_id": 42,
+        "job": {"id": 7, "title": "Workshop Welder", "criteria": {"welding": {}}},
+        "draft": {"welding": {"evidence": "I know welding"}},
+        "messages": [
+            {"role": "assistant", "content": "Welcome"},
+            {"role": "user", "content": "I know welding"},
+            {"role": "assistant", "content": "Tell me more"},
+        ],
+    }
+    reply = generate_reply(context, "candidate", "I also drive forklifts", "fallback")
     assert reply.startswith('"I alslifts"')
     assert "Chat #42 context: 3 earlier message(s)" in reply
     assert 'previous user message "I knolding"' in reply
+    assert "Selected job #7: Workshop Welder." in reply
+    assert "Draft fields: welding." in reply
     assert "Mode: job seeker." in reply
     assert reply.endswith("fallback")
 
@@ -557,14 +573,22 @@ def test_mock_ai_preview_has_at_most_ten_source_characters():
 
 
 def test_mock_ai_keeps_short_messages_and_chat_context_separate():
-    first_chat = generate_reply(1, None, {}, "hello", "choose a path", [])
+    first_chat = generate_reply(
+        {"chat_id": 1, "job": None, "draft": {}, "messages": []},
+        None,
+        "hello",
+        "choose a path",
+    )
     second_chat = generate_reply(
-        2,
+        {
+            "chat_id": 2,
+            "job": None,
+            "draft": {},
+            "messages": [{"role": "user", "content": "old role"}],
+        },
         "employer",
-        {},
         "new role",
         "describe the job",
-        [{"role": "user", "content": "old role"}],
     )
     assert first_chat.startswith('"hello"')
     assert "Chat #1 context: 0 earlier message(s); no previous user message." in first_chat
@@ -572,6 +596,73 @@ def test_mock_ai_keeps_short_messages_and_chat_context_separate():
     assert "Chat #2 context: 1 earlier message(s)" in second_chat
     assert 'previous user message "old role"' in second_chat
     assert "Mode: hiring." in second_chat
+
+
+def test_context_builder_is_bounded_and_never_mixes_guest_chats(monkeypatch):
+    captured = []
+
+    def capture_context(context, intent, user_text, fallback):
+        captured.append((context, user_text))
+        return fallback
+
+    monkeypatch.setattr("app.main.generate_reply", capture_context)
+    job_id = create_published_job()
+    with TestClient(app) as client:
+        first = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        second = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        first_headers = {"Authorization": f"Bearer {first['access_token']}"}
+        second_headers = {"Authorization": f"Bearer {second['access_token']}"}
+        first_chat = client.get("/api/chats", headers=first_headers).json()[0]
+        second_chat = client.get("/api/chats", headers=second_headers).json()[0]
+
+        client.post(
+            f"/api/chats/{first_chat['id']}/messages",
+            json={"content": "First candidate knows welding."},
+            headers=first_headers,
+        )
+        client.post(
+            f"/api/chats/{second_chat['id']}/messages",
+            json={"content": "Second candidate has retail experience."},
+            headers=second_headers,
+        )
+        client.post(
+            f"/api/chats/{first_chat['id']}/messages",
+            json={"content": "I have three years of experience."},
+            headers=first_headers,
+        )
+
+        first_context, _ = captured[0]
+        second_context, _ = captured[1]
+        resumed_first_context, _ = captured[2]
+        assert first_context["chat_id"] == resumed_first_context["chat_id"] == first_chat["id"]
+        assert second_context["chat_id"] == second_chat["id"]
+        assert first_context["job"]["id"] == second_context["job"]["id"] == job_id
+        assert "welding" in first_context["job"]["criteria"]
+        assert "First candidate" in repr(resumed_first_context)
+        assert "Second candidate" not in repr(resumed_first_context)
+        assert "First candidate" not in repr(second_context)
+
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(
+                first_chat["id"], "Private Person", "private-contact@example.com"
+            ),
+            headers=first_headers,
+        ).status_code == 201
+        with SessionLocal() as db:
+            submitted_chat = db.get(models.Chat, first_chat["id"])
+            submitted_context = build_chat_context(submitted_chat)
+        assert "private-contact@example.com" not in repr(submitted_context)
+        assert "Private Person" not in repr(submitted_context)
+
+    bounded_chat = models.Chat(id=999, intent="candidate", profile={})
+    bounded_chat.messages = [
+        models.Message(sender="user", content=f"message {index}") for index in range(20)
+    ]
+    bounded_context = build_chat_context(bounded_chat)
+    assert len(bounded_context["messages"]) == 12
+    assert bounded_context["messages"][0]["content"] == "message 8"
+    assert bounded_context["messages"][-1]["content"] == "message 19"
 
 
 def test_whitespace_message_is_rejected_without_saving():

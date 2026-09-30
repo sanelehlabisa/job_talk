@@ -35,6 +35,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 - A review and consent step that collects contact details only when the candidate
   submits, then freezes the structured application snapshot.
 - A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
+- One bounded context assembler for response generation: selected job criteria,
+  the structured draft, and only the last 12 messages from the authorized chat.
 
 ## Stack
 

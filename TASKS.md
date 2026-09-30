@@ -269,22 +269,27 @@ This is Job Talk's first RAG-like component. It is a small context assembler ove
 existing relational data, rather than a vector database or document search
 system.
 
-- [ ] Build one backend context function that retrieves only the selected job's
+- [x] Build one backend context function that retrieves only the selected job's
   criteria, the current structured draft, and a bounded window of messages from
   the current chat.
-- [ ] Scope retrieval by the authenticated owner or guest session and the chat's
+- [x] Scope retrieval by the authenticated owner or guest session and the chat's
   job ID; reject cross-chat, cross-job, and cross-candidate context.
-- [ ] Use that same context for deterministic follow-up selection and any future
+- [x] Use that same context for deterministic follow-up selection and any future
   model provider.
-- [ ] Keep recruiter job conversations and every candidate application in
+- [x] Keep recruiter job conversations and every candidate application in
   separate contexts, even when they refer to the same job.
-- [ ] Add tests proving refresh preserves the right context and that another
+- [x] Add tests proving refresh preserves the right context and that another
   chat's messages, contact details, and evidence never enter a response.
-- [ ] Do not add embeddings, a vector store, or external knowledge retrieval
+- [x] Do not add embeddings, a vector store, or external knowledge retrieval
   until a real source corpus and retrieval need exist.
 
 **Done when:** every generated response can list exactly which current chat, job,
 draft, and bounded messages supplied its context.
+
+**Status:** Complete. One context assembler supplies the current authorized chat,
+selected job criteria, structured draft, and last 12 messages to the deterministic
+provider. Isolation tests cover two guests on one job, refresh continuity, bounded
+history, and exclusion of submitted contact details (2026-09-30).
 
 ### JT-022 - Recruiter candidate comparison
 

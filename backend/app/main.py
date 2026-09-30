@@ -25,6 +25,7 @@ from .services.conversation import (
     update_candidate_profile,
     update_employer_profile,
 )
+from .services.context import build_chat_context
 from .services.matching import match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply
 from .services.email import send_recruiter_login_code
@@ -300,7 +301,6 @@ def send_message(
     text = payload.content.strip()
     if not text:
         raise HTTPException(status_code=422, detail="Message cannot be empty")
-    history = [{"role": message.sender, "content": message.content} for message in chat.messages[-12:]]
     db.add(models.Message(chat_id=chat.id, sender="user", content=text))
 
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
@@ -322,7 +322,6 @@ def send_message(
             reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
         else:
             chat.profile = update_candidate_profile(chat.profile, text)
-            reply = candidate_reply(chat.profile)
     elif chat.intent == "employer":
         chat.profile, details = update_employer_profile(chat.profile, text)
         job = chat.job_post
@@ -336,20 +335,12 @@ def send_message(
         reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
     else:
         chat.profile = update_candidate_profile(chat.profile, text)
-        published_jobs = db.scalars(
-            select(models.JobPost).where(
-                models.JobPost.published.is_(True),
-                *(
-                    (models.JobPost.id == chat.target_job_id,)
-                    if chat.target_job_id is not None
-                    else ()
-                ),
-            )
-        ).all()
-        target_profile = published_jobs[0].target_profile if published_jobs else None
-        reply = candidate_reply(chat.profile, target_profile)
 
-    reply = generate_reply(chat.id, chat.intent, chat.profile, text, reply, history)
+    context = build_chat_context(chat)
+    if chat.intent == "candidate":
+        target_profile = context["job"]["criteria"] if context["job"] else None
+        reply = candidate_reply(context["draft"], target_profile)
+    reply = generate_reply(context, chat.intent, text, reply)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()
