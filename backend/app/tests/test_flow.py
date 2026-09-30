@@ -35,7 +35,9 @@ def authenticate(email, role):
     return payload["user"], {"Authorization": f"Bearer {payload['access_token']}"}
 
 
-def create_published_job(email="seed-owner@example.com", title="Test Welder"):
+def create_published_job(
+    email="seed-owner@example.com", title="Test Welder", target_profile=None
+):
     with SessionLocal() as db:
         user = models.User(email=email, role="recruiter", approval_status="approved")
         db.add(user)
@@ -48,9 +50,8 @@ def create_published_job(email="seed-owner@example.com", title="Test Welder"):
             user_id=user.id,
             title=title,
             description="A published test role.",
-            target_profile={
-                "welding": {"weight": 0.9, "description": "Welding experience is required."}
-            },
+            target_profile=target_profile
+            or {"welding": {"weight": 0.9, "description": "Welding experience is required."}},
             published=True,
         )
         db.add(job)
@@ -233,6 +234,79 @@ def test_two_guests_on_one_job_cannot_cross_application_boundaries():
             headers=second_headers,
         ).status_code == 201
         assert len(client.get("/api/applications", headers=second_headers).json()) == 1
+
+
+def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interrupted_flows():
+    job_id = create_published_job(
+        target_profile={
+            "welding": {"weight": 0.9, "description": "Welding experience is required."},
+            "experience": {
+                "weight": 0.8,
+                "description": "The role asks for two years of relevant experience.",
+            },
+            "forklift_operation": {
+                "weight": 0.75,
+                "description": "Forklift experience is required.",
+            },
+            "location": {"weight": 0.55, "description": "The role is based in Cape Town."},
+        }
+    )
+
+    with TestClient(app) as client:
+        def start_candidate():
+            guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+            headers = {"Authorization": f"Bearer {guest['access_token']}"}
+            chat = client.get("/api/chats", headers=headers).json()[0]
+            return headers, chat
+
+        strong_headers, strong_chat = start_candidate()
+        strong = client.post(
+            f"/api/chats/{strong_chat['id']}/messages",
+            json={
+                "content": "I have three years of welding and forklift experience in Cape Town."
+            },
+            headers=strong_headers,
+        ).json()
+        assert "captured evidence for this role’s criteria" in strong["assistant_message"]["content"]
+        assert len(strong["recommendations"]) == 1
+
+        partial_headers, partial_chat = start_candidate()
+        partial = client.post(
+            f"/api/chats/{partial_chat['id']}/messages",
+            json={"content": "I have three years of welding experience in Cape Town."},
+            headers=partial_headers,
+        ).json()
+        assert "forklift operation experience" in partial["assistant_message"]["content"]
+
+        unrelated_headers, unrelated_chat = start_candidate()
+        unrelated = client.post(
+            f"/api/chats/{unrelated_chat['id']}/messages",
+            json={"content": "I have worked in a retail shop."},
+            headers=unrelated_headers,
+        ).json()
+        assert "welding experience" in unrelated["assistant_message"]["content"]
+
+        empty_headers, empty_chat = start_candidate()
+        assert client.post(
+            f"/api/chats/{empty_chat['id']}/messages",
+            json={"content": "   "},
+            headers=empty_headers,
+        ).status_code == 422
+        assert len(
+            client.get(f"/api/chats/{empty_chat['id']}", headers=empty_headers).json()["messages"]
+        ) == 1
+
+        refreshed = client.get(
+            f"/api/chats/{partial_chat['id']}", headers=partial_headers
+        ).json()
+        assert {"welding", "experience", "location"} <= refreshed["profile"].keys()
+        completed = client.post(
+            f"/api/chats/{partial_chat['id']}/messages",
+            json={"content": "I operated a forklift every day and I am available immediately."},
+            headers=partial_headers,
+        ).json()
+        assert "captured evidence for this role’s criteria" in completed["assistant_message"]["content"]
+        assert {"welding", "experience", "location", "forklift_operation", "availability"} <= completed["chat"]["profile"].keys()
 
 
 def test_approved_recruiter_signs_in_with_single_use_email_code(monkeypatch):

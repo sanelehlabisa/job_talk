@@ -322,7 +322,7 @@ def send_message(
             reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
         else:
             chat.profile = update_candidate_profile(chat.profile, text)
-            reply = candidate_reply(chat.profile, False)
+            reply = candidate_reply(chat.profile)
     elif chat.intent == "employer":
         chat.profile, details = update_employer_profile(chat.profile, text)
         job = chat.job_post
@@ -346,7 +346,8 @@ def send_message(
                 ),
             )
         ).all()
-        reply = candidate_reply(chat.profile, bool(published_jobs and len(chat.profile) >= 2))
+        target_profile = published_jobs[0].target_profile if published_jobs else None
+        reply = candidate_reply(chat.profile, target_profile)
 
     reply = generate_reply(chat.id, chat.intent, chat.profile, text, reply, history)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)

@@ -249,14 +249,19 @@ tests cover cross-chat, cross-job, and cross-application access (2026-09-30).
 - [x] Anchor every candidate conversation to the selected job and its criteria.
 - [x] Extract skills, experience, location, availability, and evidence into a
   structured draft after each answer.
-- [ ] Ask deterministic follow-up questions for missing job-relevant information.
+- [x] Ask deterministic follow-up questions for missing job-relevant information.
 - [x] Show simple progress and let the candidate review the structured result.
 - [x] Require an explicit submit action and freeze the recruiter-visible snapshot.
 - [x] Preserve current-chat context across every follow-up and page refresh.
-- [ ] Test strong, partial, unrelated, empty, and interrupted applications.
+- [x] Test strong, partial, unrelated, empty, and interrupted applications.
 
 **Done when:** a candidate can finish a coherent application from one job page
 without a CV, account, or separate form.
+
+**Status:** Complete. Candidate replies ask about the highest-weight missing job
+criterion, retain the structured draft across refreshes, and move to review when
+the selected role's criteria have evidence. Tests cover strong, partial,
+unrelated, empty, and interrupted conversations (2026-09-30).
 
 ### JT-026 - Per-chat retrieval and context boundary
 

@@ -166,9 +166,34 @@ def employer_reply(profile: dict, can_publish: bool) -> str:
     return "What are the most important responsibilities or preferred skills for this role?"
 
 
-def candidate_reply(profile: dict, has_recommendations: bool) -> str:
-    if has_recommendations:
-        return "Thanks — I’ve updated your profile and found the best published roles below. You can apply without filling in another form."
+def _candidate_criterion_question(key: str) -> str:
+    label = key.replace("_", " ")
+    questions = {
+        "experience": "How many years of relevant experience do you have, and what did you do?",
+        "location": "Where are you based, and can you work at the location described for this role?",
+        "availability": "When would you be available to start this role?",
+        "working_arrangement": "Are you available for the working arrangement described for this role?",
+        "education": "What relevant education, training, or certificates do you have?",
+    }
+    return questions.get(
+        key,
+        f"Tell me about your {label} experience and one example that shows it.",
+    )
+
+
+def candidate_reply(profile: dict, target_profile: dict | None = None) -> str:
+    if target_profile:
+        missing = sorted(
+            (
+                (key, requirement)
+                for key, requirement in target_profile.items()
+                if not profile.get(key, {}).get("evidence")
+            ),
+            key=lambda item: (-float(item[1].get("weight", 0.5)), item[0]),
+        )
+        if missing:
+            return _candidate_criterion_question(missing[0][0])
+        return "I’ve captured evidence for this role’s criteria. Review the structured application below when you’re ready to submit."
     if len(profile) < 2:
         return "Tell me about the skills you use, your experience, or a project you’re proud of."
     if "experience" not in profile:

@@ -28,6 +28,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 - Three realistic demo jobs, public links and a job picker, and a guest
   conversation anchored to the selected role.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
+- Deterministic follow-up questions that ask for the selected job's highest-weight
+  missing evidence and resume from the saved draft after a refresh.
 - Employer job publishing once a title and two meaningful criteria are collected.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - A review and consent step that collects contact details only when the candidate
