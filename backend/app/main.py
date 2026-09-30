@@ -262,7 +262,11 @@ def create_chat(
     ):
         raise HTTPException(status_code=409, detail="This guest session already has a conversation")
     intent = "candidate" if current_user.role == "candidate" else "employer"
-    chat = models.Chat(user_id=current_user.id, intent=intent)
+    chat = models.Chat(
+        user_id=current_user.id,
+        intent=intent,
+        status="draft" if intent == "employer" else "active",
+    )
     db.add(chat)
     db.flush()
     db.add(
@@ -299,6 +303,8 @@ def send_message(
     chat = get_chat_or_404(db, chat_id, current_user.id)
     if chat.status == "submitted":
         raise HTTPException(status_code=409, detail="This application has already been submitted")
+    if chat.status == "closed":
+        raise HTTPException(status_code=409, detail="This recruitment is closed")
     text = payload.content.strip()
     if not text:
         raise HTTPException(status_code=422, detail="Message cannot be empty")
@@ -404,6 +410,8 @@ def publish_job(
     )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.chat.status == "closed":
+        raise HTTPException(status_code=409, detail="Closed recruitment cannot be republished")
     if not can_publish(job.target_profile, job.title):
         raise HTTPException(status_code=400, detail="Add a role title and at least two important criteria before publishing")
     job.published = True
@@ -413,6 +421,42 @@ def publish_job(
             chat_id=job.chat_id,
             sender="assistant",
             content=f"{job.title} is now published and visible to candidates.",
+        )
+    )
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@app.post("/api/jobs/{job_id}/close", response_model=schemas.JobOut)
+def close_job(
+    job_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "recruiter":
+        raise HTTPException(status_code=403, detail="Recruiter access required")
+    job = db.scalar(
+        select(models.JobPost).where(
+            models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
+        )
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.chat.status == "closed":
+        return job
+    if not job.published:
+        raise HTTPException(status_code=409, detail="Only published recruitment can be closed")
+    job.published = False
+    job.chat.status = "closed"
+    db.add(
+        models.Message(
+            chat_id=job.chat_id,
+            sender="assistant",
+            content=(
+                f"Recruitment for {job.title} is now closed. New applications are stopped, "
+                "and the submitted candidate snapshots are preserved for review."
+            ),
         )
     )
     db.commit()
@@ -550,4 +594,13 @@ def list_applications(
         if current_user.role != "candidate":
             return []
         query = query.where(models.Application.candidate_user_id == current_user.id)
-    return db.scalars(query).all()
+    applications = list(db.scalars(query).all())
+    if job_id is not None:
+        applications.sort(
+            key=lambda item: (
+                -float(item.match_result.get("overall_score", 0)),
+                item.created_at,
+                item.id,
+            )
+        )
+    return applications

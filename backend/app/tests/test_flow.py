@@ -159,6 +159,118 @@ def test_recruiter_refines_and_publishes_a_job_by_saying_done():
         assert guest.status_code == 201
 
 
+def test_recruiter_compares_candidates_and_closes_recruitment():
+    with TestClient(app) as client:
+        _, recruiter_headers = authenticate("comparison-owner@example.com", "recruiter")
+        recruiter_chat = client.post("/api/chats", headers=recruiter_headers).json()
+        role = client.post(
+            f"/api/chats/{recruiter_chat['id']}/messages",
+            json={
+                "content": (
+                    "I need a welder with welding and forklift experience, three years of "
+                    "experience, based in Cape Town."
+                )
+            },
+            headers=recruiter_headers,
+        ).json()
+        job_id = role["chat"]["job_post"]["id"]
+        assert role["chat"]["status"] == "draft"
+        assert client.post(f"/api/jobs/{job_id}/publish", headers=recruiter_headers).status_code == 200
+        assert client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).json() == []
+
+        def start_candidate(message):
+            guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+            headers = {"Authorization": f"Bearer {guest['access_token']}"}
+            chat = client.get("/api/chats", headers=headers).json()[0]
+            client.post(
+                f"/api/chats/{chat['id']}/messages",
+                json={"content": message},
+                headers=headers,
+            )
+            return chat["id"], headers
+
+        weaker_chat_id, weaker_headers = start_candidate(
+            "I have one year of cleaning experience and I am based in Durban."
+        )
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(weaker_chat_id, "Busi Molefe", "071 555 0101"),
+            headers=weaker_headers,
+        ).status_code == 201
+        one_candidate = client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).json()
+        assert [item["candidate_profile"]["candidate_details"]["name"] for item in one_candidate] == [
+            "Busi Molefe"
+        ]
+
+        stronger_chat_id, stronger_headers = start_candidate(
+            "I have five years of welding and forklift experience and I am based in Cape Town."
+        )
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(
+                stronger_chat_id, "Nomsa Dlamini", "nomsa@example.com"
+            ),
+            headers=stronger_headers,
+        ).status_code == 201
+        pending_chat_id, pending_headers = start_candidate(
+            "I have four years of welding experience and I am based in Cape Town."
+        )
+
+        compared = client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).json()
+        assert len(compared) == 2
+        assert [item["candidate_profile"]["candidate_details"]["name"] for item in compared] == [
+            "Nomsa Dlamini",
+            "Busi Molefe",
+        ]
+        assert compared[0]["match_result"]["overall_score"] > compared[1]["match_result"]["overall_score"]
+        saved_snapshots = [item["candidate_profile"] for item in compared]
+
+        _, other_recruiter_headers = authenticate("comparison-stranger@example.com", "recruiter")
+        assert client.get(
+            f"/api/applications?job_id={job_id}", headers=other_recruiter_headers
+        ).status_code == 404
+        assert client.post(
+            f"/api/jobs/{job_id}/close", headers=other_recruiter_headers
+        ).status_code == 404
+        assert client.get(
+            f"/api/applications?job_id={job_id}", headers=pending_headers
+        ).status_code == 403
+        assert client.post(
+            f"/api/jobs/{job_id}/close", headers=pending_headers
+        ).status_code == 403
+
+        closed = client.post(f"/api/jobs/{job_id}/close", headers=recruiter_headers)
+        assert closed.status_code == 200
+        assert closed.json()["published"] is False
+        assert client.get(
+            f"/api/chats/{recruiter_chat['id']}", headers=recruiter_headers
+        ).json()["status"] == "closed"
+        assert client.get(f"/api/public/jobs/{job_id}").status_code == 404
+        assert client.post("/api/auth/guest", json={"job_id": job_id}).status_code == 404
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(pending_chat_id, "Late Candidate", "late@example.com"),
+            headers=pending_headers,
+        ).status_code == 404
+        assert client.post(
+            f"/api/chats/{recruiter_chat['id']}/messages",
+            json={"content": "Change the closed role"},
+            headers=recruiter_headers,
+        ).status_code == 409
+        assert client.post(f"/api/jobs/{job_id}/publish", headers=recruiter_headers).status_code == 409
+
+        preserved = client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).json()
+        assert [item["candidate_profile"] for item in preserved] == saved_snapshots
+
+
 def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
     job_id = create_published_job()
     with TestClient(app) as client:

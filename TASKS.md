@@ -318,24 +318,30 @@ guest session before opening a new job-specific conversation (2026-09-30).
 
 ### JT-022 - Recruiter candidate comparison
 
-- [ ] Treat each recruiter hiring chat as one job workspace with `draft`,
+- [x] Treat each recruiter hiring chat as one job workspace with `draft`,
   `published`, and `closed` states.
-- [ ] Add a recruiter-owned job view with submitted candidate count and status.
-- [ ] Show every candidate in the same structure: experience, skills, location,
+- [x] Add a recruiter-owned job view with submitted candidate count and status.
+- [x] Show every candidate in the same structure: experience, skills, location,
   availability, evidence, overall match, criterion scores, and clear gaps.
-- [ ] Add a compact side-by-side comparison for at least two candidates.
-- [ ] Link every score explanation to candidate-provided evidence.
-- [ ] Reveal contact details only for submitted applications owned by that recruiter.
-- [ ] Let the recruiter close recruitment, stop new applications, and preserve
+- [x] Add a compact side-by-side comparison for at least two candidates.
+- [x] Link every score explanation to candidate-provided evidence.
+- [x] Reveal contact details only for submitted applications owned by that recruiter.
+- [x] Let the recruiter close recruitment, stop new applications, and preserve
   the submitted candidate snapshots used for comparison.
-- [ ] When a job closes, show up to five candidates ranked by the existing
+- [x] When a job closes, show up to five candidates ranked by the existing
   transparent weighted score, with ties and missing evidence handled explicitly.
-- [ ] Describe the shortlist as decision support and never as an automated hiring
+- [x] Describe the shortlist as decision support and never as an automated hiring
   decision.
-- [ ] Add empty, one-candidate, two-candidate, and unauthorized-access tests.
+- [x] Add empty, one-candidate, two-candidate, and unauthorized-access tests.
 
 **Done when:** the stronger and weaker demo candidates are visibly comparable
 without reading their full transcripts.
+
+**Status:** Complete. Recruiters see owned submitted applications side by side,
+with consistent evidence rows, weighted criterion explanations, explicit gaps,
+and consented contact details. Closing a role stops new applications and shows a
+stable top-five decision-support shortlist while preserving every submitted
+snapshot (2026-09-30).
 
 ### JT-023 - Demand-gated AI provider experiment
 

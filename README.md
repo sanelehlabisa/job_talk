@@ -38,6 +38,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
   submits, then freezes the structured application snapshot.
 - Candidates can leave one scoped guest application, browse available jobs, and
   start a separate private conversation for another role.
+- Recruiters can compare submitted candidates in one consistent evidence view,
+  then close recruitment to stop applications and review a ranked top-five shortlist.
 - A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
 - One bounded context assembler for response generation: selected job criteria,
   the structured draft, and only the last 12 messages from the authorized chat.

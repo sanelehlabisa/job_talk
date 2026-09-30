@@ -55,6 +55,8 @@ export const api = {
     request(`/chats/${chatId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   recommendations: (chatId) => request(`/chats/${chatId}/recommendations`),
   publish: (jobId) => request(`/jobs/${jobId}/publish`, { method: "POST" }),
+  closeJob: (jobId) => request(`/jobs/${jobId}/close`, { method: "POST" }),
+  applications: (jobId) => request(`/applications?job_id=${jobId}`),
   apply: (jobId, chatId, candidateName, preferredContact) =>
     request(`/jobs/${jobId}/apply`, {
       method: "POST",

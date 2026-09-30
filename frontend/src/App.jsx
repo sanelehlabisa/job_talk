@@ -287,7 +287,78 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
   );
 }
 
-function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload, onMenu }) {
+function CandidateComparison({ applications, status, onCloseJob }) {
+  const visible = status === "closed" ? applications.slice(0, 5) : applications;
+  let previousScore = null;
+  let previousRank = 0;
+
+  return (
+    <section className="candidate-comparison">
+      <div className="comparison-heading">
+        <div>
+          <span>SUBMITTED CANDIDATES</span>
+          <h2>{applications.length} application{applications.length === 1 ? "" : "s"}</h2>
+        </div>
+        {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
+      </div>
+      <p className="decision-support">Scores organize candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
+      {!visible.length && <div className="candidate-empty">No submitted applications yet. Candidates will appear here in one comparable format.</div>}
+      {!!visible.length && <div className="comparison-grid">
+        {visible.map((application, index) => {
+          const profile = application.candidate_profile || {};
+          const details = profile.candidate_details || {};
+          const criteria = Object.entries(application.match_result?.criteria || {});
+          const score = Math.round((application.match_result?.overall_score || 0) * 100);
+          const skillEvidence = Object.entries(profile)
+            .filter(([key]) => !["candidate_details", "consent", "experience", "location", "availability", "working_arrangement", "education", "projects"].includes(key))
+            .map(([key, value]) => `${key.replaceAll("_", " ")}: ${value.evidence}`)
+            .join(" ");
+          const evidence = [
+            ["experience", profile.experience?.evidence],
+            ["skills", skillEvidence],
+            ["location", profile.location?.evidence],
+            ["availability", profile.availability?.evidence],
+          ];
+          const contact = details.preferred_contact || "Contact not provided";
+          const contactHref = contact.includes("@") ? `mailto:${contact}` : `tel:${contact.replace(/[^+\d]/g, "")}`;
+          if (score !== previousScore) previousRank = index + 1;
+          previousScore = score;
+          return (
+            <article className="candidate-card" key={application.id}>
+              <div className="candidate-card-head">
+                <div className="candidate-rank">{status === "closed" ? `#${previousRank}` : <UserRound size={17} />}</div>
+                <div><h3>{details.name || "Candidate"}</h3><a href={contactHref}>{contact}</a></div>
+                <div className="score"><strong>{score}%</strong><span>match</span></div>
+              </div>
+              <div className="candidate-evidence">
+                <strong>Profile evidence</strong>
+                {evidence.map(([key, value]) => (
+                  <div key={key}><span>{key}</span><p>{value || "No direct evidence was provided."}</p></div>
+                ))}
+              </div>
+              <div className="criterion-list">
+                <strong>Criterion breakdown</strong>
+                {criteria.map(([key, value]) => {
+                  const criterionEvidence = profile[key]?.evidence;
+                  return (
+                    <div className={value.score < 0.5 ? "criterion-gap" : ""} key={key}>
+                      <div><span>{key.replaceAll("_", " ")}</span><b>{Math.round(value.score * 100)}% · weight {Math.round(value.weight * 100)}%</b></div>
+                      <p>{value.reason}</p>
+                      <small>{criterionEvidence ? `Evidence: ${criterionEvidence}` : "Gap: no direct candidate evidence was captured."}</small>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          );
+        })}
+      </div>}
+      {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates ranked by the saved weighted scores; equal scores share a rank.</p>}
+    </section>
+  );
+}
+
+function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onReload, onMenu }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [applied, setApplied] = useState({});
@@ -295,7 +366,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
   const [reviewing, setReviewing] = useState(null);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
-  const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : "Live profile";
+  const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : chat?.status === "closed" ? "Closed" : chat?.status === "draft" ? "Draft" : "Live profile";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
@@ -347,6 +418,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><img src="/branding/roventics-robot.svg" alt="" /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
+          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>
@@ -358,7 +430,7 @@ function ChatView({ chat, recommendations, onSend, onPublish, onApply, onReload,
         </div>
       </div>
       {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>Type “publish the job” or use this button.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
-      {submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted</strong>Your approved snapshot is now frozen for the recruiter.</span></div> : <form className="composer" onSubmit={submit}>
+      {chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted</strong>Your approved snapshot is now frozen for the recruiter.</span></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
           <textarea rows="1" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
@@ -377,6 +449,7 @@ export default function App() {
   const [chats, setChats] = useState([]);
   const [chat, setChat] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showJobsOnEntry, setShowJobsOnEntry] = useState(false);
@@ -388,6 +461,7 @@ export default function App() {
       const selected = await api.getChat(id);
       setChat(selected);
       setRecommendations(selected.intent === "candidate" ? await api.recommendations(id) : []);
+      setApplications(selected.intent === "employer" && selected.job_post ? await api.applications(selected.job_post.id) : []);
       setSidebarOpen(false);
     } catch (err) { setError(err.message); }
   }
@@ -404,6 +478,7 @@ export default function App() {
       setChat(null);
       setChats([]);
       setRecommendations([]);
+      setApplications([]);
       setShowJobsOnEntry(false);
     };
     window.addEventListener("job-talk:unauthorized", clearExpiredSession);
@@ -423,6 +498,7 @@ export default function App() {
     const created = await api.createChat();
     setChat(created);
     setRecommendations([]);
+    setApplications([]);
     await loadChats(false);
   }
 
@@ -439,6 +515,11 @@ export default function App() {
     try { await api.publish(chat.job_post.id); await loadChat(chat.id); } catch (err) { setError(err.message); }
   }
 
+  async function closeJob() {
+    if (!window.confirm("Close this recruitment and stop new applications?")) return;
+    try { await api.closeJob(chat.job_post.id); await loadChat(chat.id); } catch (err) { setError(err.message); }
+  }
+
   async function apply(jobId, candidateName, preferredContact) {
     try { await api.apply(jobId, chat.id, candidateName, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
@@ -452,6 +533,7 @@ export default function App() {
     setChat(null);
     setChats([]);
     setRecommendations([]);
+    setApplications([]);
   }
 
   if (!user) return <Entry onAuthenticated={authenticate} showJobsOnOpen={showJobsOnEntry} />;
@@ -460,7 +542,7 @@ export default function App() {
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
       {error && <div className="toast" onClick={() => setError("")}>{error}<span>×</span></div>}
-      {chat ? <ChatView chat={chat} recommendations={recommendations} onSend={send} onPublish={publish} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
+      {chat ? <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>
   );
 }
