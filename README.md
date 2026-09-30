@@ -46,10 +46,10 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 
 ## Stack
 
-React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide the API. Docker Compose runs Nginx, FastAPI, and PostgreSQL. The backend uses SQLite by default when run outside Docker.
+React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide the API. Development Compose runs Vite, FastAPI, PostgreSQL, and Mailpit. The backend uses SQLite by default when run outside Docker. The production Dockerfiles retain the Nginx frontend image for the later production Compose package.
 
 ```text
-Browser :3000 -> Nginx frontend -> /api/ -> FastAPI :8000 -> PostgreSQL
+Browser :3000 -> Vite frontend -> FastAPI :8000 -> PostgreSQL
 ```
 
 Opaque, expiring bearer sessions are stored in the database. Chat, job-publishing,
@@ -69,20 +69,30 @@ Copy-Item .env.example .env
 On macOS or Linux, use `cp .env.example .env`. Start the stack:
 
 ```bash
-docker compose -f dev.docker-compose.yaml up --build
+docker compose -f dev.docker-compose.yaml up -d
 ```
+
+The development services mount the source directly and cache Python and Node
+dependencies in named volumes. This avoids Docker BuildKit trying to archive
+Microsoft OneDrive reparse files. The first start installs dependencies; later
+starts reuse them unless `requirements.txt` or `package-lock.json` changes.
+Running the command with `--build` is also safe, although the development services
+do not require custom image builds.
 
 Open [the app](http://localhost:3000), [the API docs](http://localhost:8000/docs),
 or [the Mailpit inbox](http://localhost:8025). All published development ports
 bind to localhost. Change `FRONTEND_PORT`, `BACKEND_PORT`, or
-`MAILPIT_UI_PORT` in `.env` if needed. Demo data persists in the
+`MAILPIT_UI_PORT` in `.env` if needed. The browser calls `VITE_API_URL`, which
+defaults to `http://localhost:8000/api`. Demo data persists in the
 `job_talk_data` volume; local email is disposable.
 
 ```bash
 docker compose -f dev.docker-compose.yaml down
 ```
 
-Run `docker compose -f dev.docker-compose.yaml down -v` only when you intend to delete the demo database. The sample PostgreSQL credentials are for local development. Keep `.env` out of Git.
+Run `docker compose -f dev.docker-compose.yaml down -v` only when you intend to
+delete the demo database and both dependency caches. The sample PostgreSQL
+credentials are for local development. Keep `.env` out of Git.
 
 ## Run without Docker
 

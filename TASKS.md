@@ -93,8 +93,10 @@ access (updated 2026-09-29).
 - [x] Confirm the clean development stack starts, becomes healthy, and retains data.
 
 **Status:** Complete. Compose configuration validated and the renamed stack
-restarted with healthy services while retaining the existing PostgreSQL volume
-(2026-09-29).
+restarted with healthy services while retaining the existing PostgreSQL volume.
+Development source now runs through bind mounts with cached dependency volumes,
+so normal Compose startup does not send OneDrive reparse files through a BuildKit
+context (updated 2026-09-30).
 
 ### JT-007 - Production environment and secret contract
 

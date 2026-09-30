@@ -26,10 +26,15 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    image: python:3.12-slim
+    working_dir: /app
     init: true
     restart: unless-stopped
+    volumes:
+      - ./backend:/app:ro
+      - backend_venv:/opt/venv
     environment:
+      PATH: /opt/venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
       APP_ENV: ${APP_ENV:-development}
       APP_DOMAIN: ${APP_DOMAIN:-localhost}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
@@ -54,6 +59,19 @@ services:
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-20}
       AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-180}
       AI_MAX_CALLS_PER_CHAT: ${AI_MAX_CALLS_PER_CHAT:-12}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        requirements_hash="$$(sha256sum requirements.txt | cut -d ' ' -f 1)"
+        marker="/opt/venv/.requirements-$$requirements_hash"
+        if [ ! -x /opt/venv/bin/uvicorn ] || [ ! -f "$$marker" ]; then
+          python -m venv /opt/venv
+          /opt/venv/bin/pip install --disable-pip-version-check --no-cache-dir -r requirements.txt
+          rm -f /opt/venv/.requirements-*
+          touch "$$marker"
+        fi
+        /bin/sh /app/docker-entrypoint.sh uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -69,23 +87,40 @@ services:
       start_period: 15s
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: /api
-        VITE_DEV_MAILBOX_URL: http://localhost:${MAILPIT_UI_PORT:-8025}
+    image: node:20-alpine
+    working_dir: /app
     init: true
     restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+      VITE_DEV_MAILBOX_URL: http://localhost:${MAILPIT_UI_PORT:-8025}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        lock_hash="$$(sha256sum package-lock.json | cut -d ' ' -f 1)"
+        marker="node_modules/.package-lock-$$lock_hash"
+        if [ ! -x node_modules/.bin/vite ] || [ ! -f "$$marker" ]; then
+          npm ci --no-audit --no-fund
+          rm -f node_modules/.package-lock-*
+          touch "$$marker"
+        fi
+        npm run dev -- --host 0.0.0.0 --port 5173
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-3000}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:5173"
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
   job_talk_data:
+  backend_venv:
+  frontend_node_modules:
