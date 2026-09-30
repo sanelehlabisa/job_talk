@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import select
@@ -8,7 +9,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test_job_talk.db"
 from fastapi.testclient import TestClient
 
 from app import models
-from app.auth import issue_session
+from app.auth import issue_session, token_digest
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.services.ai import _preview, generate_reply
@@ -149,6 +150,89 @@ def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
         assert client.get("/api/auth/me", headers=headers).status_code == 401
         assert client.post("/api/auth/register", json={}).status_code == 404
         assert client.post("/api/auth/login", json={}).status_code == 404
+
+
+def test_expired_guest_token_is_deleted_and_cannot_be_replayed():
+    job_id = create_published_job()
+    with TestClient(app) as client:
+        guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        token = guest["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        with SessionLocal() as db:
+            session = db.scalar(
+                select(models.AuthSession).where(
+                    models.AuthSession.token_hash == token_digest(token)
+                )
+            )
+            session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            db.commit()
+
+        assert client.get("/api/chats", headers=headers).status_code == 401
+        assert client.get("/api/chats", headers=headers).status_code == 401
+        with SessionLocal() as db:
+            assert db.scalar(
+                select(models.AuthSession).where(
+                    models.AuthSession.token_hash == token_digest(token)
+                )
+            ) is None
+
+
+def test_two_guests_on_one_job_cannot_cross_application_boundaries():
+    job_id = create_published_job()
+    with TestClient(app) as client:
+        first = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        second = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        first_headers = {"Authorization": f"Bearer {first['access_token']}"}
+        second_headers = {"Authorization": f"Bearer {second['access_token']}"}
+        first_chat = client.get("/api/chats", headers=first_headers).json()[0]
+        second_chat = client.get("/api/chats", headers=second_headers).json()[0]
+
+        assert first["access_token"] != second["access_token"]
+        assert first_chat["id"] != second_chat["id"]
+        assert first_chat["target_job_id"] == second_chat["target_job_id"] == job_id
+        assert client.get(
+            f"/api/chats/{first_chat['id']}", headers=second_headers
+        ).status_code == 404
+        assert client.post(
+            f"/api/chats/{first_chat['id']}/messages",
+            json={"content": "Read or change the other candidate's chat"},
+            headers=second_headers,
+        ).status_code == 404
+        assert client.get(
+            f"/api/chats/{first_chat['id']}/recommendations", headers=second_headers
+        ).status_code == 404
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(first_chat["id"], "Wrong Candidate", "wrong@example.com"),
+            headers=second_headers,
+        ).status_code == 404
+
+        assert client.post(
+            f"/api/chats/{first_chat['id']}/messages",
+            json={"content": "I have three years of welding experience."},
+            headers=first_headers,
+        ).status_code == 200
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(first_chat["id"], "First Candidate", "first@example.com"),
+            headers=first_headers,
+        ).status_code == 201
+        assert len(client.get("/api/applications", headers=first_headers).json()) == 1
+        assert client.get("/api/applications", headers=second_headers).json() == []
+
+        assert client.post(
+            f"/api/chats/{second_chat['id']}/messages",
+            json={"content": "I have one year of welding experience."},
+            headers=second_headers,
+        ).status_code == 200
+        assert client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(
+                second_chat["id"], "Second Candidate", "second@example.com"
+            ),
+            headers=second_headers,
+        ).status_code == 201
+        assert len(client.get("/api/applications", headers=second_headers).json()) == 1
 
 
 def test_approved_recruiter_signs_in_with_single_use_email_code(monkeypatch):

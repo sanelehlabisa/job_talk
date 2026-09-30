@@ -235,10 +235,14 @@ job picker expose the same jobs, and repeated seed runs create no duplicates
 - [x] Reject reads or writes to another guest application, recruiter chat, or job.
 - [x] Collect candidate name and preferred contact only at review or submission.
 - [x] Explain what will be shared with the recruiter and capture explicit consent.
-- [ ] Add expiry, replay, ownership, and cross-application boundary tests.
+- [x] Add expiry, replay, ownership, and cross-application boundary tests.
 
 **Done when:** two candidates can use the same job link without accounts and
 cannot see or change each other's conversation or application.
+
+**Status:** Complete. Two independent guest sessions can apply to one job while
+remaining isolated, expired and logged-out tokens cannot be replayed, and backend
+tests cover cross-chat, cross-job, and cross-application access (2026-09-30).
 
 ### JT-021 - Job-specific conversational application
 
