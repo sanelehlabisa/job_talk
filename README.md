@@ -228,6 +228,17 @@ pytest
 
 For the frontend, run `npm run build` inside `frontend`.
 
+With the development stack running on its default ports, Windows users with
+Microsoft Edge can repeat the public-job-to-recruiter browser walkthrough:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/browser-smoke.ps1
+```
+
+The script submits a fresh guest application to seeded job 2, signs in through
+the Mailpit code, verifies the recruiter comparison, and writes desktop and phone
+screenshots under `%TEMP%\jobtalk-browser-smoke`.
+
 ## Experiment report
 
 Job Talk records privacy-safe pilot events using a keyed hash of a random browser

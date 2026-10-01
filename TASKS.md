@@ -17,11 +17,10 @@ then an evidence-based decision about further investment.
 ## Remaining path to a usable pilot
 
 The core candidate, recruiter, privacy, and private HTTPS package work is ready.
-The smallest useful release still needs these pieces, in this order:
+The smallest useful release now needs this final step:
 
 1. Choose the live subdomain, deploy the stack, and validate certificate renewal
    on the VM (`JT-010` and `JT-011`).
-2. Complete the mobile and accessibility check (`JT-015`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -474,16 +473,17 @@ and horizontally scrollable phone states were checked (2026-10-01).
 
 - [x] Verify keyboard navigation, visible focus, labels, contrast, and screen-reader names.
 - [x] Add a recoverable error state around the chat view.
-- [ ] Test the full recruiter-to-candidate demo on a small phone and desktop browser.
+- [x] Test the full recruiter-to-candidate demo on a small phone and desktop browser.
 - [x] Add a short in-product note that matching is guidance and skills are unverified.
 
-**Status:** In progress. Candidate application loading no longer sends an undefined
+**Status:** Complete. Candidate application loading no longer sends an undefined
 job ID, which caused the unexplained red error notification. Errors now identify
 their purpose and provide reload and dismiss controls, while unexpected render
 failures show a recoverable conversation screen. Interactive controls have visible
 keyboard focus and accessible names, and both match views state that evidence is
-unverified guidance. Focused end-to-end tests and desktop/narrow entry checks pass;
-the final interactive phone and desktop walkthrough remains (2026-10-01).
+unverified guidance. Focused end-to-end tests pass, and a real browser walkthrough
+now covers the public job, guest application and feedback at 390 x 760, emailed
+recruiter sign-in, and desktop candidate comparison (2026-10-01).
 
 ## P2 - Launch material
 
