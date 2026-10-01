@@ -211,7 +211,7 @@ the small footer credit, and the frontend production build passes (2026-10-01).
   hash, expiry, attempt count, and consumed state.
 - [x] Make each code single use, limit verification attempts, and invalidate an
   older code when a new one is issued.
-- [ ] Rate limit recruiter code requests before public deployment.
+- [x] Rate limit recruiter code requests before public deployment.
 - [x] Issue the existing opaque recruiter session after successful verification;
   keep logout, session expiry, recruiter ownership, and job ownership checks.
 - [x] Remove password registration, password hashes, and password fields from the
@@ -220,12 +220,17 @@ the small footer credit, and the frontend production build passes (2026-10-01).
 - [x] Add a seeded approved recruiter so local testing uses the real email-code
   path without an authentication bypass.
 - [x] Show clear pending-approval, code-sent, invalid-code, and expired-code states.
-- [ ] Test approval boundaries, address enumeration responses, expiry, reuse,
+- [x] Test approval boundaries, address enumeration responses, expiry, reuse,
   attempt limits, replacement codes, and cross-recruiter access.
 
 **Done when:** a recruiter can request access, the owner can approve the request
 without editing the database, and only that approved email can complete the same
 email-code flow in development and production. Candidates never see a login flow.
+
+**Status:** Complete. Approved addresses are limited to one code per 60 seconds
+and five per hour by default while every approval state receives the same 202
+response. Focused backend tests cover approval boundaries, expiry, single use,
+attempt lockout, replacement codes, and cross-recruiter isolation (2026-10-01).
 
 ### JT-019 - Seed three to five realistic jobs
 

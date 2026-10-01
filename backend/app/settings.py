@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     email_from: EmailStr | None = None
     recruiter_code_ttl_minutes: int = Field(default=10, ge=5, le=30)
     recruiter_code_max_attempts: int = Field(default=5, ge=3, le=10)
+    recruiter_code_request_cooldown_seconds: int = Field(default=60, ge=30, le=600)
+    recruiter_code_request_max_per_hour: int = Field(default=5, ge=1, le=20)
     demo_recruiter_email: EmailStr | None = None
     seed_demo_jobs: bool = False
 

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from app import models
 from app.auth import issue_session, token_digest
 from app.database import Base, SessionLocal, engine
-from app.main import app
+from app.main import app, settings as app_settings
 from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
 from app.services.conversation import detect_intent, wants_to_publish
@@ -520,6 +520,206 @@ def test_unknown_recruiter_request_stays_pending_without_revealing_status(monkey
     with SessionLocal() as db:
         user = db.scalar(select(models.User).where(models.User.email == "pending@example.com"))
         assert user.approval_status == "pending"
+
+
+def test_recruiter_code_requests_hide_approval_state_and_limit_email(monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        "app.main.send_recruiter_login_code",
+        lambda recipient, code: sent.append((recipient, code)),
+    )
+    with SessionLocal() as db:
+        users = [
+            models.User(email="approved@example.com", role="recruiter", approval_status="approved"),
+            models.User(email="waiting@example.com", role="recruiter", approval_status="pending"),
+            models.User(email="rejected@example.com", role="recruiter", approval_status="rejected"),
+            models.User(email="candidate@example.com", role="candidate", approval_status="not_required"),
+            models.User(email="capped@example.com", role="recruiter", approval_status="approved"),
+        ]
+        db.add_all(users)
+        db.flush()
+        capped_user = users[-1]
+        now = datetime.now(timezone.utc)
+        for index in range(app_settings.recruiter_code_request_max_per_hour):
+            db.add(
+                models.RecruiterLoginCode(
+                    user_id=capped_user.id,
+                    code_hash=f"{index:064x}",
+                    expires_at=now - timedelta(minutes=1),
+                    consumed_at=now - timedelta(minutes=1),
+                    created_at=now - timedelta(minutes=index + 1),
+                )
+            )
+        db.commit()
+
+    emails = [
+        "approved@example.com",
+        "waiting@example.com",
+        "rejected@example.com",
+        "candidate@example.com",
+        "unknown@example.com",
+        "capped@example.com",
+    ]
+    with TestClient(app) as client:
+        responses = [
+            client.post("/api/auth/recruiter/request-code", json={"email": email})
+            for email in emails
+        ]
+        assert {response.status_code for response in responses} == {202}
+        assert len({response.text for response in responses}) == 1
+        assert [recipient for recipient, _ in sent] == ["approved@example.com"]
+
+        repeated = client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "approved@example.com"},
+        )
+        assert repeated.status_code == 202
+        assert repeated.text == responses[0].text
+        assert len(sent) == 1
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "approved@example.com", "code": sent[0][1]},
+        ).status_code == 200
+
+    with SessionLocal() as db:
+        unknown = db.scalar(select(models.User).where(models.User.email == "unknown@example.com"))
+        assert unknown.approval_status == "pending"
+
+
+def test_recruiter_codes_expire_lock_after_attempts_and_are_replaced(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(
+        "app.main.send_recruiter_login_code",
+        lambda recipient, code: sent.setdefault(recipient, []).append(code),
+    )
+    emails = ["replacement@example.com", "expired@example.com", "attempts@example.com"]
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                models.User(email=email, role="recruiter", approval_status="approved")
+                for email in emails
+            ]
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "replacement@example.com"},
+        )
+        first_code = sent["replacement@example.com"][0]
+        with SessionLocal() as db:
+            replacement_user = db.scalar(
+                select(models.User).where(models.User.email == "replacement@example.com")
+            )
+            first_record = db.scalar(
+                select(models.RecruiterLoginCode).where(
+                    models.RecruiterLoginCode.user_id == replacement_user.id
+                )
+            )
+            first_record.created_at = datetime.now(timezone.utc) - timedelta(
+                seconds=app_settings.recruiter_code_request_cooldown_seconds + 1
+            )
+            db.commit()
+
+        client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "replacement@example.com"},
+        )
+        second_code = sent["replacement@example.com"][1]
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "replacement@example.com", "code": first_code},
+        ).status_code == 401
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "replacement@example.com", "code": second_code},
+        ).status_code == 200
+
+        client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "expired@example.com"},
+        )
+        expired_code = sent["expired@example.com"][0]
+        with SessionLocal() as db:
+            expired_user = db.scalar(
+                select(models.User).where(models.User.email == "expired@example.com")
+            )
+            expired_record = db.scalar(
+                select(models.RecruiterLoginCode).where(
+                    models.RecruiterLoginCode.user_id == expired_user.id
+                )
+            )
+            expired_record.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            db.commit()
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "expired@example.com", "code": expired_code},
+        ).status_code == 401
+
+        client.post(
+            "/api/auth/recruiter/request-code",
+            json={"email": "attempts@example.com"},
+        )
+        correct_code = sent["attempts@example.com"][0]
+        wrong_code = "000000" if correct_code != "000000" else "999999"
+        for _ in range(app_settings.recruiter_code_max_attempts):
+            assert client.post(
+                "/api/auth/recruiter/verify-code",
+                json={"email": "attempts@example.com", "code": wrong_code},
+            ).status_code == 401
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "attempts@example.com", "code": correct_code},
+        ).status_code == 401
+
+    with SessionLocal() as db:
+        attempts_user = db.scalar(
+            select(models.User).where(models.User.email == "attempts@example.com")
+        )
+        attempts_record = db.scalar(
+            select(models.RecruiterLoginCode).where(
+                models.RecruiterLoginCode.user_id == attempts_user.id
+            )
+        )
+        assert attempts_record.attempt_count == app_settings.recruiter_code_max_attempts
+        assert attempts_record.consumed_at is not None
+
+
+def test_recruiter_code_cannot_authenticate_another_recruiter(monkeypatch):
+    sent = {}
+    monkeypatch.setattr(
+        "app.main.send_recruiter_login_code",
+        lambda recipient, code: sent.update({recipient: code}),
+    )
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                models.User(email="first@example.com", role="recruiter", approval_status="approved"),
+                models.User(email="second@example.com", role="recruiter", approval_status="approved"),
+            ]
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        for email in ("first@example.com", "second@example.com"):
+            client.post("/api/auth/recruiter/request-code", json={"email": email})
+        assert client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "second@example.com", "code": sent["first@example.com"]},
+        ).status_code == 401
+        second_session = client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "second@example.com", "code": sent["second@example.com"]},
+        )
+        first_session = client.post(
+            "/api/auth/recruiter/verify-code",
+            json={"email": "first@example.com", "code": sent["first@example.com"]},
+        )
+        assert second_session.status_code == 200
+        assert second_session.json()["user"]["email"] == "second@example.com"
+        assert first_session.status_code == 200
+        assert first_session.json()["user"]["email"] == "first@example.com"
 
 
 def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():

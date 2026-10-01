@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -35,6 +35,10 @@ from .settings import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+RECRUITER_CODE_REQUEST_MESSAGE = (
+    "If this recruiter email is approved, a sign-in code has been sent. "
+    "New access requests wait for approval."
+)
 app = FastAPI(title="Job Talk API", version="0.1.0")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
 app.add_middleware(
@@ -159,6 +163,33 @@ def request_recruiter_code(
 
     if user.role == "recruiter" and user.approval_status == "approved":
         now = datetime.now(timezone.utc)
+        latest_code = db.scalar(
+            select(models.RecruiterLoginCode)
+            .where(models.RecruiterLoginCode.user_id == user.id)
+            .order_by(models.RecruiterLoginCode.created_at.desc())
+            .limit(1)
+        )
+        latest_created_at = latest_code.created_at if latest_code else None
+        if latest_created_at and latest_created_at.tzinfo is None:
+            latest_created_at = latest_created_at.replace(tzinfo=timezone.utc)
+        requests_in_last_hour = db.scalar(
+            select(func.count(models.RecruiterLoginCode.id)).where(
+                models.RecruiterLoginCode.user_id == user.id,
+                models.RecruiterLoginCode.created_at >= now - timedelta(hours=1),
+            )
+        ) or 0
+        request_is_limited = bool(
+            (
+                latest_created_at
+                and latest_created_at
+                > now - timedelta(seconds=settings.recruiter_code_request_cooldown_seconds)
+            )
+            or requests_in_last_hour >= settings.recruiter_code_request_max_per_hour
+        )
+        if request_is_limited:
+            return schemas.MessageResponseStatus(
+                message=RECRUITER_CODE_REQUEST_MESSAGE
+            )
         db.execute(
             update(models.RecruiterLoginCode)
             .where(
@@ -182,10 +213,7 @@ def request_recruiter_code(
             logger.exception("Could not deliver recruiter login code")
 
     return schemas.MessageResponseStatus(
-        message=(
-            "If this recruiter email is approved, a sign-in code has been sent. "
-            "New access requests wait for approval."
-        )
+        message=RECRUITER_CODE_REQUEST_MESSAGE
     )
 
 

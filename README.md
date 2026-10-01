@@ -146,6 +146,13 @@ docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters 
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve recruiter@company.com
 ```
 
+Code requests always return the same response, whether the address is approved,
+pending, rejected, or unknown. For an approved recruiter, the backend sends at
+most one code per 60 seconds and five codes per hour by default. A request made
+during the cooldown leaves the current code valid. Configure these limits with
+`RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS` and
+`RECRUITER_CODE_REQUEST_MAX_PER_HOUR`.
+
 Re-run `python -m app.seed_jobs` inside the backend container whenever you want
 to restore the three demo job definitions. The command updates them without
 creating duplicates.
