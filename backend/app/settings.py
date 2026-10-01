@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     app_domain: str = "localhost"
     public_origin: str = "http://localhost:5173"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:5173,http://127.0.0.1:5173"
+    )
     forwarded_allow_ips: str = "127.0.0.1"
     tls_email: EmailStr | None = None
 

@@ -472,10 +472,18 @@ and horizontally scrollable phone states were checked (2026-10-01).
 
 ### JT-015 - Usability and accessibility pass
 
-- [ ] Verify keyboard navigation, visible focus, labels, contrast, and screen-reader names.
-- [ ] Add a recoverable error state around the chat view.
+- [x] Verify keyboard navigation, visible focus, labels, contrast, and screen-reader names.
+- [x] Add a recoverable error state around the chat view.
 - [ ] Test the full recruiter-to-candidate demo on a small phone and desktop browser.
-- [ ] Add a short in-product note that matching is guidance and skills are unverified.
+- [x] Add a short in-product note that matching is guidance and skills are unverified.
+
+**Status:** In progress. Candidate application loading no longer sends an undefined
+job ID, which caused the unexplained red error notification. Errors now identify
+their purpose and provide reload and dismiss controls, while unexpected render
+failures show a recoverable conversation screen. Interactive controls have visible
+keyboard focus and accessible names, and both match views state that evidence is
+unverified guidance. Focused end-to-end tests and desktop/narrow entry checks pass;
+the final interactive phone and desktop walkthrough remains (2026-10-01).
 
 ## P2 - Launch material
 

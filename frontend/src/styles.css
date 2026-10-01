@@ -20,6 +20,7 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #d46f3c; outline-offset: 3px; }
 
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 .brand-mark { width: 37px; height: 37px; display: grid; place-items: center; color: white; background: var(--green); border-radius: 12px 12px 12px 4px; }
@@ -278,7 +279,14 @@ button { cursor: pointer; }
 .loading-screen { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 13px; }
 .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--green); animation: pulse 1.2s infinite; }
 @keyframes pulse { 50% { opacity: .2; transform: scale(.7); } }
-.toast { position: fixed; z-index: 30; top: 18px; right: 18px; background: #853e35; color: white; border-radius: 10px; padding: 12px 14px; font-size: 11px; box-shadow: 0 10px 30px rgba(0,0,0,.15); cursor: pointer; }.toast span { margin-left: 14px; }
+.error-notice { position: fixed; z-index: 30; top: 18px; right: 18px; width: min(390px, calc(100vw - 36px)); background: #fffaf4; color: var(--ink); border: 1px solid #e5bea6; border-left: 5px solid var(--orange); border-radius: 12px; padding: 12px; box-shadow: 0 12px 34px rgba(40,55,46,.16); display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; }
+.error-notice strong { display: block; font-size: 11px; }
+.error-notice p { color: #6c625b; font-size: 10px; line-height: 1.4; margin: 3px 0 0; }
+.error-retry { border: 1px solid #cf9e82; border-radius: 8px; background: white; color: #83462b; padding: 7px 9px; font-size: 9px; font-weight: 700; }
+.error-dismiss { border: 0; background: transparent; color: #765e50; font-size: 18px; line-height: 1; padding: 6px; }
+.chat-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; background: var(--paper); }
+.chat-error h2 { font-family: "DM Serif Display", Georgia, serif; font-size: 26px; font-weight: 400; margin: 14px 0 6px; }
+.chat-error p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 18px; max-width: 430px; }
 .backdrop { display: none; }
 
 @media (max-width: 800px) {
@@ -286,7 +294,7 @@ button { cursor: pointer; }
   .hero-copy h1 { font-size: 54px; }.hero-copy > p { font-size: 16px; }.trust-row { display: none; }
   .login-card { max-width: 500px; width: 100%; }.login-page footer { display: none; }
   .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); transition: transform .25s ease; box-shadow: 15px 0 40px rgba(20,50,35,.15); }.sidebar.open { transform: translateX(0); }
-  .mobile-close { display: block; }.backdrop { display: block; position: fixed; inset: 0; z-index: 9; background: rgba(18,43,31,.25); }
+  .mobile-close { display: block; }.backdrop { display: block; position: fixed; inset: 0; z-index: 9; background: rgba(18,43,31,.25); border: 0; padding: 0; }
   .menu-button { display: block; border: 0; background: transparent; font-size: 18px; color: var(--ink); margin-right: 12px; }
   .chat-header { padding: 0 17px; justify-content: flex-start; }.status-pill { margin-left: auto; }
   .starter-prompts { margin-left: 0; }
@@ -299,4 +307,5 @@ button { cursor: pointer; }
   .login-page { padding: 20px; }.nav-note { display: none; }.hero-copy h1 { font-size: 46px; }.login-card { padding: 28px 23px; }
   .status-pill { display: none; }.chat-header { height: 65px; }.job-card { padding: 14px; }.score { width: 46px; height: 46px; }.comparison-grid { grid-template-columns: 1fr; }
   .feedback-prompt { align-items: flex-start; flex-direction: column; }.feedback-actions { width: 100%; }.feedback-actions button { flex: 1; }
+  .error-notice { grid-template-columns: 1fr auto; top: 10px; right: 10px; width: calc(100vw - 20px); }.error-retry { grid-column: 1 / -1; grid-row: 2; }.error-dismiss { grid-column: 2; grid-row: 1; }
 }

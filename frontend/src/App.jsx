@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Bot,
@@ -50,6 +50,43 @@ function PrivacyPage() {
         <p className="policy-updated">Last updated: 1 October 2026</p>
       </div>
     </main>
+  );
+}
+
+class ChatErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  recover = async () => {
+    this.setState({ failed: false });
+    await this.props.onRecover();
+  };
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <section className="chat-error" role="alert">
+          <MessageCircleMore size={28} />
+          <h2>The conversation view could not load</h2>
+          <p>Your saved conversation is still available. Reload this view to continue.</p>
+          <button className="primary" type="button" onClick={this.recover}>Reload conversation</button>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ErrorNotice({ message, onRetry, onDismiss }) {
+  return (
+    <aside className="error-notice" role="alert" aria-live="assertive">
+      <div><strong>Job Talk needs attention</strong><p>{message}</p></div>
+      <button type="button" className="error-retry" onClick={onRetry}>Reload view</button>
+      <button type="button" className="error-dismiss" aria-label="Dismiss error" onClick={onDismiss}>×</button>
+    </aside>
   );
 }
 
@@ -222,14 +259,14 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
 
 function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogout, open, onClose }) {
   return (
-    <aside className={`sidebar ${open ? "open" : ""}`}>
-      <div className="side-head"><Brand /><button className="mobile-close" onClick={onClose}>×</button></div>
-      {user.role === "recruiter" && <button className="new-chat" onClick={onNew}><Plus size={18} /> New hiring conversation</button>}
-      {user.role === "candidate" && <button className="new-chat" onClick={onBrowseJobs}><Plus size={18} /> Browse other jobs</button>}
+    <aside className={`sidebar ${open ? "open" : ""}`} aria-label="Conversation navigation">
+      <div className="side-head"><Brand /><button className="mobile-close" type="button" aria-label="Close conversation menu" onClick={onClose}>×</button></div>
+      {user.role === "recruiter" && <button className="new-chat" type="button" onClick={onNew}><Plus size={18} /> New hiring conversation</button>}
+      {user.role === "candidate" && <button className="new-chat" type="button" onClick={onBrowseJobs}><Plus size={18} /> Browse other jobs</button>}
       <div className="chat-list-label">YOUR CONVERSATIONS</div>
       <div className="chat-list">
         {chats.map((item, index) => (
-          <button className={`chat-row ${item.id === activeId ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}>
+          <button className={`chat-row ${item.id === activeId ? "active" : ""}`} type="button" aria-current={item.id === activeId ? "page" : undefined} key={item.id} onClick={() => onSelect(item.id)}>
             <span className="chat-type">{item.intent === "employer" ? <BriefcaseBusiness size={17} /> : item.intent === "candidate" ? <UserRoundSearch size={17} /> : <MessageCircleMore size={17} />}</span>
             <span><strong>{item.intent === "employer" ? "Hiring conversation" : item.intent === "candidate" ? "Job search" : "New conversation"}</strong><small>{index === 0 ? "Most recent" : new Date(item.created_at).toLocaleDateString()}</small></span>
           </button>
@@ -239,7 +276,7 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogou
       <div className="user-panel">
         <span>{user.role === "candidate" ? <UserRound size={16} /> : user.email.slice(0, 1).toUpperCase()}</span>
         <div><strong>{user.role === "candidate" ? "Job seeker" : user.email.split("@")[0]}</strong><small>{user.role === "candidate" ? "Private guest session" : user.email}</small></div>
-        <button aria-label={user.role === "candidate" ? "Leave session" : "Log out"} onClick={onLogout}><LogOut size={17} /></button>
+        <button type="button" aria-label={user.role === "candidate" ? "Leave session" : "Log out"} onClick={onLogout}><LogOut size={17} /></button>
       </div>
       <a className="privacy-link" href="/privacy">Privacy &amp; safety</a>
     </aside>
@@ -484,7 +521,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
         </div>
         {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
       </div>
-      <p className="decision-support">Scores organize candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
+      <p className="decision-support">Scores organize unverified candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
       <CandidateScorePlot applications={applications} targetProfile={targetProfile} />
       {!visible.length && <div className="candidate-empty">No submitted applications yet. Candidates will appear here in one comparable format.</div>}
       {!!visible.length && <div className="comparison-grid">
@@ -580,7 +617,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   return (
     <section className="chat-shell">
       <header className="chat-header">
-        <button className="menu-button" onClick={onMenu}>☰</button>
+        <button className="menu-button" type="button" aria-label="Open conversation menu" onClick={onMenu}>☰</button>
         <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? (chat.job_post?.title || "Build your role") : chat.intent === "candidate" ? (chat.target_job?.title || "Find your next role") : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
         <div className="status-pill"><span /> {statusLabel}</div>
       </header>
@@ -608,6 +645,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>
+              <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
               {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={submitted || applied[item.job.id]} skipped={skipped[item.job.id]} onApply={() => setReviewing(item)} onSkip={() => setSkipped((value) => ({ ...value, [item.job.id]: true }))} />)}
               {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
@@ -619,7 +657,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
       {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>Type “publish the job” or use this button.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>Your approved snapshot is now frozen for the recruiter.</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
-          <textarea rows="1" maxLength="5000" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
+          <textarea aria-label="Conversation message" rows="1" maxLength="5000" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
         </div>
         <small>Job Talk turns your conversation into a structured profile.</small>
@@ -742,13 +780,23 @@ function JobTalkApp() {
     setApplications([]);
   }
 
+  async function recoverView() {
+    setError("");
+    if (chat?.id) await loadChat(chat.id);
+    else await loadChats();
+  }
+
   if (!user) return <Entry onAuthenticated={authenticate} showJobsOnOpen={showJobsOnEntry} />;
   return (
     <main className="app-layout">
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
-      {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
-      {error && <div className="toast" onClick={() => setError("")}>{error}<span>×</span></div>}
-      {chat ? <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
+      {sidebarOpen && <button className="backdrop" type="button" aria-label="Close conversation menu" onClick={() => setSidebarOpen(false)} />}
+      {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
+      {chat ? (
+        <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
+          <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
+        </ChatErrorBoundary>
+      ) : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" type="button" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>
   );
 }
