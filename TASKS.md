@@ -184,16 +184,21 @@ the real subdomain on the VM (updated 2026-10-01).
 
 ### JT-025 - Use consistent chat participant icons
 
-- [ ] Replace the Roventics robot image inside assistant chat bubbles and typing
+- [x] Replace the Roventics robot image inside assistant chat bubbles and typing
   state with a simple circular assistant icon, such as Lucide `Bot`.
-- [ ] Keep the assistant and person icons the same shape and size while using
+- [x] Keep the assistant and person icons the same shape and size while using
   distinct colors and accessible labels.
-- [ ] Keep the small Roventics project credit in the footer instead of using the
+- [x] Keep the small Roventics project credit in the footer instead of using the
   company robot as the conversational assistant identity.
-- [ ] Check the icons at phone and desktop sizes.
+- [x] Check the icons at phone and desktop sizes.
 
 **Done when:** assistant and user messages are immediately distinguishable and
 both participants use the same simple avatar style.
+
+**Status:** Complete. Assistant messages and typing use Lucide `Bot`, user
+messages use `UserRound`, and both render in the same fixed circular avatar with
+distinct colors and screen-reader labels. The Roventics robot remains only in
+the small footer credit, and the frontend production build passes (2026-10-01).
 
 ### JT-018 - Manual recruiter approval and email-code sign-in
 

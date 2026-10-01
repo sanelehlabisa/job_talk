@@ -118,10 +118,10 @@ button { cursor: pointer; }
 .date-rule span { position: relative; background: var(--paper); padding: 0 12px; color: #a1aaa4; font-size: 9px; }
 .message-wrap { display: flex; align-items: flex-end; gap: 9px; margin: 13px 0; }
 .message-wrap.user { justify-content: flex-end; }
-.avatar { width: 29px; height: 29px; display: grid; place-items: center; flex-shrink: 0; }
-.assistant-avatar { border-radius: 9px 9px 9px 3px; background: var(--mint); border: 1px solid #c9ddce; }
-.assistant-avatar img { width: 19px; height: 19px; }
-.user-avatar { border-radius: 50% 50% 3px 50%; background: #f6dfd2; border: 1px solid #ebc5b0; color: #9c4f2d; }
+.avatar { width: 29px; height: 29px; display: grid; place-items: center; flex-shrink: 0; border-radius: 50%; }
+.avatar svg { width: 16px; height: 16px; }
+.assistant-avatar { background: var(--mint); border: 1px solid #c9ddce; color: #315f48; }
+.user-avatar { background: #f6dfd2; border: 1px solid #ebc5b0; color: #9c4f2d; }
 .message { max-width: 73%; border: 1px solid #e3e7df; background: white; border-radius: 6px 16px 16px 16px; padding: 11px 14px 7px; box-shadow: 0 4px 15px rgba(37,59,47,.035); }
 .user .message { background: var(--green); color: white; border-color: var(--green); border-radius: 16px 16px 6px 16px; }
 .message p { margin: 0; white-space: pre-wrap; font-size: 13px; line-height: 1.55; }

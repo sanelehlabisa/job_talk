@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  Bot,
   BriefcaseBusiness,
   Check,
   ChevronRight,
@@ -404,9 +405,9 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           <div className="date-rule"><span>Today</span></div>
           {chat.messages.map((message) => (
             <div className={`message-wrap ${message.sender}`} key={message.id}>
-              {message.sender === "assistant" && <div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><img src="/branding/roventics-robot.svg" alt="" /></div>}
+              {message.sender === "assistant" && <div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
               <div className="message"><p>{message.content}</p><time>{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
-              {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} /></div>}
+              {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
             </div>
           ))}
           {!chat.messages.some((message) => message.sender === "user") && (
@@ -416,7 +417,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
               {chat.intent === "employer" && <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Describe a welder role</button>}
             </div>
           )}
-          {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><img src="/branding/roventics-robot.svg" alt="" /></div><div className="typing"><i /><i /><i /></div></div>}
+          {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
           {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
