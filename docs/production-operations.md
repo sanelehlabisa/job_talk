@@ -21,8 +21,19 @@ chmod 600 secrets/nginx/.htpasswd
 
 Keep this authentication enabled until the public-pilot safety checks pass.
 The ignored `STAGING_HTPASSWD_PATH` setting may point to a different file.
-4. Validate the resolved configuration without printing it, because resolved
-   output contains secrets:
+4. After DNS points to the VM, run the preflight without printing resolved
+configuration or secrets. Pass the VM's public IPv4 address so the DNS check
+also rejects a record that points to another host:
+
+```sh
+EXPECTED_PUBLIC_IP=203.0.113.10 ./scripts/production-preflight.sh
+```
+
+The check rejects example values, inconsistent origin settings, a missing
+staging password file, unresolved or mismatched DNS, and an invalid production
+Compose configuration.
+5. You can also validate only the resolved Compose configuration without
+printing it, because resolved output contains secrets:
 
 ```sh
 docker compose --env-file .env.production -f production.docker-compose.yaml config --quiet

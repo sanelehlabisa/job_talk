@@ -169,6 +169,8 @@ the real subdomain on the VM (updated 2026-10-01).
 ### JT-011 - VM and subdomain deployment
 
 - [ ] Choose the final subdomain and create its DNS record.
+- [x] Add a production preflight that checks required values without printing
+  secrets, verifies origin consistency and DNS, and validates Compose.
 - [ ] Configure the VM firewall to allow SSH, HTTP, and HTTPS only as required.
 - [ ] Deploy the production package and confirm only the reverse proxy is public.
 - [ ] Verify TLS, private-demo access control, health checks, restart after reboot,
