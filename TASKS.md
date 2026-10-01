@@ -131,27 +131,33 @@ counts across users, chats, messages, jobs, and applications (2026-09-29).
 
 ### JT-009 - Production Compose package
 
-- [ ] Add an explicit production Compose file with pinned image versions.
-- [ ] Keep PostgreSQL, FastAPI, and the frontend container on the internal Compose
+- [x] Add an explicit production Compose file with pinned image versions.
+- [x] Keep PostgreSQL, FastAPI, and the frontend container on the internal Compose
   network; use `expose` for service-to-service traffic without host bindings.
-- [ ] Publish only reverse-proxy host ports `80:80` and `443:443` on the VM.
-- [ ] Treat the browser frontend as an untrusted API client. Keep authentication,
+- [x] Publish only reverse-proxy host ports `80:80` and `443:443` on the VM.
+- [x] Treat the browser frontend as an untrusted API client. Keep authentication,
   authorization, ownership, recruiter approval, input validation, matching,
   scoring, application state changes, and data filtering in FastAPI.
-- [ ] Never place secrets or authoritative business rules in Vite build arguments,
+- [x] Never place secrets or authoritative business rules in Vite build arguments,
   browser storage, or frontend-only checks.
-- [ ] Add database-aware readiness checks, restart policies, resource limits, and
+- [x] Add database-aware readiness checks, restart policies, resource limits, and
   persistent named volumes.
-- [ ] Document build, start, health check, logs, upgrade, rollback, and shutdown.
+- [x] Document build, start, health check, logs, upgrade, rollback, and shutdown.
+
+**Status:** Complete. The production package pins infrastructure images by
+digest and application images by Git commit tag, keeps application and database
+services private, and publishes only Nginx ports 80 and 443. An isolated clean
+stack passed migrations, database readiness, HTTPS frontend and API routing, and
+published-port checks; operating commands are documented (2026-10-01).
 
 ### JT-010 - HTTPS ingress and staging access
 
-- [ ] Add a root `nginx/` directory for the public reverse proxy.
-- [ ] Listen publicly on port 80 only to redirect requests to HTTPS on port 443.
-- [ ] Terminate TLS on port 443 for the configured Job Talk subdomain.
-- [ ] Serve the internal frontend service at `/` and proxy `/api/` to the internal
+- [x] Add a root `nginx/` directory for the public reverse proxy.
+- [x] Listen publicly on port 80 only to redirect requests to HTTPS on port 443.
+- [x] Terminate TLS on port 443 for the configured Job Talk subdomain.
+- [x] Serve the internal frontend service at `/` and proxy `/api/` to the internal
   FastAPI service, preserving one browser origin.
-- [ ] Confirm the VM exposes no frontend, backend, or PostgreSQL host port other
+- [x] Confirm the VM exposes no frontend, backend, or PostgreSQL host port other
   than Nginx ports 80 and 443.
 - [ ] Forward trusted proxy headers, set conservative security headers, limit API
   requests, and cap request body size.

@@ -181,6 +181,19 @@ To rotate the SMTP password, replace `SMTP_PASSWORD` in the VM environment file
 and recreate the backend service. Existing recruiter sessions remain valid;
 new sign-in codes use the updated SMTP credentials.
 
+## Production Compose
+
+[`production.docker-compose.yaml`](production.docker-compose.yaml) builds backend
+and frontend images under one Git commit tag. PostgreSQL, FastAPI, and the
+frontend have no host port bindings. The public Nginx proxy is the only service
+that publishes ports, on `80:80` and `443:443`, and it sends `/api/` directly to
+FastAPI while serving the frontend at `/`.
+
+The production package requires TLS files before startup. Exact build, start,
+health, log, upgrade, rollback, and shutdown commands are in
+[`docs/production-operations.md`](docs/production-operations.md). Certificate
+issuance and renewal remain part of the following HTTPS ingress ticket.
+
 ## Database migrations and recovery
 
 The backend container runs `alembic upgrade head` before Uvicorn. If a migration

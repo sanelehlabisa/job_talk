@@ -726,6 +726,14 @@ def test_mock_ai_previews_current_message_and_chat_context():
     assert reply.endswith("fallback")
 
 
+def test_readiness_checks_database_connection():
+    with TestClient(app) as client:
+        response = client.get("/api/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
 def test_mock_ai_preview_has_at_most_ten_source_characters():
     assert _preview("short") == "short"
     assert _preview("1234567890") == "1234567890"
