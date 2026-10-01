@@ -44,19 +44,19 @@ SKILLS = {
     "food preparation": "Food preparation",
     "machine operation": "Machine operation",
     "project management": "Project management",
-    "welder": "Welder",
+    "welder": "Welding",
     "welding": "Welding",
-    "electrician": "Electrician",
+    "electrician": "Electrical wiring",
     "electrical wiring": "Electrical wiring",
-    "plumber": "Plumber",
+    "plumber": "Plumbing",
     "plumbing": "Plumbing",
-    "carpenter": "Carpenter",
+    "carpenter": "Carpentry",
     "carpentry": "Carpentry",
-    "bricklayer": "Bricklayer",
+    "bricklayer": "Bricklaying",
     "bricklaying": "Bricklaying",
     "cleaner": "Cleaner",
     "cleaning": "Cleaning",
-    "driver": "Driver",
+    "driver": "Driving",
     "driving": "Driving",
     "forklift": "Forklift operation",
     "3-phase lathe": "3-phase lathe",
@@ -233,8 +233,69 @@ def _years(text: str) -> str | None:
     return match.group(0) if match else None
 
 
+def _importance(text: str) -> str | None:
+    lower = text.lower()
+    if any(term in lower for term in ("optional", "preferred", "nice to have", "nice-to-have")):
+        return "preferred"
+    if any(term in lower for term in ("required", "essential", "must have", "must-have", "important")):
+        return "required"
+    return None
+
+
+def _skill_requirement(label: str, importance: str | None, years: str | None) -> dict:
+    importance_text = importance or "importance not confirmed"
+    years_text = years or "experience level not confirmed"
+    return {
+        "kind": "skill",
+        "label": label,
+        "importance": importance,
+        "years_required": years,
+        "confirmed": bool(importance and years),
+        "weight": 0.85 if importance == "required" else 0.35 if importance == "preferred" else 0.5,
+        "description": f"{importance_text}; {years_text}.",
+        **({"optional": True} if importance == "preferred" else {}),
+    }
+
+
+def _skill_clarification_question(key: str, requirement: dict) -> str:
+    label = requirement.get("label") or key.replace("_", " ").title()
+    importance = requirement.get("importance")
+    years = requirement.get("years_required")
+    if not importance and not years:
+        return f"For {label}, is it required or preferred, and how many years of experience should applicants have?"
+    if not importance:
+        return f"Is {label} required or preferred for this role?"
+    return f"How many years of {label} experience should applicants have?"
+
+
+def expected_employer_skill(profile: dict | None, assistant_text: str) -> str | None:
+    if not profile or not assistant_text:
+        return None
+    return next(
+        (
+            key
+            for key, requirement in profile.items()
+            if requirement.get("kind") == "skill"
+            and _skill_clarification_question(key, requirement) in assistant_text
+        ),
+        None,
+    )
+
+
+def summarize_job_requirements(title: str, profile: dict | None) -> str:
+    items = []
+    for key, requirement in (profile or {}).items():
+        label = requirement.get("label") or key.replace("_", " ").title()
+        items.append(f"{label}: {requirement.get('description', 'details not confirmed')}")
+    summary = "; ".join(items[:8]) or "requirements are still being clarified"
+    return f"The recruiter described {title} with these requirements: {summary}."
+
+
 def update_employer_profile(
-    profile: dict, text: str, current_title: str | None = None
+    profile: dict,
+    text: str,
+    current_title: str | None = None,
+    expected_skill: str | None = None,
 ) -> tuple[dict, dict]:
     profile = dict(profile or {})
     lower = text.lower()
@@ -242,12 +303,22 @@ def update_employer_profile(
     expected_detail = missing_details[0] if missing_details else None
     skill_hits = _skill_hits(text)
     for key, label in skill_hits:
-        optional = bool(re.search(rf"{re.escape(label.lower())}.{{0,20}}optional|optional.{{0,20}}{re.escape(label.lower())}", lower))
-        profile[key] = {
-            "weight": 0.35 if optional else 0.85,
-            "description": f"{label} experience is {'preferred' if optional else 'required'}.",
-            **({"optional": True} if optional else {}),
-        }
+        existing = profile.get(key, {})
+        importance = _importance(text) or existing.get("importance")
+        years = _years(text) if len(skill_hits) == 1 else existing.get("years_required")
+        profile[key] = _skill_requirement(label, importance, years)
+    mentioned_skill_keys = {key for key, _label in skill_hits}
+    if (
+        expected_skill
+        and expected_skill in profile
+        and (not mentioned_skill_keys or expected_skill in mentioned_skill_keys)
+    ):
+        existing = profile[expected_skill]
+        profile[expected_skill] = _skill_requirement(
+            existing.get("label") or expected_skill.replace("_", " ").title(),
+            _importance(text) or existing.get("importance"),
+            _years(text) or existing.get("years_required"),
+        )
     if expected_detail == "criteria" and not skill_hits and len(text.strip()) >= 3:
         profile["core_requirement"] = {
             "weight": 0.85,
@@ -258,12 +329,17 @@ def update_employer_profile(
     elif "degree" in lower or "education" in lower:
         profile["education"] = {"weight": 0.45, "description": "Relevant education is preferred."}
     years = _years(text)
-    if years:
+    if years and not expected_skill and not (
+        len(skill_hits) == 1 and _importance(text)
+    ):
         profile["experience"] = {"weight": 0.8, "description": f"The role asks for {years} of relevant experience."}
     location = _location(text)
     if (
         not location
         and expected_detail == "location"
+        and not skill_hits
+        and not _years(text)
+        and not _importance(text)
         and not any(item in lower for item in ("remote", "hybrid", "on-site", "onsite"))
         and len(text.split()) <= 12
         and re.search(r"[A-Za-z]", text)
@@ -453,7 +529,18 @@ def missing_job_details(profile: dict, title: str) -> list[str]:
     }
     if not any(key not in general_fields for key in profile):
         missing.append("criteria")
-    if "experience" not in profile:
+    missing.extend(
+        f"skill:{key}"
+        for key, requirement in profile.items()
+        if requirement.get("kind") == "skill"
+        and not requirement.get("confirmed", True)
+    )
+    has_skill_experience = any(
+        requirement.get("kind") == "skill"
+        and requirement.get("years_required")
+        for requirement in profile.values()
+    )
+    if "experience" not in profile and not has_skill_experience:
         missing.append("experience")
     if "location" not in profile and "working_arrangement" not in profile:
         missing.append("location")
@@ -472,6 +559,9 @@ def employer_reply(
         return "What is the job title for this role?"
     if next_detail == "criteria":
         return "Which skill or responsibility is essential for this role?"
+    if next_detail.startswith("skill:"):
+        key = next_detail.split(":", 1)[1]
+        return _skill_clarification_question(key, profile[key])
     if next_detail == "experience":
         return "I’ve added that. How much relevant experience should the person have?"
     if next_detail == "location":

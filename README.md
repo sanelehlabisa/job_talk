@@ -30,9 +30,13 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Deterministic follow-up questions that ask for the selected job's highest-weight
   missing evidence and resume from the saved draft after a refresh.
-- Employer job publishing once a title and two meaningful criteria are collected.
-- Conversational publishing: a recruiter can refine one role over several messages
-  and say `I am done` or `publish the job` when it is ready.
+- Conversational job drafting that asks whether each detected skill or tool is
+  required or preferred and how much experience applicants should have.
+- A structured role summary before publishing. Recruiters can correct an
+  attribute in ordinary chat, then say `I am done` or `publish the job` when all
+  required details are confirmed.
+- Candidate conversations open with a plain summary of the confirmed recruiter
+  requirements before collecting job-specific examples.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - A review and consent step that collects contact details only when the candidate
   submits, then freezes the structured application snapshot.

@@ -358,6 +358,25 @@ requires a title, essential skill, experience, location or work setup, and start
 availability; the assistant asks for the next missing item and the UI shows all
 five checks before publishing (updated 2026-10-01).
 
+### JT-029 - Clarify and confirm recruiter criteria
+
+- [x] Normalize detected skills and tool names into structured criteria.
+- [x] Ask whether each skill is required or preferred and how many years of
+  experience applicants should have.
+- [x] Keep publishing disabled while a detected skill still needs clarification.
+- [x] Show the recruiter every structured role attribute before publishing and
+  explain that ordinary chat can correct a mistake.
+- [x] Update an existing criterion in place when the recruiter corrects it.
+- [x] Start each guest application with a plain summary of what the recruiter
+  requested, then ask for evidence against those requirements.
+- [x] Test clarification, correction, publication, candidate summary, ownership,
+  and the complete recruiter-to-candidate flow.
+
+**Status:** Complete. Each newly detected skill now carries a normalized label,
+importance, requested experience, weight, and confirmation state. Recruiters see
+the resulting role attributes before publishing and candidates receive the same
+confirmed requirements at the start of their private application (2026-10-01).
+
 ### JT-022 - Recruiter candidate comparison
 
 - [x] Treat each recruiter hiring chat as one job workspace with `draft`,

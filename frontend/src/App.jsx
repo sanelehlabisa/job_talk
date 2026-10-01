@@ -295,20 +295,32 @@ function ProfileChips({ profile }) {
 
 function JobReadiness({ job }) {
   const profile = job?.target_profile || {};
+  const attributes = Object.entries(profile);
   const generalFields = ["availability", "education", "experience", "location", "working_arrangement"];
   const checks = [
     ["Job title", job?.title && job.title !== "Untitled role"],
     ["Essential skill", Object.keys(profile).some((key) => !generalFields.includes(key))],
-    ["Experience", Boolean(profile.experience)],
+    ["Experience", Boolean(profile.experience || Object.values(profile).some((value) => value.kind === "skill" && value.years_required))],
     ["Location or work setup", Boolean(profile.location || profile.working_arrangement)],
     ["Start availability", Boolean(profile.availability)],
   ];
   const completed = checks.filter(([, ready]) => ready).length;
   return (
-    <section className="job-readiness" aria-label={`Role readiness ${completed} of ${checks.length}`}>
-      <div><strong>Role readiness</strong><span>{completed}/{checks.length}</span></div>
-      <ul>{checks.map(([label, ready]) => <li className={ready ? "ready" : ""} key={label}>{ready ? <Check size={11} /> : <i />}{label}</li>)}</ul>
-    </section>
+    <>
+      <section className="job-readiness" aria-label={`Role readiness ${completed} of ${checks.length}`}>
+        <div><strong>Role readiness</strong><span>{completed}/{checks.length}</span></div>
+        <ul>{checks.map(([label, ready]) => <li className={ready ? "ready" : ""} key={label}>{ready ? <Check size={11} /> : <i />}{label}</li>)}</ul>
+      </section>
+      <section className="role-summary" aria-label="Role attributes to confirm">
+        <div><strong>Check the role before publishing</strong><span>{job.title}</span></div>
+        <ul>{attributes.map(([key, value]) => {
+          const label = value.label || key.replaceAll("_", " ");
+          const needsClarity = value.kind === "skill" && value.confirmed === false;
+          return <li className={needsClarity ? "needs-clarity" : ""} key={key}><strong>{label}</strong><span>{needsClarity ? "Needs importance and experience" : value.description}</span></li>;
+        })}</ul>
+        <small>See a mistake? Tell the assistant what to change before you publish.</small>
+      </section>
+    </>
   );
 }
 

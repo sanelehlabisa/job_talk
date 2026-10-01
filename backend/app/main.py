@@ -25,6 +25,8 @@ from .services.conversation import (
     candidate_reply,
     employer_reply,
     expected_candidate_criterion,
+    expected_employer_skill,
+    summarize_job_requirements,
     update_candidate_turn,
     update_employer_profile,
     wants_to_publish,
@@ -165,8 +167,9 @@ def start_guest_session(
             chat_id=chat.id,
             sender="assistant",
             content=(
-                f"You're applying for {job.title}. Tell me about the work you can do "
-                "and the experience you have that fits this role."
+                f"You're applying for {job.title}. "
+                f"{summarize_job_requirements(job.title, job.target_profile)} "
+                "Tell me which requirement you can meet and give one work example."
             ),
         )
     )
@@ -406,6 +409,8 @@ def send_message(
     expected_criterion = expected_candidate_criterion(
         target_profile, last_assistant_text
     )
+    employer_profile = chat.job_post.target_profile if chat.job_post else chat.profile
+    expected_skill = expected_employer_skill(employer_profile, last_assistant_text)
     candidate_answer_status = None
 
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
@@ -415,7 +420,9 @@ def send_message(
     if not chat.intent:
         chat.intent = expected_intent
         if chat.intent == "employer":
-            chat.profile, details = update_employer_profile(chat.profile, text)
+            chat.profile, details = update_employer_profile(
+                chat.profile, text, expected_skill=expected_skill
+            )
             job = models.JobPost(
                 chat_id=chat.id,
                 user_id=chat.user_id,
@@ -457,6 +464,7 @@ def send_message(
                 chat.profile,
                 text,
                 job.title if job else None,
+                expected_skill,
             )
             if not job:
                 job = models.JobPost(chat_id=chat.id, user_id=chat.user_id)

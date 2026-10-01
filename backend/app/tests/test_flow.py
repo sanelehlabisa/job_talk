@@ -91,7 +91,28 @@ def test_end_to_end_employer_to_application():
         ).json()
         assert response["chat"]["intent"] == "employer"
         assert response["chat"]["can_publish"] is False
+        assert "For Python, is it required or preferred" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "Python is required with two years of experience."},
+            headers=employer_headers,
+        ).json()
+        assert "For FastAPI, is it required or preferred" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "FastAPI is preferred with one year of experience."},
+            headers=employer_headers,
+        ).json()
         assert "available to start" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "Correction: Python is preferred with one year of experience."},
+            headers=employer_headers,
+        ).json()
+        python_requirement = response["chat"]["job_post"]["target_profile"]["python"]
+        assert python_requirement["importance"] == "preferred"
+        assert python_requirement["years_required"] == "one year"
+        assert python_requirement["confirmed"] is True
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
             json={"content": "The candidate should be available to start within two weeks."},
@@ -104,6 +125,11 @@ def test_end_to_end_employer_to_application():
         guest = client.post("/api/auth/guest", json={"job_id": job["id"]}).json()
         candidate_headers = {"Authorization": f"Bearer {guest['access_token']}"}
         candidate_chat = client.get("/api/chats", headers=candidate_headers).json()[0]
+        candidate_chat = client.get(
+            f"/api/chats/{candidate_chat['id']}", headers=candidate_headers
+        ).json()
+        assert "Python: preferred" in candidate_chat["messages"][0]["content"]
+        assert "FastAPI: preferred" in candidate_chat["messages"][0]["content"]
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
             json={"content": "I am looking for a job. I have three years of Python experience, built two FastAPI APIs, and I am available to start within two weeks."},
@@ -351,7 +377,14 @@ def test_recruiter_refines_and_publishes_a_job_by_saying_done():
         ).json()
         assert first_answer["chat"]["job_post"]["title"] == "Welder"
         assert first_answer["chat"]["can_publish"] is False
-        assert "How much relevant experience" in first_answer["assistant_message"]["content"]
+        assert "For Welding, is it required or preferred" in first_answer["assistant_message"]["content"]
+
+        skill_answer = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Welding is required with two years of experience."},
+            headers=recruiter_headers,
+        ).json()
+        assert "Where is the role based" in skill_answer["assistant_message"]["content"]
 
         second_answer = client.post(
             f"/api/chats/{chat['id']}/messages",
@@ -507,6 +540,15 @@ def test_recruiter_compares_candidates_and_closes_recruitment():
         ).json()
         job_id = role["chat"]["job_post"]["id"]
         assert role["chat"]["status"] == "draft"
+        for clarification in (
+            "Welding is required with three years of experience.",
+            "Forklift operation is required with two years of experience.",
+        ):
+            client.post(
+                f"/api/chats/{recruiter_chat['id']}/messages",
+                json={"content": clarification},
+                headers=recruiter_headers,
+            )
         assert client.post(f"/api/jobs/{job_id}/publish", headers=recruiter_headers).status_code == 200
         assert client.get(
             f"/api/applications?job_id={job_id}", headers=recruiter_headers
@@ -1082,6 +1124,16 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
             f"/api/jobs/{job_id}/publish", headers=candidate_headers
         ).status_code == 403
 
+        for clarification in (
+            "Welding is required with two years of experience.",
+            "Forklift operation is preferred with one year of experience.",
+        ):
+            client.post(
+                f"/api/chats/{employer_chat['id']}/messages",
+                json={"content": clarification},
+                headers=employer_headers,
+            )
+
         assert client.post(
             f"/api/jobs/{job_id}/publish", headers=employer_headers
         ).status_code == 200
@@ -1153,6 +1205,19 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         ).json()
         assert response["chat"]["intent"] == "employer"
         assert response["chat"]["job_post"]["title"] == "Welder"
+        assert response["chat"]["can_publish"] is False
+        assert "For Welding, is it required or preferred" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "Welding is required with two years of experience."},
+            headers=employer_headers,
+        ).json()
+        assert "For Forklift operation, is it required or preferred" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "Forklift operation is preferred with one year of experience."},
+            headers=employer_headers,
+        ).json()
         assert response["chat"]["can_publish"] is True
         job_id = response["chat"]["job_post"]["id"]
         assert client.post(f"/api/jobs/{job_id}/publish", headers=employer_headers).status_code == 200
@@ -1361,6 +1426,8 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
     assert "unverified claims" in captured["json"]["instructions"]
     assert "denials and contradictions" in captured["json"]["instructions"]
     assert "required_next_step as authoritative" in captured["json"]["instructions"]
+    assert "required or preferred" in captured["json"]["instructions"]
+    assert "how many years" in captured["json"]["instructions"]
     sent = json.loads(captured["json"]["input"])
     assert sent["selected_job"]["id"] == 3
     assert sent["earlier_messages"] == context["messages"]
