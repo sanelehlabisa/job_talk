@@ -18,6 +18,7 @@ from .auth import (
     recruiter_code_digest,
 )
 from .database import get_db
+from .data_retention import delete_candidate_data
 from .services.conversation import (
     can_publish,
     candidate_reply,
@@ -39,7 +40,13 @@ RECRUITER_CODE_REQUEST_MESSAGE = (
     "If this recruiter email is approved, a sign-in code has been sent. "
     "New access requests wait for approval."
 )
-app = FastAPI(title="Job Talk API", version="0.1.0")
+app = FastAPI(
+    title="Job Talk API",
+    version="0.1.0",
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
+)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_host_list)
 app.add_middleware(
     CORSMiddleware,
@@ -272,6 +279,21 @@ def logout(
     db: Session = Depends(get_db),
 ):
     db.delete(current_session)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/account", status_code=status.HTTP_204_NO_CONTENT)
+def delete_candidate_account(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "candidate":
+        raise HTTPException(
+            status_code=403,
+            detail="Recruiters must contact support to delete an account with hiring records",
+        )
+    delete_candidate_data(db, [current_user.id])
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app import models
 from app.auth import issue_session, token_digest
 from app.database import Base, SessionLocal, engine
+from app.data_retention import purge_expired_guest_data
 from app.main import app, settings as app_settings
 from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
@@ -114,6 +115,101 @@ def test_end_to_end_employer_to_application():
             json={"content": "Change my frozen application"},
             headers=candidate_headers,
         ).status_code == 409
+
+
+def test_candidate_can_delete_submitted_application_and_guest_data():
+    job_id = create_published_job()
+    with TestClient(app) as client:
+        guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        headers = {"Authorization": f"Bearer {guest['access_token']}"}
+        chat = client.get("/api/chats", headers=headers).json()[0]
+        client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "I have three years of welding experience."},
+            headers=headers,
+        )
+        application = client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(chat["id"]),
+            headers=headers,
+        ).json()
+
+        assert client.delete("/api/account", headers=headers).status_code == 204
+        assert client.get("/api/chats", headers=headers).status_code == 401
+
+    with SessionLocal() as db:
+        assert db.get(models.User, guest["user"]["id"]) is None
+        assert db.get(models.Chat, chat["id"]) is None
+        assert db.get(models.Application, application["id"]) is None
+        assert db.scalar(
+            select(models.Message.id).where(models.Message.chat_id == chat["id"])
+        ) is None
+
+
+def test_recruiter_cannot_use_guest_self_deletion_endpoint():
+    with TestClient(app) as client:
+        _, headers = authenticate("delete-recruiter@example.com", "recruiter")
+        response = client.delete("/api/account", headers=headers)
+        assert response.status_code == 403
+        assert client.get("/api/auth/me", headers=headers).status_code == 200
+
+
+def test_guest_retention_cleanup_removes_only_old_candidate_data():
+    now = datetime.now(timezone.utc)
+    with SessionLocal() as db:
+        old_user = models.User(
+            email="guest-old@guest.invalid",
+            role="candidate",
+            approval_status="not_required",
+            created_at=now - timedelta(days=31),
+        )
+        recent_user = models.User(
+            email="guest-recent@guest.invalid",
+            role="candidate",
+            approval_status="not_required",
+            created_at=now - timedelta(days=2),
+        )
+        recruiter = models.User(
+            email="old-recruiter@example.com",
+            role="recruiter",
+            approval_status="pending",
+            created_at=now - timedelta(days=31),
+        )
+        db.add_all([old_user, recent_user, recruiter])
+        db.flush()
+        old_chat = models.Chat(user_id=old_user.id, intent="candidate")
+        db.add(old_chat)
+        db.flush()
+        db.add(models.Message(chat_id=old_chat.id, sender="user", content="private"))
+        old_user_id = old_user.id
+        recent_user_id = recent_user.id
+        recruiter_id = recruiter.id
+        db.commit()
+
+        assert purge_expired_guest_data(db, now - timedelta(days=30)) == 1
+        assert db.get(models.User, old_user_id) is None
+        assert db.get(models.User, recent_user_id) is not None
+        assert db.get(models.User, recruiter_id) is not None
+
+
+def test_user_input_is_trimmed_and_control_characters_are_rejected():
+    job_id = create_published_job()
+    with TestClient(app) as client:
+        guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        headers = {"Authorization": f"Bearer {guest['access_token']}"}
+        chat = client.get("/api/chats", headers=headers).json()[0]
+        sent = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "  Welding experience  "},
+            headers=headers,
+        )
+        assert sent.status_code == 200
+        assert sent.json()["chat"]["messages"][-2]["content"] == "Welding experience"
+        assert client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "unsafe\u0000message"},
+            headers=headers,
+        ).status_code == 422
 
 
 def test_recruiter_refines_and_publishes_a_job_by_saying_done():

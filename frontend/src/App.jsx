@@ -25,6 +25,32 @@ function Brand() {
 }
 
 const DEV_MAILBOX_URL = import.meta.env.VITE_DEV_MAILBOX_URL;
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "support@example.com";
+
+function PrivacyPage() {
+  return (
+    <main className="policy-page">
+      <div className="policy-card">
+        <a className="policy-back" href="/"><Brand /> <span>Back to Job Talk</span></a>
+        <p className="eyebrow">EARLY EXPERIMENT</p>
+        <h1>Privacy, safety, and acceptable use</h1>
+        <p>Job Talk helps a candidate describe work experience for one role and helps that role's recruiter compare submitted evidence. It is an early, free experiment.</p>
+        <h2>What we store</h2>
+        <p>We store the conversation, its structured skills and experience, the selected job, and the match explanation. A candidate's name and contact details are collected only during final review and submission. Recruiter email addresses, hashed sign-in codes, and hashed session tokens are also stored.</p>
+        <h2>Who can see it</h2>
+        <p>The recruiter for the selected role sees only a submitted application snapshot, contact details, evidence, and match breakdown. The full chat is not shown to the recruiter. Job Talk does not sell personal data.</p>
+        <p>The deterministic local response generator is the default. If the hosted AI option is enabled, only the selected job, structured draft, and a bounded window from the current chat are sent to that provider.</p>
+        <h2>Retention and deletion</h2>
+        <p>The demo retention period for candidate records is 30 days, and the operator runs the documented cleanup command regularly. While the private guest session is open, a submitted candidate can use <strong>Delete my application data</strong>. After leaving, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the application reference. Recruiters can use the same address to request account or hiring-record deletion.</p>
+        <h2>Acceptable use</h2>
+        <p>Use Job Talk only for genuine job applications and hiring. Do not submit another person's private information, secrets, harmful content, automated traffic, or discriminatory job requirements. Candidate claims are unverified, and match scores are review aids rather than hiring decisions.</p>
+        <h2>Questions or reports</h2>
+        <p>Report privacy, safety, access, or removal concerns to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Include only the minimum information needed to find the record.</p>
+        <p className="policy-updated">Last updated: 1 October 2026</p>
+      </div>
+    </main>
+  );
+}
 
 function Entry({ onAuthenticated, showJobsOnOpen = false }) {
   const [email, setEmail] = useState("");
@@ -187,6 +213,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
       <footer className="brand-credit">
         <img src="/branding/roventics-robot.svg" alt="" />
         <span>A Roventics project</span>
+        <a href="/privacy">Privacy &amp; safety</a>
       </footer>
     </main>
   );
@@ -213,6 +240,7 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogou
         <div><strong>{user.role === "candidate" ? "Job seeker" : user.email.split("@")[0]}</strong><small>{user.role === "candidate" ? "Private guest session" : user.email}</small></div>
         <button aria-label={user.role === "candidate" ? "Leave session" : "Log out"} onClick={onLogout}><LogOut size={17} /></button>
       </div>
+      <a className="privacy-link" href="/privacy">Privacy &amp; safety</a>
     </aside>
   );
 }
@@ -283,6 +311,7 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
         <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />
         <span>I agree to share this application and my contact details with the recruiter for this role.</span>
       </label>
+      <p className="review-policy">Read how Job Talk uses and deletes data in <a href="/privacy" target="_blank" rel="noreferrer">Privacy &amp; safety</a>.</p>
       <button className="primary full" disabled={!consent || submitting}>{submitting ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button>
     </form>
   );
@@ -359,7 +388,7 @@ function CandidateComparison({ applications, status, onCloseJob }) {
   );
 }
 
-function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onReload, onMenu }) {
+function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onReload, onMenu, onDeleteAccount }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [applied, setApplied] = useState({});
@@ -431,9 +460,9 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
         </div>
       </div>
       {chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready</strong><span>Type “publish the job” or use this button.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
-      {chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted</strong>Your approved snapshot is now frozen for the recruiter.</span></div> : <form className="composer" onSubmit={submit}>
+      {chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>Your approved snapshot is now frozen for the recruiter.</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
-          <textarea rows="1" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
+          <textarea rows="1" maxLength="5000" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
         </div>
         <small>Job Talk turns your conversation into a structured profile.</small>
@@ -442,7 +471,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   );
 }
 
-export default function App() {
+function JobTalkApp() {
   const [session, setSession] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
     catch { sessionStorage.removeItem(SESSION_KEY); return null; }
@@ -462,7 +491,13 @@ export default function App() {
       const selected = await api.getChat(id);
       setChat(selected);
       setRecommendations(selected.intent === "candidate" ? await api.recommendations(id) : []);
-      setApplications(selected.intent === "employer" && selected.job_post ? await api.applications(selected.job_post.id) : []);
+      setApplications(
+        selected.intent === "employer" && selected.job_post
+          ? await api.applications(selected.job_post.id)
+          : selected.intent === "candidate"
+            ? await api.applications()
+            : [],
+      );
       setSidebarOpen(false);
     } catch (err) { setError(err.message); }
   }
@@ -525,6 +560,17 @@ export default function App() {
     try { await api.apply(jobId, chat.id, candidateName, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
 
+  async function deleteCandidateAccount() {
+    if (!window.confirm("Permanently delete this application, conversation, contact details, and guest session?")) return;
+    try {
+      await api.deleteAccount();
+      sessionStorage.removeItem(SESSION_KEY);
+      window.location.assign("/");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function endSession(showJobs = false) {
     try { await api.logout(); } catch { /* Clear the browser session even when it already expired. */ }
     if (showJobs) window.history.replaceState({}, "", window.location.pathname);
@@ -543,7 +589,11 @@ export default function App() {
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
       {error && <div className="toast" onClick={() => setError("")}>{error}<span>×</span></div>}
-      {chat ? <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
+      {chat ? <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} /> : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>
   );
+}
+
+export default function App() {
+  return window.location.pathname === "/privacy" ? <PrivacyPage /> : <JobTalkApp />;
 }

@@ -43,6 +43,15 @@ def test_valid_production_settings_are_parsed():
         "https://jobs.jobtalk.co.za",
         "https://admin.jobtalk.co.za",
     ]
+    assert settings.api_docs_enabled is False
+
+
+def test_development_keeps_api_docs_and_retention_is_bounded():
+    settings = Settings(_env_file=None, app_env="development")
+    assert settings.api_docs_enabled is True
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, demo_data_retention_days=31)
 
 
 @pytest.mark.parametrize(

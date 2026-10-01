@@ -1,5 +1,11 @@
 server_tokens off;
+map $request_method $jobtalk_write_key {
+    default "";
+    POST $binary_remote_addr;
+    DELETE $binary_remote_addr;
+}
 limit_req_zone $binary_remote_addr zone=jobtalk_api:10m rate=5r/s;
+limit_req_zone $jobtalk_write_key zone=jobtalk_writes:10m rate=30r/m;
 limit_req_status 429;
 
 server {
@@ -48,6 +54,7 @@ server {
 
     location /api/ {
         limit_req zone=jobtalk_api burst=15 nodelay;
+        limit_req zone=jobtalk_writes burst=10 nodelay;
         proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

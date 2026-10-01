@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     recruiter_code_max_attempts: int = Field(default=5, ge=3, le=10)
     recruiter_code_request_cooldown_seconds: int = Field(default=60, ge=30, le=600)
     recruiter_code_request_max_per_hour: int = Field(default=5, ge=1, le=20)
+    demo_data_retention_days: int = Field(default=30, ge=7, le=30)
     demo_recruiter_email: EmailStr | None = None
     seed_demo_jobs: bool = False
 
@@ -68,6 +69,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [value.strip().rstrip("/") for value in self.cors_origins.split(",") if value.strip()]
+
+    @property
+    def api_docs_enabled(self) -> bool:
+        return self.app_env != "production"
 
     @model_validator(mode="after")
     def validate_production_contract(self):

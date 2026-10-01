@@ -16,17 +16,13 @@ then an evidence-based decision about further investment.
 
 ## Remaining path to a usable pilot
 
+The core candidate, recruiter, privacy, and private HTTPS package work is ready.
 The smallest useful release still needs these pieces, in this order:
 
-1. Finish the job-specific candidate conversation and its boundary tests
-   (`JT-020`, `JT-021`, and `JT-026`).
-2. Give a recruiter one job workspace with submitted candidates, closing, a
-   top-five shortlist, and clear comparison (`JT-022`).
-3. Add rate limits, privacy and deletion information, log filtering, and basic
-   abuse controls (`JT-012` and the open checks in `JT-018`).
-4. Package and deploy the private HTTPS stack (`JT-009` through `JT-011`).
-5. Add minimal usage and feedback measurement (`JT-024`), then complete a mobile
-   and accessibility check (`JT-015`).
+1. Choose the live subdomain, deploy the stack, and validate certificate renewal
+   on the VM (`JT-010` and `JT-011`).
+2. Add minimal usage and feedback measurement (`JT-024`).
+3. Complete the mobile and accessibility check (`JT-015`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -420,12 +416,19 @@ compared, returned, and reported the workflow useful.
 
 ### JT-012 - Safety, privacy, and abuse controls
 
-- [ ] Publish plain-language privacy, acceptable-use, and data-deletion information.
-- [ ] Add rate limits for login, chat, publish, and apply operations.
-- [ ] Limit field lengths and reject unsafe or malformed input consistently.
-- [ ] Remove sensitive values from logs and define a short demo-data retention period.
-- [ ] Disable or protect API documentation in the deployed environment.
-- [ ] Add reporting and administrative removal paths before accepting unknown users.
+- [x] Publish plain-language privacy, acceptable-use, and data-deletion information.
+- [x] Add rate limits for login, chat, publish, and apply operations.
+- [x] Limit field lengths and reject unsafe or malformed input consistently.
+- [x] Remove sensitive values from logs and define a short demo-data retention period.
+- [x] Disable or protect API documentation in the deployed environment.
+- [x] Add reporting and administrative removal paths before accepting unknown users.
+
+**Status:** Complete. The app publishes a plain-language privacy and safety page,
+uses bounded and normalized user input, provides candidate self-deletion and
+guarded operator cleanup commands, and caps guest data retention at 30 days.
+Nginx applies general and write-operation limits, recruiter email issuance has a
+separate per-address limit, production API documentation is disabled, and the
+operator runbook defines reporting and sensitive-log rules (2026-10-01).
 
 ## P1 - Improve the experiment after the core flow works
 

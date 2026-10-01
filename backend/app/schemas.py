@@ -1,7 +1,23 @@
+import unicodedata
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+def clean_user_text(value: str, allowed_controls: str = "") -> str:
+    cleaned = value.strip()
+    if any(
+        unicodedata.category(character).startswith("C")
+        and character not in allowed_controls
+        for character in cleaned
+    ):
+        raise ValueError("Control characters are not allowed")
+    return cleaned
+
+
+def clean_message_text(value: str) -> str:
+    return clean_user_text(value, "\n\r\t")
 
 
 class ORMModel(BaseModel):
@@ -39,6 +55,8 @@ class AuthResponse(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=5000)
+
+    _clean_content = field_validator("content")(clean_message_text)
 
 
 class MessageOut(ORMModel):
@@ -96,6 +114,10 @@ class ApplyRequest(BaseModel):
     candidate_name: str = Field(min_length=2, max_length=100)
     preferred_contact: str = Field(min_length=3, max_length=320)
     consent_to_share: Literal[True]
+
+    _clean_candidate_fields = field_validator("candidate_name", "preferred_contact")(
+        clean_user_text
+    )
 
 
 class ApplicationOut(ORMModel):

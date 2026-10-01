@@ -49,6 +49,7 @@ services:
       RECRUITER_CODE_MAX_ATTEMPTS: ${RECRUITER_CODE_MAX_ATTEMPTS:-5}
       RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS: ${RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS:-60}
       RECRUITER_CODE_REQUEST_MAX_PER_HOUR: ${RECRUITER_CODE_REQUEST_MAX_PER_HOUR:-5}
+      DEMO_DATA_RETENTION_DAYS: ${DEMO_DATA_RETENTION_DAYS:-30}
       DEMO_RECRUITER_EMAIL: ${DEMO_RECRUITER_EMAIL:-recruiter@example.com}
       SEED_DEMO_JOBS: ${SEED_DEMO_JOBS:-true}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_talk}
@@ -99,6 +100,7 @@ services:
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
       VITE_DEV_MAILBOX_URL: http://localhost:${MAILPIT_UI_PORT:-8025}
+      VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@example.com}
     command:
       - /bin/sh
       - -c

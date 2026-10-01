@@ -173,6 +173,15 @@ every placeholder. FastAPI refuses to start in `APP_ENV=production` unless:
 The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.
 
+Production Compose also requires `SUPPORT_EMAIL`. Set it to the monitored address
+shown on the privacy and safety page before building the frontend.
+
+The public `/privacy` page explains collection, sharing, acceptable use,
+retention, reporting, and deletion. Candidates can delete a submitted guest
+application from the active session. Cleanup and operator deletion commands,
+logging rules, and rate limits are documented in
+[`docs/privacy-and-safety.md`](docs/privacy-and-safety.md).
+
 ### Rotate secrets
 
 Rotating `SESSION_TOKEN_PEPPER` invalidates existing sessions. Replace it in the

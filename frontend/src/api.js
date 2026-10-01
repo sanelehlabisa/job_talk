@@ -48,6 +48,7 @@ export const api = {
     }),
   me: () => request("/auth/me"),
   logout: () => request("/auth/logout", { method: "POST" }),
+  deleteAccount: () => request("/account", { method: "DELETE" }),
   listChats: () => request("/chats"),
   createChat: () => request("/chats", { method: "POST" }),
   getChat: (chatId) => request(`/chats/${chatId}`),

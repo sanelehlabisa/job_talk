@@ -33,23 +33,41 @@ def list_recruiters() -> None:
             print(f"{user.email}\t{user.approval_status}")
 
 
+def delete_unused_recruiter(email: str, quiet: bool = False) -> None:
+    normalized = email.strip().lower()
+    with SessionLocal() as db:
+        user = db.scalar(select(models.User).where(models.User.email == normalized))
+        if not user or user.role != "recruiter":
+            raise SystemExit("Recruiter access request not found")
+        if user.chats:
+            raise SystemExit(
+                "Recruiter has hiring records; use the documented support review before deletion"
+            )
+        db.delete(user)
+        db.commit()
+    if not quiet:
+        print(f"{normalized}: deleted")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Manage recruiter access")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("list")
-    for command in ("approve", "reject"):
+    for command in ("approve", "reject", "delete"):
         child = subparsers.add_parser(command)
         child.add_argument("email")
         child.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
     if args.command == "list":
         list_recruiters()
-    else:
+    elif args.command in {"approve", "reject"}:
         set_recruiter_status(
             args.email,
             "approved" if args.command == "approve" else "rejected",
             args.quiet,
         )
+    else:
+        delete_unused_recruiter(args.email, args.quiet)
 
 
 if __name__ == "__main__":
