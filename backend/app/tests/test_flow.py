@@ -16,7 +16,13 @@ from app.data_retention import purge_expired_guest_data
 from app.main import app, settings as app_settings
 from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
-from app.services.conversation import detect_intent, wants_to_publish
+from app.services.conversation import (
+    can_publish,
+    detect_intent,
+    update_candidate_profile,
+    update_employer_profile,
+    wants_to_publish,
+)
 from app.services.matching import match_profiles
 from app.settings import Settings
 
@@ -83,6 +89,13 @@ def test_end_to_end_employer_to_application():
             headers=employer_headers,
         ).json()
         assert response["chat"]["intent"] == "employer"
+        assert response["chat"]["can_publish"] is False
+        assert "available to start" in response["assistant_message"]["content"]
+        response = client.post(
+            f"/api/chats/{employer_chat['id']}/messages",
+            json={"content": "The candidate should be available to start within two weeks."},
+            headers=employer_headers,
+        ).json()
         assert response["chat"]["can_publish"] is True
         job = response["chat"]["job_post"]
         assert client.post(f"/api/jobs/{job['id']}/publish", headers=employer_headers).status_code == 200
@@ -92,7 +105,7 @@ def test_end_to_end_employer_to_application():
         candidate_chat = client.get("/api/chats", headers=candidate_headers).json()[0]
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
-            json={"content": "I am looking for a job. I have three years of Python experience and built two FastAPI APIs."},
+            json={"content": "I am looking for a job. I have three years of Python experience, built two FastAPI APIs, and I am available to start within two weeks."},
             headers=candidate_headers,
         ).json()
         assert response["chat"]["intent"] == "candidate"
@@ -223,23 +236,38 @@ def test_recruiter_refines_and_publishes_a_job_by_saying_done():
             headers=recruiter_headers,
         ).json()
         assert too_early["chat"]["job_post"] is None
-        assert "at least two important criteria" in too_early["assistant_message"]["content"]
+        assert "job title" in too_early["assistant_message"]["content"]
         assert client.get("/api/public/jobs").json() == []
 
         first_answer = client.post(
             f"/api/chats/{chat['id']}/messages",
-            json={"content": "I need a welder."},
+            json={"content": "Welder"},
             headers=recruiter_headers,
         ).json()
         assert first_answer["chat"]["job_post"]["title"] == "Welder"
         assert first_answer["chat"]["can_publish"] is False
+        assert "How much relevant experience" in first_answer["assistant_message"]["content"]
 
         second_answer = client.post(
             f"/api/chats/{chat['id']}/messages",
             json={"content": "Forklift operation is also required, with two years of experience."},
             headers=recruiter_headers,
         ).json()
-        assert second_answer["chat"]["can_publish"] is True
+        assert second_answer["chat"]["can_publish"] is False
+        assert "Where is the role based" in second_answer["assistant_message"]["content"]
+        location_answer = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Cape Town"},
+            headers=recruiter_headers,
+        ).json()
+        assert location_answer["chat"]["can_publish"] is False
+        assert "available to start" in location_answer["assistant_message"]["content"]
+        availability_answer = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Next Monday"},
+            headers=recruiter_headers,
+        ).json()
+        assert availability_answer["chat"]["can_publish"] is True
         job_id = second_answer["chat"]["job_post"]["id"]
         assert client.get("/api/public/jobs").json() == []
 
@@ -257,6 +285,30 @@ def test_recruiter_refines_and_publishes_a_job_by_saying_done():
         assert guest.status_code == 201
 
 
+def test_guided_job_questions_accept_short_and_uncommon_answers():
+    profile, details = update_employer_profile({}, "Job title is Community Liaison")
+    assert details["title"] == "Community Liaison"
+
+    profile, _ = update_employer_profile(
+        profile,
+        "Build trust with local residents",
+        details["title"],
+    )
+    assert "core_requirement" in profile
+    profile, _ = update_employer_profile(profile, "Two years", details["title"])
+    profile, _ = update_employer_profile(profile, "Gqeberha", details["title"])
+    profile, _ = update_employer_profile(profile, "Next Monday", details["title"])
+
+    assert can_publish(profile, details["title"])
+    candidate = update_candidate_profile(
+        {},
+        "I coordinated a neighbourhood volunteer group.",
+        profile,
+        "core_requirement",
+    )
+    assert "core_requirement" in candidate
+
+
 def test_recruiter_compares_candidates_and_closes_recruitment():
     with TestClient(app) as client:
         _, recruiter_headers = authenticate("comparison-owner@example.com", "recruiter")
@@ -265,8 +317,8 @@ def test_recruiter_compares_candidates_and_closes_recruitment():
             f"/api/chats/{recruiter_chat['id']}/messages",
             json={
                 "content": (
-                    "I need a welder with welding and forklift experience, three years of "
-                    "experience, based in Cape Town."
+                        "I need a welder with welding and forklift experience, three years of "
+                        "experience, based in Cape Town, available to start immediately."
                 )
             },
             headers=recruiter_headers,
@@ -558,11 +610,11 @@ def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interru
         assert {"welding", "experience", "location"} <= refreshed["profile"].keys()
         completed = client.post(
             f"/api/chats/{partial_chat['id']}/messages",
-            json={"content": "I operated a forklift every day and I am available immediately."},
+            json={"content": "Every day for the last two years."},
             headers=partial_headers,
         ).json()
         assert "captured evidence for this role’s criteria" in completed["assistant_message"]["content"]
-        assert {"welding", "experience", "location", "forklift_operation", "availability"} <= completed["chat"]["profile"].keys()
+        assert {"welding", "experience", "location", "forklift_operation"} <= completed["chat"]["profile"].keys()
 
 
 def test_approved_recruiter_signs_in_with_single_use_email_code(monkeypatch):
@@ -824,7 +876,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         employer_chat = client.post("/api/chats", headers=employer_headers).json()
         employer_response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
-            json={"content": "I need a welder with welding and forklift experience in Cape Town."},
+            json={"content": "I need a welder with welding and forklift experience in Cape Town, with two years of experience, available to start immediately."},
             headers=employer_headers,
         ).json()
         job_id = employer_response["chat"]["job_post"]["id"]
@@ -914,7 +966,7 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         employer_chat = client.post("/api/chats", headers=employer_headers).json()
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
-            json={"content": "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience."},
+            json={"content": "I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience, available to start immediately."},
             headers=employer_headers,
         ).json()
         assert response["chat"]["intent"] == "employer"
@@ -927,7 +979,7 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         candidate_chat = client.post("/api/chats", headers=candidate_headers).json()
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
-            json={"content": "I am looking for a job. I have three years of welding and forklift experience in Cape Town."},
+            json={"content": "I am looking for a job. I have three years of welding and forklift experience in Cape Town and I am available immediately."},
             headers=candidate_headers,
         ).json()
         assert response["chat"]["intent"] == "candidate"

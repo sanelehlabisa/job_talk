@@ -14,6 +14,7 @@ DEMO_JOBS = (
             "forklift_operation": {"weight": 0.75, "description": "Forklift operation experience is required."},
             "experience": {"weight": 0.8, "description": "The role asks for two years of relevant experience."},
             "location": {"weight": 0.55, "description": "The role is based in Cape Town."},
+            "availability": {"weight": 0.5, "description": "The candidate should be available to start within two weeks."},
         },
     },
     {
@@ -24,6 +25,7 @@ DEMO_JOBS = (
             "electrical_wiring": {"weight": 0.9, "description": "Electrical wiring experience is required."},
             "experience": {"weight": 0.7, "description": "The role asks for one year of relevant experience."},
             "location": {"weight": 0.5, "description": "The role is based in Johannesburg."},
+            "availability": {"weight": 0.5, "description": "The candidate should be available to start within one month."},
         },
     },
     {
@@ -34,6 +36,7 @@ DEMO_JOBS = (
             "driving": {"weight": 0.8, "description": "Safe driving experience is required."},
             "experience": {"weight": 0.65, "description": "The role asks for one year of relevant experience."},
             "location": {"weight": 0.55, "description": "The role is based in Durban."},
+            "availability": {"weight": 0.5, "description": "The candidate should be available to start immediately."},
         },
     },
 )

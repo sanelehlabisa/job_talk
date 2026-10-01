@@ -251,6 +251,25 @@ function ProfileChips({ profile }) {
   return <div className="profile-chips">{items.map((item) => <span key={item}>{item.replaceAll("_", " ")} <Check size={12} /></span>)}</div>;
 }
 
+function JobReadiness({ job }) {
+  const profile = job?.target_profile || {};
+  const generalFields = ["availability", "education", "experience", "location", "working_arrangement"];
+  const checks = [
+    ["Job title", job?.title && job.title !== "Untitled role"],
+    ["Essential skill", Object.keys(profile).some((key) => !generalFields.includes(key))],
+    ["Experience", Boolean(profile.experience)],
+    ["Location or work setup", Boolean(profile.location || profile.working_arrangement)],
+    ["Start availability", Boolean(profile.availability)],
+  ];
+  const completed = checks.filter(([, ready]) => ready).length;
+  return (
+    <section className="job-readiness" aria-label={`Role readiness ${completed} of ${checks.length}`}>
+      <div><strong>Role readiness</strong><span>{completed}/{checks.length}</span></div>
+      <ul>{checks.map(([label, ready]) => <li className={ready ? "ready" : ""} key={label}>{ready ? <Check size={11} /> : <i />}{label}</li>)}</ul>
+    </section>
+  );
+}
+
 function Recommendation({ item, onApply, applied, skipped, onSkip }) {
   const score = Math.round(item.match_score * 100);
   if (skipped) return null;
@@ -317,7 +336,107 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
   );
 }
 
-function CandidateComparison({ applications, status, onCloseJob }) {
+const PLOT_COLORS = ["#276749", "#d97745", "#4267a8", "#8a5aa6", "#9a7b25"];
+
+function CandidateScorePlot({ applications, targetProfile }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const criteria = Object.entries(targetProfile || {}).slice(0, 8);
+  const candidates = applications.slice(0, 5);
+  if (criteria.length < 2 || !candidates.length) return null;
+
+  const width = Math.max(620, criteria.length * 105);
+  const height = 245;
+  const top = 34;
+  const bottom = 174;
+  const left = 50;
+  const right = width - 38;
+  const xAt = (index) => left + ((right - left) * index) / (criteria.length - 1);
+  const yAt = (score) => bottom - Math.max(0, Math.min(1, score)) * (bottom - top);
+  const idealPoints = criteria.map((_, index) => `${xAt(index)},${yAt(1)}`).join(" ");
+
+  return (
+    <section className="score-plot" aria-labelledby="score-plot-title">
+      <div className="score-plot-heading">
+        <div><span>CANDIDATE SHAPE</span><h3 id="score-plot-title">Ideal profile and top candidates</h3></div>
+        <small>Scores are normalized to 0–100. Missing evidence is marked ×.</small>
+      </div>
+      <div className="plot-legend">
+        <span><i className="ideal-line" />Ideal profile</span>
+        {candidates.map((application, index) => (
+          <button type="button" aria-pressed={selectedId === application.id} className={selectedId === application.id ? "selected" : ""} key={application.id} onClick={() => setSelectedId((current) => current === application.id ? null : application.id)}><i style={{ background: PLOT_COLORS[index] }} />{application.candidate_profile?.candidate_details?.name || `Candidate ${index + 1}`}</button>
+        ))}
+      </div>
+      <div className="plot-scroll">
+        <svg className="parallel-plot" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Parallel coordinates comparison of the ideal job profile and candidate evidence scores">
+          {[0, 0.5, 1].map((score) => (
+            <g key={score}>
+              <line className="plot-grid" x1={left} x2={right} y1={yAt(score)} y2={yAt(score)} />
+              <text className="plot-scale" x={left - 10} y={yAt(score) + 3}>{Math.round(score * 100)}</text>
+            </g>
+          ))}
+          {criteria.map(([key, requirement], index) => (
+            <g key={key}>
+              <line className="plot-axis" x1={xAt(index)} x2={xAt(index)} y1={top} y2={bottom} />
+              <text className="plot-label" x={xAt(index)} y={bottom + 25}>{key.replaceAll("_", " ").slice(0, 18)}</text>
+              <text className="plot-weight" x={xAt(index)} y={bottom + 39}>weight {Math.round((requirement.weight || 0.5) * 100)}%</text>
+            </g>
+          ))}
+          <polyline className="ideal-profile" points={idealPoints}><title>Ideal profile: 100 on every criterion</title></polyline>
+          {candidates.map((application, candidateIndex) => {
+            const points = criteria.map(([key], criterionIndex) => {
+              const score = application.match_result?.criteria?.[key]?.score;
+              const evidence = application.candidate_profile?.[key]?.evidence;
+              return evidence && Number.isFinite(score)
+                ? { x: xAt(criterionIndex), y: yAt(score), key, score }
+                : null;
+            });
+            const segments = [];
+            let current = [];
+            points.forEach((point) => {
+              if (point) current.push(point);
+              else if (current.length) { segments.push(current); current = []; }
+            });
+            if (current.length) segments.push(current);
+            const name = application.candidate_profile?.candidate_details?.name || `Candidate ${candidateIndex + 1}`;
+            const color = PLOT_COLORS[candidateIndex];
+            return (
+              <g
+                className={`plot-candidate ${selectedId && selectedId !== application.id ? "muted" : ""}`}
+                key={application.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`${name} score line`}
+                onClick={() => setSelectedId((current) => current === application.id ? null : application.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedId((current) => current === application.id ? null : application.id);
+                  }
+                }}
+              >
+                {segments.filter((segment) => segment.length > 1).map((segment, segmentIndex) => (
+                  <polyline key={segmentIndex} className="candidate-profile-line" style={{ stroke: color }} points={segment.map((point) => `${point.x},${point.y}`).join(" ")} />
+                ))}
+                {points.map((point, criterionIndex) => point ? (
+                  <circle key={point.key} cx={point.x} cy={point.y} r="4" fill={color}>
+                    <title>{name}: {point.key.replaceAll("_", " ")} {Math.round(point.score * 100)}%</title>
+                  </circle>
+                ) : (
+                  <g key={criteria[criterionIndex][0]}>
+                    <text className="missing-score" fill={color} x={xAt(criterionIndex) + (candidateIndex - (candidates.length - 1) / 2) * 7} y={bottom + 10}>×</text>
+                    <title>{name}: no direct evidence for {criteria[criterionIndex][0].replaceAll("_", " ")}</title>
+                  </g>
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+function CandidateComparison({ applications, status, targetProfile, onCloseJob }) {
   const visible = status === "closed" ? applications.slice(0, 5) : applications;
   let previousScore = null;
   let previousRank = 0;
@@ -332,6 +451,7 @@ function CandidateComparison({ applications, status, onCloseJob }) {
         {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
       </div>
       <p className="decision-support">Scores organize candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
+      <CandidateScorePlot applications={applications} targetProfile={targetProfile} />
       {!visible.length && <div className="candidate-empty">No submitted applications yet. Candidates will appear here in one comparable format.</div>}
       {!!visible.length && <div className="comparison-grid">
         {visible.map((application, index) => {
@@ -448,7 +568,8 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
-          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} onCloseJob={onCloseJob} />}
+          {chat.intent === "employer" && chat.job_post && <JobReadiness job={chat.job_post} />}
+          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>

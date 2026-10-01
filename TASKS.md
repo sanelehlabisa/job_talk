@@ -335,7 +335,10 @@ return to the job list for another application.
 
 **Status:** Complete. Explicit completion publishes only ready recruiter-owned
 jobs, candidate entry lists public jobs, and `Browse other jobs` ends the current
-guest session before opening a new job-specific conversation (2026-09-30).
+guest session before opening a new job-specific conversation. Role readiness now
+requires a title, essential skill, experience, location or work setup, and start
+availability; the assistant asks for the next missing item and the UI shows all
+five checks before publishing (updated 2026-10-01).
 
 ### JT-022 - Recruiter candidate comparison
 
@@ -443,16 +446,22 @@ operator runbook defines reporting and sensitive-log rules (2026-10-01).
 
 ### JT-014 - Match-score visualization
 
-- [ ] Confirm the criterion names and weights used in the recruiter experiment.
-- [ ] Add a parallel coordinates plot for no more than the top five candidates,
+- [x] Confirm the criterion names and weights used in the recruiter experiment.
+- [x] Add a parallel coordinates plot for no more than the top five candidates,
   with one normalized 0-100 axis per criterion.
-- [ ] Draw the job's ideal criterion profile as a clearly labelled reference line
+- [x] Draw the job's ideal criterion profile as a clearly labelled reference line
   and each candidate as a separate selectable line.
-- [ ] Keep the score table, evidence, criterion weights, and gaps as the readable
+- [x] Keep the score table, evidence, criterion weights, and gaps as the readable
   text equivalent; the plot must not be the only source of information.
-- [ ] Show why a criterion scored high or low without overstating certainty.
-- [ ] Handle missing evidence explicitly rather than drawing it as a confirmed zero.
-- [ ] Test empty, partial, and perfect-match profiles on mobile and desktop.
+- [x] Show why a criterion scored high or low without overstating certainty.
+- [x] Handle missing evidence explicitly rather than drawing it as a confirmed zero.
+- [x] Test empty, partial, and perfect-match profiles on mobile and desktop.
+
+**Status:** Complete. The recruiter comparison draws the saved job criteria as
+normalized axes, an ideal 100% dashed line, and up to five labelled candidate
+lines. Missing evidence uses a separate × marker, while the existing evidence,
+weight, reason, and gap cards remain available. Empty, partial, perfect, desktop,
+and horizontally scrollable phone states were checked (2026-10-01).
 
 ### JT-015 - Usability and accessibility pass
 

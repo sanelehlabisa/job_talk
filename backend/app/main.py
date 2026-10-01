@@ -23,6 +23,7 @@ from .services.conversation import (
     can_publish,
     candidate_reply,
     employer_reply,
+    expected_candidate_criterion,
     update_candidate_profile,
     update_employer_profile,
     wants_to_publish,
@@ -366,6 +367,19 @@ def send_message(
         raise HTTPException(status_code=422, detail="Message cannot be empty")
     db.add(models.Message(chat_id=chat.id, sender="user", content=text))
 
+    target_profile = chat.target_job.target_profile if chat.target_job else None
+    last_assistant_text = next(
+        (
+            message.content
+            for message in reversed(chat.messages)
+            if message.sender == "assistant"
+        ),
+        "",
+    )
+    expected_criterion = expected_candidate_criterion(
+        target_profile, last_assistant_text
+    )
+
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
     if chat.intent and chat.intent != expected_intent:
         raise HTTPException(status_code=403, detail="This conversation belongs to another account type")
@@ -382,14 +396,23 @@ def send_message(
                 target_profile=chat.profile,
             )
             db.add(job)
-            reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
+            reply = employer_reply(
+                chat.profile,
+                can_publish(chat.profile, job.title),
+                job.title,
+            )
         else:
-            chat.profile = update_candidate_profile(chat.profile, text)
+            chat.profile = update_candidate_profile(
+                chat.profile,
+                text,
+                target_profile,
+                expected_criterion,
+            )
     elif chat.intent == "employer":
         job = chat.job_post
         if wants_to_publish(text):
             if not job:
-                reply = "Describe the role and at least two important criteria before publishing."
+                reply = employer_reply({}, False)
             elif job.published:
                 reply = f"{job.title} is already published and visible to candidates."
             elif can_publish(job.target_profile, job.title):
@@ -399,10 +422,14 @@ def send_message(
             else:
                 reply = (
                     "The role is not ready to publish yet. "
-                    + employer_reply(job.target_profile, False)
+                    + employer_reply(job.target_profile, False, job.title)
                 )
         else:
-            chat.profile, details = update_employer_profile(chat.profile, text)
+            chat.profile, details = update_employer_profile(
+                chat.profile,
+                text,
+                job.title if job else None,
+            )
             if not job:
                 job = models.JobPost(chat_id=chat.id, user_id=chat.user_id)
                 db.add(job)
@@ -410,9 +437,18 @@ def send_message(
                 job.title = details["title"]
             job.description = f"{job.description}\n{text}".strip()
             job.target_profile = chat.profile
-            reply = employer_reply(chat.profile, can_publish(chat.profile, job.title))
+            reply = employer_reply(
+                chat.profile,
+                can_publish(chat.profile, job.title),
+                job.title,
+            )
     else:
-        chat.profile = update_candidate_profile(chat.profile, text)
+        chat.profile = update_candidate_profile(
+            chat.profile,
+            text,
+            target_profile,
+            expected_criterion,
+        )
 
     context = build_chat_context(chat)
     if chat.intent == "candidate":
@@ -469,7 +505,10 @@ def publish_job(
     if job.chat.status == "closed":
         raise HTTPException(status_code=409, detail="Closed recruitment cannot be republished")
     if not can_publish(job.target_profile, job.title):
-        raise HTTPException(status_code=400, detail="Add a role title and at least two important criteria before publishing")
+        raise HTTPException(
+            status_code=400,
+            detail="Complete the guided role questions before publishing",
+        )
     job.published = True
     job.chat.status = "published"
     db.add(

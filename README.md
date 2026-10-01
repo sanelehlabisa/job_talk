@@ -230,7 +230,13 @@ For the frontend, run `npm run build` inside `frontend`.
 
 ## Match score data
 
-Each recommendation includes a `criteria` object for a future multidimensional plot. Each criterion has a `score` between 0 and 1, a `weight`, and a plain language `reason`. The overall `match_score` is the weighted mean of the reported criterion scores: `sum(score * weight) / sum(weight)`, rounded to two decimals using half-up rounding (or 0 when there are no criteria).
+Each recommendation includes a `criteria` object. Every criterion has a `score`
+between 0 and 1, a `weight`, and a plain-language reason. The recruiter comparison
+shows the top five candidates on a parallel-axis plot against an ideal 100% profile;
+missing evidence is marked rather than drawn as a confirmed zero. The evidence
+cards remain the readable source for each score and gap. The overall `match_score`
+is the weighted mean: `sum(score * weight) / sum(weight)`, rounded to two decimals
+using half-up rounding, or 0 when there are no criteria.
 
 ## AI provider
 
