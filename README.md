@@ -189,10 +189,11 @@ frontend have no host port bindings. The public Nginx proxy is the only service
 that publishes ports, on `80:80` and `443:443`, and it sends `/api/` directly to
 FastAPI while serving the frontend at `/`.
 
-The production package requires TLS files before startup. Exact build, start,
-health, log, upgrade, rollback, and shutdown commands are in
-[`docs/production-operations.md`](docs/production-operations.md). Certificate
-issuance and renewal remain part of the following HTTPS ingress ticket.
+The production package keeps staging behind HTTP basic authentication, obtains
+TLS certificates through a pinned Certbot container, checks renewal twice a day,
+and reloads changed certificates without restarting Nginx. Exact password,
+certificate, build, start, health, log, upgrade, rollback, and shutdown commands
+are in [`docs/production-operations.md`](docs/production-operations.md).
 
 ## Database migrations and recovery
 

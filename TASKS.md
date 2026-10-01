@@ -159,11 +159,18 @@ published-port checks; operating commands are documented (2026-10-01).
   FastAPI service, preserving one browser origin.
 - [x] Confirm the VM exposes no frontend, backend, or PostgreSQL host port other
   than Nginx ports 80 and 443.
-- [ ] Forward trusted proxy headers, set conservative security headers, limit API
+- [x] Forward trusted proxy headers, set conservative security headers, limit API
   requests, and cap request body size.
-- [ ] Keep staging behind proxy authentication or an IP allowlist until the guest
+- [x] Keep staging behind proxy authentication or an IP allowlist until the guest
   application boundary and `JT-012` safety controls pass.
 - [ ] Automate certificate issue and renewal, then test renewal without downtime.
+
+**Status:** Nginx now bootstraps ACME over HTTP, requires a staging password on
+HTTPS, rate limits API bursts, forwards trusted headers, and isolates the browser
+frontend from the backend network. Pinned Certbot issue and renewal automation is
+in place, and a local certificate replacement reloaded Nginx with 60/60 readiness
+requests succeeding. The checkbox remains open until `renew --dry-run` passes for
+the real subdomain on the VM (updated 2026-10-01).
 
 ### JT-011 - VM and subdomain deployment
 

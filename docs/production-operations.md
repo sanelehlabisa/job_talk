@@ -9,9 +9,18 @@ Run every command from the release directory on the VM.
 1. Check out the exact Git commit to deploy.
 2. Copy `.env.production.example` to `.env.production` and replace every
    placeholder. Set `JOB_TALK_IMAGE_TAG` to the full Git commit SHA.
-3. Place the certificate chain and private key at
-   `secrets/tls/fullchain.pem` and `secrets/tls/privkey.pem`. The certificate
-   issue and renewal workflow belongs to `JT-010`.
+3. Create the private staging password file. `htpasswd` prompts for the password
+   so it does not appear in shell history:
+
+```sh
+mkdir -p secrets/nginx
+chmod 700 secrets/nginx
+htpasswd -cB secrets/nginx/.htpasswd staging
+chmod 600 secrets/nginx/.htpasswd
+```
+
+Keep this authentication enabled until the public-pilot safety checks pass.
+The ignored `STAGING_HTPASSWD_PATH` setting may point to a different file.
 4. Validate the resolved configuration without printing it, because resolved
    output contains secrets:
 
@@ -19,12 +28,38 @@ Run every command from the release directory on the VM.
 docker compose --env-file .env.production -f production.docker-compose.yaml config --quiet
 ```
 
-Build the two application images. Both receive the same immutable release tag;
+Build the three application images. All receive the same immutable release tag;
 only `/api` is compiled into the browser bundle.
 
 ```sh
-docker compose --env-file .env.production -f production.docker-compose.yaml build backend frontend
+docker compose --env-file .env.production -f production.docker-compose.yaml build backend frontend proxy
 ```
+
+## Issue and renew TLS certificates
+
+After the subdomain points to the VM and inbound port 80 is open, issue the first
+Let's Encrypt certificate:
+
+```sh
+./scripts/issue-certificate.sh
+```
+
+The proxy starts in a limited HTTP bootstrap mode that serves only ACME
+challenges and a health check. The script obtains the certificate, switches the
+proxy to HTTPS, and validates the resulting Nginx configuration.
+
+The pinned `certbot-renew` service checks for renewal every 12 hours. Nginx
+hashes the mounted certificate each hour by default and reloads gracefully when
+the contents change. Change `CERTIFICATE_RELOAD_SECONDS` only when testing.
+Run a Let's Encrypt staging renewal test after the real certificate exists:
+
+```sh
+./scripts/renew-certificate.sh --dry-run
+```
+
+A successful dry run must leave repeated HTTPS readiness requests available.
+The certificate data lives in the `letsencrypt` named volume and remains after a
+normal Compose shutdown.
 
 ## Start and verify
 
@@ -46,7 +81,7 @@ container health check.
 ## Logs and routine commands
 
 ```sh
-docker compose --env-file .env.production -f production.docker-compose.yaml logs --tail=200 backend proxy
+docker compose --env-file .env.production -f production.docker-compose.yaml logs --tail=200 backend proxy certbot-renew
 docker compose --env-file .env.production -f production.docker-compose.yaml restart proxy
 docker compose --env-file .env.production -f production.docker-compose.yaml stop
 docker compose --env-file .env.production -f production.docker-compose.yaml start
@@ -66,7 +101,7 @@ logs because it expands environment secrets.
 
 ```sh
 docker compose --env-file .env.production -f production.docker-compose.yaml config --quiet
-docker compose --env-file .env.production -f production.docker-compose.yaml build backend frontend
+docker compose --env-file .env.production -f production.docker-compose.yaml build backend frontend proxy
 docker compose --env-file .env.production -f production.docker-compose.yaml up -d
 docker compose --env-file .env.production -f production.docker-compose.yaml ps
 ```
@@ -95,5 +130,6 @@ backward compatible.
 docker compose --env-file .env.production -f production.docker-compose.yaml down
 ```
 
-This keeps the named PostgreSQL volume. Using `down -v` permanently deletes the
-database volume and is reserved for an intentional, verified teardown.
+This keeps the named PostgreSQL and certificate volumes. Using `down -v`
+permanently deletes the database and certificate volumes and is reserved for an
+intentional, verified teardown.

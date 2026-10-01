@@ -1,0 +1,21 @@
+server_tokens off;
+
+server {
+    listen 80;
+    server_name ${APP_DOMAIN};
+
+    location = /proxy-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "bootstrap\n";
+    }
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    location / {
+        return 503;
+    }
+}
