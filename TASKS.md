@@ -397,9 +397,10 @@ follow-up quality without weakening context isolation, privacy, cost control, or
 application reliability.
 
 **Status:** In progress. The opt-in OpenAI Responses provider, strict reply schema,
-bounded current-chat input, `store: false`, call cap, and deterministic fallback
-are implemented. The configured local API key returned `expired_secret_key` on
-2026-09-30. Replace it, set a hard project spend limit, and run the strong,
+bounded current-chat input, `store: false`, call cap, and guided fallback are
+implemented. OpenAI mode no longer shows mock response text when the provider is
+unavailable. The configured local API project returned `credit_balance_exhausted`
+on 2026-10-01. Add API credits, set a hard project spend limit, and run the strong,
 partial, and unrelated live examples before enabling this provider publicly.
 
 ### JT-024 - Minimal experiment analytics and feedback

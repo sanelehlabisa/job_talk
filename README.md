@@ -262,7 +262,10 @@ OpenAI requests use the Responses API with strict JSON output validation and
 and at most the latest 12 messages from that authorized chat. Contact details and
 other chats are excluded. Each request has input, output, and timeout bounds, and
 each chat can make at most 12 provider calls. Invalid, unavailable, limited, or
-over-budget provider responses fall back to the deterministic generator.
+over-budget provider responses use the current guided question without adding
+mock response text, so the application remains usable while OpenAI mode is
+selected. The backend logs the HTTP status and safe provider error code without
+logging the API key or response data.
 
 ## Current limits and next steps
 

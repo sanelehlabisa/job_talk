@@ -1178,7 +1178,7 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
     assert len(captured["json"]["input"]) <= 24_000
 
 
-def test_openai_provider_falls_back_and_obeys_per_chat_limit(monkeypatch):
+def test_openai_provider_uses_guided_fallback_and_obeys_per_chat_limit(monkeypatch):
     calls = []
 
     def unavailable(*args, **kwargs):
@@ -1200,12 +1200,12 @@ def test_openai_provider_falls_back_and_obeys_per_chat_limit(monkeypatch):
         "user_message_count": 1,
     }
     fallback = generate_reply(context, "employer", "Need a welder", "Ask for experience", settings)
-    assert "Mock AI received your message" in fallback
+    assert fallback == "Ask for experience"
     assert len(calls) == 1
 
     context["user_message_count"] = 2
     limited = generate_reply(context, "employer", "Another detail", "Ask for location", settings)
-    assert "Mock AI received your message" in limited
+    assert limited == "Ask for location"
     assert len(calls) == 1
 
 

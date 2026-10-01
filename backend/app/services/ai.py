@@ -189,16 +189,27 @@ def generate_reply(
     fallback: str,
     settings: Settings | None = None,
 ) -> str:
-    """Generate one reply through the configured provider with a safe mock fallback."""
+    """Generate one reply through the configured provider."""
     active_settings = settings or get_settings()
     provider_calls = context.get("user_message_count", 0)
-    if (
-        active_settings.ai_provider != "openai"
-        or provider_calls >= active_settings.ai_max_calls_per_chat
-    ):
+    if active_settings.ai_provider != "openai":
         return _mock_reply(context, intent, user_text, fallback)
+    if provider_calls >= active_settings.ai_max_calls_per_chat:
+        logger.info("AI call limit reached; using guided fallback")
+        return fallback
     try:
         return _openai_reply(context, intent, user_text, fallback, active_settings)
     except (httpx.HTTPError, json.JSONDecodeError, ValidationError, ValueError) as exc:
-        logger.warning("AI provider unavailable; using deterministic fallback (%s)", type(exc).__name__)
-        return _mock_reply(context, intent, user_text, fallback)
+        detail = type(exc).__name__
+        if isinstance(exc, httpx.HTTPStatusError):
+            error_code = None
+            try:
+                error = exc.response.json().get("error", {})
+                error_code = error.get("code") or error.get("type")
+            except (json.JSONDecodeError, AttributeError, TypeError, ValueError):
+                pass
+            detail = f"HTTP {exc.response.status_code}"
+            if error_code:
+                detail += f", code={error_code}"
+        logger.warning("AI provider unavailable; using guided fallback (%s)", detail)
+        return fallback
