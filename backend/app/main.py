@@ -25,7 +25,7 @@ from .services.conversation import (
     candidate_reply,
     employer_reply,
     expected_candidate_criterion,
-    update_candidate_profile,
+    update_candidate_turn,
     update_employer_profile,
     wants_to_publish,
 )
@@ -406,6 +406,7 @@ def send_message(
     expected_criterion = expected_candidate_criterion(
         target_profile, last_assistant_text
     )
+    candidate_answer_status = None
 
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
     if chat.intent and chat.intent != expected_intent:
@@ -429,7 +430,7 @@ def send_message(
                 job.title,
             )
         else:
-            chat.profile = update_candidate_profile(
+            chat.profile, candidate_answer_status = update_candidate_turn(
                 chat.profile,
                 text,
                 target_profile,
@@ -470,7 +471,7 @@ def send_message(
                 job.title,
             )
     else:
-        chat.profile = update_candidate_profile(
+        chat.profile, candidate_answer_status = update_candidate_turn(
             chat.profile,
             text,
             target_profile,
@@ -480,7 +481,9 @@ def send_message(
     context = build_chat_context(chat)
     if chat.intent == "candidate":
         target_profile = context["job"]["criteria"] if context["job"] else None
-        reply = candidate_reply(context["draft"], target_profile)
+        reply = candidate_reply(
+            context["draft"], target_profile, candidate_answer_status
+        )
     reply = generate_reply(context, chat.intent, text, reply)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)

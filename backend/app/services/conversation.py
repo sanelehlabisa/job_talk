@@ -114,6 +114,106 @@ def _skill_hits(text: str) -> list[tuple[str, str]]:
     return found
 
 
+NEGATION_PATTERN = re.compile(
+    r"\b(?:no|not|never|without|cannot|can't|dont|don't|do not|haven't|have not|lack|lacking)\b",
+    re.I,
+)
+
+
+def _criterion_terms(key: str, requirement: dict | None = None) -> set[str]:
+    terms = {part for part in key.lower().split("_") if len(part) > 2}
+    if key.endswith("ing"):
+        terms.add(key[:-3])
+    if key.endswith("ation"):
+        terms.add(key[:-5])
+    description = (requirement or {}).get("description", "")
+    terms.update(
+        token
+        for token in re.findall(r"[a-z]+", description.lower())
+        if len(token) > 4
+        and token
+        not in {"candidate", "experience", "preferred", "required", "relevant", "should"}
+    )
+    return terms
+
+
+def _criterion_denied(text: str, key: str, requirement: dict | None = None) -> bool:
+    lower = text.lower().strip()
+    if not NEGATION_PATTERN.search(lower):
+        return False
+    if lower in {"no", "none", "not yet", "never", "i don't", "i do not"}:
+        return True
+    terms = _criterion_terms(key, requirement)
+    clauses = re.split(r"\b(?:but|however|although)\b|[.;]", lower)
+    return any(
+        NEGATION_PATTERN.search(clause)
+        and (
+            any(term in clause for term in terms)
+            or (key == "experience" and "year" in clause)
+            or (key == "availability" and "available" in clause)
+            or (
+                key == "education"
+                and any(term in clause for term in ("degree", "diploma", "school", "college"))
+            )
+        )
+        for clause in clauses
+    )
+
+
+def _gap_evidence(text: str) -> dict:
+    return {
+        "evidence": f"The candidate reported a gap: {text.strip()}",
+        "assessment": "gap",
+    }
+
+
+def _claimed_evidence(text: str) -> dict:
+    return {
+        "evidence": f"The candidate said: {text.strip()}",
+        "assessment": "claimed",
+    }
+
+
+def _supports_expected_criterion(
+    text: str,
+    key: str,
+    requirement: dict,
+    allow_unmatched_example: bool = False,
+) -> bool:
+    lower = text.lower()
+    if key == "experience":
+        return bool(_years(text) or re.search(r"\b(?:worked|experience|apprentice|employed)\b", lower))
+    if key == "location":
+        return bool(_location(text))
+    if key == "availability":
+        return bool(
+            re.search(
+                r"\b(?:available|immediately|notice period|next (?:week|month|monday)|\d+ (?:day|week|month)s?)\b",
+                lower,
+            )
+        )
+    if key == "working_arrangement":
+        return any(item in lower for item in ("remote", "hybrid", "on-site", "onsite"))
+    if key == "education":
+        return any(
+            item in lower
+            for item in ("degree", "diploma", "certificate", "college", "university", "school")
+        )
+    terms = _criterion_terms(key, requirement)
+    overlap = sum(term in lower for term in terms)
+    concrete_action = bool(
+        re.search(
+            r"\b(?:built|completed|coordinated|created|fixed|installed|launched|maintained|managed|operated|repaired|used|worked|welded)\b",
+            lower,
+        )
+    )
+    return (
+        overlap >= 1 and (concrete_action or len(text.split()) >= 6)
+    ) or (
+        allow_unmatched_example and concrete_action and len(text.split()) >= 5
+    )
+
+
 def _location(text: str) -> str | None:
     patterns = [
         r"(?:based|located|role|position|job) in ([A-Z][A-Za-z .'-]{2,40})",
@@ -232,33 +332,112 @@ def update_candidate_profile(
 ) -> dict:
     profile = dict(profile or {})
     for key, label in _skill_hits(text):
-        profile[key] = {"evidence": f"The candidate said: {text.strip()}"}
+        requirement = (target_profile or {}).get(key)
+        profile[key] = (
+            _gap_evidence(text)
+            if _criterion_denied(text, key, requirement)
+            else _claimed_evidence(text)
+        )
     years = _years(text)
-    if years:
-        profile["experience"] = {"evidence": f"The candidate reported {years} of experience."}
+    if _criterion_denied(text, "experience", (target_profile or {}).get("experience")):
+        profile["experience"] = _gap_evidence(text)
+    elif years:
+        profile["experience"] = {
+            "evidence": f"The candidate reported {years} of experience.",
+            "assessment": "claimed",
+        }
     location = _location(text)
-    if location:
-        profile["location"] = {"evidence": f"The candidate is based in {location}."}
+    if _criterion_denied(text, "location", (target_profile or {}).get("location")):
+        profile["location"] = _gap_evidence(text)
+    elif location:
+        profile["location"] = {
+            "evidence": f"The candidate is based in {location}.",
+            "assessment": "claimed",
+        }
     lower = text.lower()
-    if "degree" in lower or "diploma" in lower or "university" in lower or "college" in lower:
-        profile["education"] = {"evidence": f"The candidate said: {text.strip()}"}
+    if _criterion_denied(text, "education", (target_profile or {}).get("education")):
+        profile["education"] = _gap_evidence(text)
+    elif "degree" in lower or "diploma" in lower or "university" in lower or "college" in lower:
+        profile["education"] = _claimed_evidence(text)
     if any(
         phrase in lower
         for phrase in ("available", "availability", "notice period", "immediately", "start")
     ):
-        profile["availability"] = {"evidence": f"The candidate said: {text.strip()}"}
+        profile["availability"] = (
+            _gap_evidence(text)
+            if _criterion_denied(
+                text, "availability", (target_profile or {}).get("availability")
+            )
+            else _claimed_evidence(text)
+        )
     if "remote" in lower or "hybrid" in lower or "on-site" in lower or "onsite" in lower:
         arrangement = "remote" if "remote" in lower else "hybrid" if "hybrid" in lower else "on-site"
-        profile["working_arrangement"] = {"evidence": f"The candidate is open to {arrangement} work."}
+        profile["working_arrangement"] = (
+            _gap_evidence(text)
+            if _criterion_denied(
+                text,
+                "working_arrangement",
+                (target_profile or {}).get("working_arrangement"),
+            )
+            else {
+                "evidence": f"The candidate is open to {arrangement} work.",
+                "assessment": "claimed",
+            }
+        )
     if "built" in lower or "project" in lower or "created" in lower or "launched" in lower:
-        profile["projects"] = {"evidence": f"The candidate said: {text.strip()}"}
-    if (
-        target_profile
-        and expected_criterion in target_profile
-        and expected_criterion not in profile
-    ):
-        profile[expected_criterion] = {"evidence": f"The candidate said: {text.strip()}"}
+        profile["projects"] = _claimed_evidence(text)
+    general_fields = {
+        "availability",
+        "education",
+        "experience",
+        "location",
+        "working_arrangement",
+    }
+    for key, requirement in (target_profile or {}).items():
+        if _criterion_denied(text, key, requirement):
+            profile[key] = _gap_evidence(text)
+        elif key not in general_fields and _supports_expected_criterion(
+            text, key, requirement
+        ):
+            profile[key] = _claimed_evidence(text)
+    if target_profile and expected_criterion in target_profile:
+        requirement = target_profile[expected_criterion]
+        if _criterion_denied(text, expected_criterion, requirement):
+            profile[expected_criterion] = _gap_evidence(text)
+        elif (
+            expected_criterion not in profile
+            and _supports_expected_criterion(
+                text,
+                expected_criterion,
+                requirement,
+                allow_unmatched_example=True,
+            )
+        ):
+            profile[expected_criterion] = _claimed_evidence(text)
     return profile
+
+
+def update_candidate_turn(
+    profile: dict,
+    text: str,
+    target_profile: dict | None = None,
+    expected_criterion: str | None = None,
+) -> tuple[dict, str | None]:
+    previous = dict(profile or {})
+    updated = update_candidate_profile(
+        previous, text, target_profile, expected_criterion
+    )
+    new_gap = any(
+        item.get("assessment") == "gap" and item != previous.get(key)
+        for key, item in updated.items()
+    )
+    if new_gap:
+        return updated, "gap"
+    if expected_criterion:
+        if updated.get(expected_criterion) == previous.get(expected_criterion):
+            return updated, "unclear"
+        return updated, "accepted"
+    return updated, None
 
 
 def missing_job_details(profile: dict, title: str) -> list[str]:
@@ -330,7 +509,11 @@ def expected_candidate_criterion(
     )
 
 
-def candidate_reply(profile: dict, target_profile: dict | None = None) -> str:
+def candidate_reply(
+    profile: dict,
+    target_profile: dict | None = None,
+    answer_status: str | None = None,
+) -> str:
     if target_profile:
         missing = sorted(
             (
@@ -341,8 +524,15 @@ def candidate_reply(profile: dict, target_profile: dict | None = None) -> str:
             key=lambda item: (-float(item[1].get("weight", 0.5)), item[0]),
         )
         if missing:
-            return _candidate_criterion_question(missing[0][0])
-        return "I’ve captured evidence for this role’s criteria. Review the structured application below when you’re ready to submit."
+            question = _candidate_criterion_question(missing[0][0])
+            if answer_status == "unclear":
+                return f"I couldn't connect that answer to the requested evidence yet. {question}"
+            if answer_status == "gap":
+                return f"Thanks for clarifying. I'll record that as a gap, not a match. {question}"
+            return question
+        if answer_status == "gap":
+            return "Thanks for clarifying. I recorded that as a gap, not a match. Review the structured application below when you're ready to submit."
+        return "I’ve captured the candidate-provided claims for this role’s criteria. Review the structured application below when you’re ready to submit."
     if len(profile) < 2:
         return "Tell me about the skills you use, your experience, or a project you’re proud of."
     if "experience" not in profile:

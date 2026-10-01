@@ -414,6 +414,83 @@ def test_guided_job_questions_accept_short_and_uncommon_answers():
     assert "core_requirement" in candidate
 
 
+def test_candidate_evidence_rejects_vague_answers_and_scores_reported_gaps_as_zero():
+    target = {
+        "welding": {
+            "weight": 0.9,
+            "description": "Welding experience is required.",
+        }
+    }
+
+    vague = update_candidate_profile({}, "Yes, that is correct.", target, "welding")
+    assert "welding" not in vague
+
+    denied = update_candidate_profile(
+        {}, "I have no welding experience.", target, "welding"
+    )
+    assert denied["welding"]["assessment"] == "gap"
+    denied_score = match_profiles(denied, target)["criteria"]["welding"]
+    assert denied_score["score"] == 0
+    assert "explicitly reported a gap" in denied_score["reason"]
+
+    general = update_candidate_profile(
+        {}, "I have welding experience.", target, "welding"
+    )
+    assert match_profiles(general, target)["criteria"]["welding"]["score"] == 0.55
+
+    concrete = update_candidate_profile(
+        general,
+        "I welded and repaired steel gates every day for three years.",
+        target,
+        None,
+    )
+    assert match_profiles(concrete, target)["criteria"]["welding"]["score"] == 0.9
+
+    corrected = update_candidate_profile(
+        concrete, "Correction: I have never welded.", target, None
+    )
+    assert corrected["welding"]["assessment"] == "gap"
+    assert match_profiles(corrected, target)["criteria"]["welding"]["score"] == 0
+
+
+def test_candidate_followup_repeats_when_answer_is_unrelated():
+    job_id = create_published_job(
+        target_profile={
+            "welding": {
+                "weight": 0.9,
+                "description": "Welding experience is required.",
+            }
+        }
+    )
+    with TestClient(app) as client:
+        guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        headers = {"Authorization": f"Bearer {guest['access_token']}"}
+        chat = client.get("/api/chats", headers=headers).json()[0]
+
+        first = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "I worked in a retail shop."},
+            headers=headers,
+        ).json()
+        assert "welding experience" in first["assistant_message"]["content"]
+
+        unrelated = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Yes, that is correct."},
+            headers=headers,
+        ).json()
+        assert "couldn't connect that answer" in unrelated["assistant_message"]["content"]
+        assert "welding" not in unrelated["chat"]["profile"]
+
+        denial = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "No, I have never welded."},
+            headers=headers,
+        ).json()
+        assert denial["chat"]["profile"]["welding"]["assessment"] == "gap"
+        assert "gap, not a match" in denial["assistant_message"]["content"]
+
+
 def test_recruiter_compares_candidates_and_closes_recruitment():
     with TestClient(app) as client:
         _, recruiter_headers = authenticate("comparison-owner@example.com", "recruiter")
@@ -680,7 +757,7 @@ def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interru
             },
             headers=strong_headers,
         ).json()
-        assert "captured evidence for this role’s criteria" in strong["assistant_message"]["content"]
+        assert "candidate-provided claims for this role’s criteria" in strong["assistant_message"]["content"]
         assert len(strong["recommendations"]) == 1
 
         partial_headers, partial_chat = start_candidate()
@@ -715,10 +792,10 @@ def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interru
         assert {"welding", "experience", "location"} <= refreshed["profile"].keys()
         completed = client.post(
             f"/api/chats/{partial_chat['id']}/messages",
-            json={"content": "Every day for the last two years."},
+            json={"content": "I operated a forklift every day for the last two years."},
             headers=partial_headers,
         ).json()
-        assert "captured evidence for this role’s criteria" in completed["assistant_message"]["content"]
+        assert "candidate-provided claims for this role’s criteria" in completed["assistant_message"]["content"]
         assert {"welding", "experience", "location", "forklift_operation"} <= completed["chat"]["profile"].keys()
 
 
@@ -1146,7 +1223,12 @@ def test_send_replays_previous_chat_messages(monkeypatch):
         {
             "chat_id": chat["id"],
             "job": None,
-            "draft": {"welding": {"evidence": f"The candidate said: {second_text}"}},
+                "draft": {
+                    "welding": {
+                        "evidence": f"The candidate said: {second_text}",
+                        "assessment": "claimed",
+                    }
+                },
             "messages": [
                 {"role": "assistant", "content": chat["messages"][0]["content"]},
                 {"role": "user", "content": first_text},
@@ -1276,6 +1358,9 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
     assert captured["json"]["store"] is False
     assert captured["json"]["max_output_tokens"] == 180
     assert captured["json"]["text"]["format"]["strict"] is True
+    assert "unverified claims" in captured["json"]["instructions"]
+    assert "denials and contradictions" in captured["json"]["instructions"]
+    assert "required_next_step as authoritative" in captured["json"]["instructions"]
     sent = json.loads(captured["json"]["input"])
     assert sent["selected_job"]["id"] == 3
     assert sent["earlier_messages"] == context["messages"]

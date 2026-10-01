@@ -267,6 +267,12 @@ cards remain the readable source for each score and gap. The overall `match_scor
 is the weighted mean: `sum(score * weight) / sum(weight)`, rounded to two decimals
 using half-up rounding, or 0 when there are no criteria.
 
+Candidate statements remain unverified. An explicit denial or correction is
+stored as a reported gap and scores zero for that criterion. A vague answer does
+not fill the requested criterion, and a general skill claim scores below a
+concrete work example. The backend owns these decisions; provider wording cannot
+turn a missing criterion or reported gap into a positive match.
+
 ## AI provider
 
 `backend/app/services/ai.py` keeps response generation behind one function and

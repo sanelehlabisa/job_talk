@@ -40,8 +40,12 @@ def _place(value: str) -> str | None:
 
 
 def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tuple[float, str]:
-    evidence = candidate_profile.get(key, {}).get("evidence", "")
+    candidate_item = candidate_profile.get(key, {})
+    evidence = candidate_item.get("evidence", "")
     requirement_text = requirement.get("description", "")
+
+    if candidate_item.get("assessment") == "gap":
+        return 0.0, f"The candidate explicitly reported a gap: {evidence}"
 
     if key == "location" and evidence:
         required_place, candidate_place = _place(requirement_text), _place(evidence)
@@ -63,9 +67,27 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
         if required and candidate:
             return (0.95, f"The candidate is open to the role's {required} arrangement.") if required == candidate else (0.4, f"The candidate prefers {candidate}, while this role is {required}.")
     if evidence:
-        return 0.95, f"The candidate provided direct evidence: {evidence}"
+        concrete = bool(
+            _years(evidence)
+            or re.search(
+                r"\b(?:built|completed|coordinated|created|fixed|installed|launched|maintained|managed|operated|repaired|used|worked|welded)\b",
+                evidence,
+                re.I,
+            )
+        )
+        score = 0.9 if concrete else 0.55
+        quality = (
+            "a concrete example"
+            if concrete
+            else "a general claim without a concrete example"
+        )
+        return score, f"The candidate provided {quality}: {evidence}"
 
-    candidate_text = " ".join(item.get("evidence", "") for item in candidate_profile.values())
+    candidate_text = " ".join(
+        item.get("evidence", "")
+        for item in candidate_profile.values()
+        if item.get("assessment") != "gap"
+    )
     required_tokens = _tokens(f"{key} {requirement_text}")
     candidate_tokens = _tokens(candidate_text)
     overlap = len(required_tokens & candidate_tokens) / max(len(required_tokens), 1)

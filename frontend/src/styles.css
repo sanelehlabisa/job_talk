@@ -151,6 +151,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .starter-prompts button:disabled { opacity: .55; cursor: default; }
 .profile-chips { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 19px 0 8px; }
 .profile-chips span { font-size: 9px; text-transform: capitalize; background: #ecf3ec; color: #557162; border: 1px solid #dae8dc; border-radius: 99px; padding: 6px 9px; display: flex; align-items: center; gap: 5px; }
+.profile-chips span.gap { background: #fbf2ed; color: #914b37; border-color: #ead3ca; }
 .job-readiness { margin: 16px 0 4px 38px; background: #f8faf5; border: 1px solid #dce5da; border-radius: 13px; padding: 12px 14px; }
 .job-readiness > div { display: flex; justify-content: space-between; align-items: center; }
 .job-readiness strong { font-size: 10px; }

@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   Check,
   ChevronRight,
+  CircleMinus,
   LogOut,
   MessageCircleMore,
   Plus,
@@ -284,9 +285,12 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogou
 }
 
 function ProfileChips({ profile }) {
-  const items = Object.keys(profile || {}).slice(0, 7);
+  const items = Object.entries(profile || {}).slice(0, 7);
   if (!items.length) return null;
-  return <div className="profile-chips">{items.map((item) => <span key={item}>{item.replaceAll("_", " ")} <Check size={12} /></span>)}</div>;
+  return <div className="profile-chips">{items.map(([key, value]) => {
+    const isGap = value?.assessment === "gap";
+    return <span className={isGap ? "gap" : ""} key={key}>{key.replaceAll("_", " ")} {isGap ? <CircleMinus size={12} /> : <Check size={12} />}</span>;
+  })}</div>;
 }
 
 function JobReadiness({ job }) {
@@ -357,7 +361,7 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       <p>The recruiter will receive the structured evidence below, your match breakdown, and the contact details you enter here. Your full chat is not shared.</p>
       <div className="review-evidence">
         {evidence.map(([key, value]) => (
-          <div key={key}><strong>{key.replaceAll("_", " ")}</strong><span>{value.evidence || "Included in your structured profile"}</span></div>
+          <div key={key}><strong>{key.replaceAll("_", " ")}{value.assessment === "gap" ? " · reported gap" : ""}</strong><span>{value.evidence || "Included in your structured profile"}</span></div>
         ))}
       </div>
       <label htmlFor="candidate-name">Your name</label>
@@ -561,11 +565,12 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
                 <strong>Criterion breakdown</strong>
                 {criteria.map(([key, value]) => {
                   const criterionEvidence = profile[key]?.evidence;
+                  const reportedGap = profile[key]?.assessment === "gap";
                   return (
                     <div className={value.score < 0.5 ? "criterion-gap" : ""} key={key}>
                       <div><span>{key.replaceAll("_", " ")}</span><b>{Math.round(value.score * 100)}% · weight {Math.round(value.weight * 100)}%</b></div>
                       <p>{value.reason}</p>
-                      <small>{criterionEvidence ? `Evidence: ${criterionEvidence}` : "Gap: no direct candidate evidence was captured."}</small>
+                      <small>{reportedGap ? `Reported gap: ${criterionEvidence}` : criterionEvidence ? `Candidate claim: ${criterionEvidence}` : "Gap: no direct candidate evidence was captured."}</small>
                     </div>
                   );
                 })}

@@ -284,6 +284,24 @@ criterion, retain the structured draft across refreshes, and move to review when
 the selected role's criteria have evidence. Tests cover strong, partial,
 unrelated, empty, and interrupted conversations (2026-09-30).
 
+### JT-028 - Ground candidate claims and follow-up reasoning
+
+- [x] Treat candidate statements as unverified claims instead of confirmed facts.
+- [x] Keep vague or unrelated replies from filling the requested criterion.
+- [x] Record explicit denials and later corrections as gaps with a zero criterion
+  score instead of positive evidence.
+- [x] Score a general claim below a concrete work example and explain the difference.
+- [x] Require the hosted provider to preserve the backend's missing-evidence or
+  reported-gap next step.
+- [x] Show reported gaps distinctly in candidate review and recruiter comparison.
+- [x] Test vague answers, denials, concrete examples, corrections, and provider
+  instructions alongside the complete backend flow suite.
+
+**Status:** Complete. Candidate extraction now distinguishes claimed evidence,
+reported gaps, and answers that need clarification. Backend scoring remains the
+authority even when the hosted provider is enabled, and the UI labels gaps rather
+than displaying them as confirmed skills (2026-10-01).
+
 ### JT-026 - Per-chat retrieval and context boundary
 
 This is Job Talk's first RAG-like component. It is a small context assembler over
