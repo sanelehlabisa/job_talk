@@ -228,6 +228,24 @@ pytest
 
 For the frontend, run `npm run build` inside `frontend`.
 
+## Experiment report
+
+Job Talk records privacy-safe pilot events using a keyed hash of a random browser
+identifier. Events contain no names, contact details, chat text, extracted skills,
+evidence, IP addresses, or user-agent strings. Candidate and recruiter feedback is
+one yes-or-no answer. The existing 30-day cleanup also removes old experiment
+events.
+
+Read the aggregate report from an operator shell:
+
+```bash
+docker compose -f dev.docker-compose.yaml exec -T backend python -m app.experiment_report
+```
+
+For the VM, run the same module with `production.docker-compose.yaml`. The report
+shows unique visitors, starts, submissions, comparison opens, recruiters who
+compared, seven-day returns, and feedback response/usefulness totals.
+
 ## Match score data
 
 Each recommendation includes a `criteria` object. Every criterion has a `score`

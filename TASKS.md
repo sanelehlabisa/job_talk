@@ -21,8 +21,7 @@ The smallest useful release still needs these pieces, in this order:
 
 1. Choose the live subdomain, deploy the stack, and validate certificate renewal
    on the VM (`JT-010` and `JT-011`).
-2. Add minimal usage and feedback measurement (`JT-024`).
-3. Complete the mobile and accessibility check (`JT-015`).
+2. Complete the mobile and accessibility check (`JT-015`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -405,16 +404,23 @@ partial, and unrelated live examples before enabling this provider publicly.
 
 ### JT-024 - Minimal experiment analytics and feedback
 
-- [ ] Record unique anonymous visitors, application starts, application submissions,
+- [x] Record unique anonymous visitors, application starts, application submissions,
   recruiter comparison opens, feedback submissions, and seven-day returns.
-- [ ] Do not put names, contact details, chat text, or skill evidence in analytics events.
-- [ ] Add a one-question candidate feedback prompt after submission.
-- [ ] Add a one-question recruiter usefulness prompt after comparison.
-- [ ] Provide a small protected report or documented query for experiment counts.
-- [ ] Define the review date and evidence needed for continue, change, or stop.
+- [x] Do not put names, contact details, chat text, or skill evidence in analytics events.
+- [x] Add a one-question candidate feedback prompt after submission.
+- [x] Add a one-question recruiter usefulness prompt after comparison.
+- [x] Provide a small protected report or documented query for experiment counts.
+- [x] Define the review date and evidence needed for continue, change, or stop.
 
 **Done when:** the experiment can answer how many people started, completed,
 compared, returned, and reported the workflow useful.
+
+**Status:** Complete. Backend-owned events count visits, application starts and
+submissions, recruiter comparison opens, seven-day returns, and yes-or-no feedback.
+Only a keyed random visitor hash, event metadata, and numeric context IDs are
+stored; the 30-day cleanup removes old events. Candidate and recruiter prompts are
+visible at the completed workflow steps, the operator report is documented, and
+the first review is set for 15 October 2026 (2026-10-01).
 
 ## P0-C - Protect invited users and their data
 

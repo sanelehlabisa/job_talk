@@ -38,6 +38,11 @@ def purge_expired_guest_data(db: Session, before: datetime) -> int:
         )
     )
     deleted = delete_candidate_data(db, user_ids)
+    db.execute(
+        delete(models.ExperimentEvent).where(
+            models.ExperimentEvent.created_at < before
+        )
+    )
     db.commit()
     return deleted
 

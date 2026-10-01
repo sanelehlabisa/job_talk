@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_job_talk.db"
 
@@ -13,6 +13,7 @@ from app import models
 from app.auth import issue_session, token_digest
 from app.database import Base, SessionLocal, engine
 from app.data_retention import purge_expired_guest_data
+from app.experiment import build_report, visitor_digest
 from app.main import app, settings as app_settings
 from app.services.ai import _preview, generate_reply
 from app.services.context import build_chat_context
@@ -130,6 +131,89 @@ def test_end_to_end_employer_to_application():
         ).status_code == 409
 
 
+def test_privacy_safe_experiment_events_and_feedback():
+    job_id = create_published_job()
+    visitor_id = "pilot-visitor-1234567890"
+    visitor_headers = {"X-Job-Talk-Visitor": visitor_id}
+    with TestClient(app) as client:
+        assert client.post("/api/experiment/visit", headers=visitor_headers).status_code == 204
+        assert client.post("/api/experiment/visit", headers=visitor_headers).status_code == 204
+
+        guest = client.post(
+            "/api/auth/guest",
+            json={"job_id": job_id},
+            headers=visitor_headers,
+        ).json()
+        candidate_headers = {
+            **visitor_headers,
+            "Authorization": f"Bearer {guest['access_token']}",
+        }
+        candidate_chat = client.get("/api/chats", headers=candidate_headers).json()[0]
+        application = client.post(
+            f"/api/jobs/{job_id}/apply",
+            json=application_payload(candidate_chat["id"]),
+            headers=candidate_headers,
+        ).json()
+        assert client.post(
+            "/api/experiment/feedback",
+            json={"kind": "candidate", "context_id": application["id"], "useful": True},
+            headers=candidate_headers,
+        ).status_code == 200
+        assert client.post(
+            "/api/experiment/feedback",
+            json={"kind": "recruiter", "context_id": job_id, "useful": True},
+            headers=candidate_headers,
+        ).status_code == 403
+
+        with SessionLocal() as db:
+            owner = db.scalar(select(models.User).where(models.User.email == "seed-owner@example.com"))
+            recruiter_session = issue_session(db, owner).model_dump(mode="json")
+        recruiter_headers = {
+            **visitor_headers,
+            "Authorization": f"Bearer {recruiter_session['access_token']}",
+        }
+        assert client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).status_code == 200
+        assert client.post(
+            "/api/experiment/feedback",
+            json={"kind": "recruiter", "context_id": job_id, "useful": False},
+            headers=recruiter_headers,
+        ).status_code == 200
+
+    with SessionLocal() as db:
+        events = list(db.scalars(select(models.ExperimentEvent)).all())
+        assert len([event for event in events if event.event_type == "visit"]) == 1
+        assert all(visitor_id not in repr(event.__dict__) for event in events)
+        hashed_visitor = visitor_digest(visitor_id)
+        assert {event.visitor_hash for event in events} == {hashed_visitor}
+        first_visit = next(event for event in events if event.event_type == "visit")
+        db.add(
+            models.ExperimentEvent(
+                event_type="visit",
+                visitor_hash=hashed_visitor,
+                event_date=(first_visit.created_at + timedelta(days=1)).date().isoformat(),
+                subject_type="none",
+                subject_id=0,
+                created_at=first_visit.created_at + timedelta(days=1),
+            )
+        )
+        db.commit()
+        report = build_report(db)
+        assert report == {
+            "unique_visitors": 1,
+            "application_starts": 1,
+            "application_submissions": 1,
+            "comparison_opens": 1,
+            "recruiters_who_compared": 1,
+            "seven_day_returns": 1,
+            "feedback": {
+                "candidate": {"responses": 1, "useful": 1, "useful_rate": 1.0},
+                "recruiter": {"responses": 1, "useful": 0, "useful_rate": 0.0},
+            },
+        }
+
+
 def test_candidate_can_delete_submitted_application_and_guest_data():
     job_id = create_published_job()
     with TestClient(app) as client:
@@ -194,6 +278,26 @@ def test_guest_retention_cleanup_removes_only_old_candidate_data():
         db.add(old_chat)
         db.flush()
         db.add(models.Message(chat_id=old_chat.id, sender="user", content="private"))
+        db.add_all(
+            [
+                models.ExperimentEvent(
+                    event_type="visit",
+                    visitor_hash="a" * 64,
+                    event_date=(now - timedelta(days=31)).date().isoformat(),
+                    subject_type="none",
+                    subject_id=0,
+                    created_at=now - timedelta(days=31),
+                ),
+                models.ExperimentEvent(
+                    event_type="visit",
+                    visitor_hash="b" * 64,
+                    event_date=(now - timedelta(days=2)).date().isoformat(),
+                    subject_type="none",
+                    subject_id=0,
+                    created_at=now - timedelta(days=2),
+                ),
+            ]
+        )
         old_user_id = old_user.id
         recent_user_id = recent_user.id
         recruiter_id = recruiter.id
@@ -203,6 +307,7 @@ def test_guest_retention_cleanup_removes_only_old_candidate_data():
         assert db.get(models.User, old_user_id) is None
         assert db.get(models.User, recent_user_id) is not None
         assert db.get(models.User, recruiter_id) is not None
+        assert db.scalar(select(func.count(models.ExperimentEvent.id))) == 1
 
 
 def test_user_input_is_trimmed_and_control_characters_are_rejected():

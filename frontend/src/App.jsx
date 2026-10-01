@@ -37,6 +37,7 @@ function PrivacyPage() {
         <p>Job Talk helps a candidate describe work experience for one role and helps that role's recruiter compare submitted evidence. It is an early, free experiment.</p>
         <h2>What we store</h2>
         <p>We store the conversation, its structured skills and experience, the selected job, and the match explanation. A candidate's name and contact details are collected only during final review and submission. Recruiter email addresses, hashed sign-in codes, and hashed session tokens are also stored.</p>
+        <p>To measure this experiment, the browser creates a random identifier. The backend stores only its keyed hash with event names, dates, numeric job or application references, and optional yes-or-no feedback. Analytics do not contain names, contact details, chat text, skills, evidence, IP addresses, or user-agent strings, and are removed on the same 30-day demo schedule.</p>
         <h2>Who can see it</h2>
         <p>The recruiter for the selected role sees only a submitted application snapshot, contact details, evidence, and match breakdown. The full chat is not shown to the recruiter. Job Talk does not sell personal data.</p>
         <p>The deterministic local response generator is the default. If the hosted AI option is enabled, only the selected job, structured draft, and a bounded window from the current chat are sent to that provider.</p>
@@ -336,6 +337,39 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
   );
 }
 
+function FeedbackPrompt({ kind, contextId }) {
+  const storageKey = `job-talk-feedback-${kind}-${contextId}`;
+  const [submitted, setSubmitted] = useState(() => localStorage.getItem(storageKey) === "done");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function answer(useful) {
+    setSending(true);
+    setError("");
+    try {
+      await api.feedback(kind, contextId, useful);
+      localStorage.setItem(storageKey, "done");
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (submitted) return <div className="feedback-prompt complete" role="status"><Check size={14} /> Thank you for helping improve Job Talk.</div>;
+  return (
+    <section className="feedback-prompt" aria-label="One question feedback">
+      <div><strong>{kind === "candidate" ? "Was applying through this conversation easy?" : "Was this candidate comparison useful?"}</strong><small>One question · no chat text or contact details are recorded</small></div>
+      <div className="feedback-actions">
+        <button type="button" disabled={sending} onClick={() => answer(true)}>Yes</button>
+        <button type="button" disabled={sending} onClick={() => answer(false)}>No</button>
+      </div>
+      {error && <small className="feedback-error" role="alert">{error}</small>}
+    </section>
+  );
+}
+
 const PLOT_COLORS = ["#276749", "#d97745", "#4267a8", "#8a5aa6", "#9a7b25"];
 
 function CandidateScorePlot({ applications, targetProfile }) {
@@ -436,7 +470,7 @@ function CandidateScorePlot({ applications, targetProfile }) {
   );
 }
 
-function CandidateComparison({ applications, status, targetProfile, onCloseJob }) {
+function CandidateComparison({ applications, status, targetProfile, jobId, onCloseJob }) {
   const visible = status === "closed" ? applications.slice(0, 5) : applications;
   let previousScore = null;
   let previousRank = 0;
@@ -503,6 +537,7 @@ function CandidateComparison({ applications, status, targetProfile, onCloseJob }
           );
         })}
       </div>}
+      {!!visible.length && jobId && <FeedbackPrompt kind="recruiter" contextId={jobId} />}
       {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates ranked by the saved weighted scores; equal scores share a rank.</p>}
     </section>
   );
@@ -569,7 +604,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
           {chat.intent === "employer" && chat.job_post && <JobReadiness job={chat.job_post} />}
-          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} onCloseJob={onCloseJob} />}
+          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>
@@ -577,6 +612,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
               {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}
+          {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
           <div ref={bottomRef} />
         </div>
       </div>
@@ -605,6 +641,8 @@ function JobTalkApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showJobsOnEntry, setShowJobsOnEntry] = useState(false);
   const user = session?.user;
+
+  useEffect(() => { api.visit().catch(() => {}); }, []);
 
   async function loadChat(id) {
     setError("");

@@ -2,7 +2,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import func, select, text, update
@@ -19,6 +19,7 @@ from .auth import (
 )
 from .database import get_db
 from .data_retention import delete_candidate_data
+from .experiment import record_event
 from .services.conversation import (
     can_publish,
     candidate_reply,
@@ -117,9 +118,28 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
     return job
 
 
+@app.post("/api/experiment/visit", status_code=status.HTTP_204_NO_CONTENT)
+def record_visit(
+    x_job_talk_visitor: str = Header(
+        min_length=16, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
+    db: Session = Depends(get_db),
+):
+    record_event(db, "visit", x_job_talk_visitor)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.post("/api/auth/guest", response_model=schemas.AuthResponse, status_code=status.HTTP_201_CREATED)
 def start_guest_session(
-    payload: schemas.GuestSessionRequest, db: Session = Depends(get_db)
+    payload: schemas.GuestSessionRequest,
+    x_job_talk_visitor: str | None = Header(
+        default=None, min_length=16, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
+    db: Session = Depends(get_db),
 ):
     job = db.scalar(
         select(models.JobPost).where(
@@ -149,6 +169,13 @@ def start_guest_session(
                 "and the experience you have that fits this role."
             ),
         )
+    )
+    record_event(
+        db,
+        "application_started",
+        x_job_talk_visitor,
+        subject_type="chat",
+        subject_id=chat.id,
     )
     return issue_session(db, user)
 
@@ -603,6 +630,9 @@ def apply(
     job_id: int,
     payload: schemas.ApplyRequest,
     current_user: models.User = Depends(get_current_user),
+    x_job_talk_visitor: str | None = Header(
+        default=None, min_length=16, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
     db: Session = Depends(get_db),
 ):
     if current_user.role != "candidate":
@@ -648,6 +678,14 @@ def apply(
     )
     chat.status = "submitted"
     db.add(application)
+    db.flush()
+    record_event(
+        db,
+        "application_submitted",
+        x_job_talk_visitor,
+        subject_type="application",
+        subject_id=application.id,
+    )
     db.add(
         models.Message(
             chat_id=chat.id,
@@ -671,6 +709,9 @@ def apply(
 def list_applications(
     job_id: int | None = None,
     current_user: models.User = Depends(get_current_user),
+    x_job_talk_visitor: str | None = Header(
+        default=None, min_length=16, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
     db: Session = Depends(get_db),
 ):
     query = select(models.Application).order_by(models.Application.created_at.desc())
@@ -698,4 +739,67 @@ def list_applications(
                 item.id,
             )
         )
+        record_event(
+            db,
+            "comparison_opened",
+            x_job_talk_visitor,
+            subject_type="job",
+            subject_id=job_id,
+        )
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
     return applications
+
+
+@app.post("/api/experiment/feedback", response_model=schemas.MessageResponseStatus)
+def submit_experiment_feedback(
+    payload: schemas.FeedbackCreate,
+    current_user: models.User = Depends(get_current_user),
+    x_job_talk_visitor: str = Header(
+        min_length=16, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
+    db: Session = Depends(get_db),
+):
+    if payload.kind == "candidate":
+        if current_user.role != "candidate":
+            raise HTTPException(
+                status_code=403,
+                detail="Candidate feedback requires candidate access",
+            )
+        subject = db.scalar(
+            select(models.Application.id).where(
+                models.Application.id == payload.context_id,
+                models.Application.candidate_user_id == current_user.id,
+            )
+        )
+        subject_type = "application"
+    else:
+        if current_user.role != "recruiter":
+            raise HTTPException(
+                status_code=403,
+                detail="Recruiter feedback requires recruiter access",
+            )
+        subject = db.scalar(
+            select(models.JobPost.id).where(
+                models.JobPost.id == payload.context_id,
+                models.JobPost.user_id == current_user.id,
+            )
+        )
+        subject_type = "job"
+    if not subject:
+        raise HTTPException(status_code=404, detail="Feedback context not found")
+    record_event(
+        db,
+        f"{payload.kind}_feedback",
+        x_job_talk_visitor,
+        subject_type=subject_type,
+        subject_id=payload.context_id,
+        useful=payload.useful,
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+    return schemas.MessageResponseStatus(message="Thank you for the feedback")

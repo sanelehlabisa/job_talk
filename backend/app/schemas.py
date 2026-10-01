@@ -128,3 +128,9 @@ class ApplicationOut(ORMModel):
     match_result: dict
     submitted: bool
     created_at: datetime
+
+
+class FeedbackCreate(BaseModel):
+    kind: Literal["candidate", "recruiter"]
+    context_id: int = Field(gt=0)
+    useful: bool

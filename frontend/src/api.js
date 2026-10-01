@@ -1,5 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const SESSION_KEY = "job-talk-session";
+const VISITOR_KEY = "job-talk-visitor";
+
+function visitorId() {
+  let value = localStorage.getItem(VISITOR_KEY);
+  if (!value || !/^[A-Za-z0-9_-]{16,100}$/.test(value)) {
+    value = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(VISITOR_KEY, value);
+  }
+  return value;
+}
 
 function accessToken() {
   try {
@@ -15,6 +25,7 @@ async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      "X-Job-Talk-Visitor": visitorId(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -32,6 +43,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  visit: () => request("/experiment/visit", { method: "POST" }),
   publicJobs: () => request("/public/jobs"),
   publicJob: (jobId) => request(`/public/jobs/${jobId}`),
   startGuest: (jobId) =>
@@ -68,6 +80,11 @@ export const api = {
         consent_to_share: true,
       }),
     }),
+  feedback: (kind, contextId, useful) =>
+    request("/experiment/feedback", {
+      method: "POST",
+      body: JSON.stringify({ kind, context_id: contextId, useful }),
+    }),
 };
 
-export { SESSION_KEY };
+export { SESSION_KEY, VISITOR_KEY };

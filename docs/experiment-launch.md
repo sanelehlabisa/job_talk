@@ -157,8 +157,17 @@ skills, or evidence. Direct messages remain a manual count.
 
 ## Review decision
 
-Before publishing the launch posts, set a review date and record the evidence
-required to continue, change direction, or stop. At review, inspect completion
-drop-off, recruiter comparison use, direct feedback, repeat use, support burden,
-privacy issues, and failures. Do not treat likes or post impressions as product
-validation.
+The first pilot review is **15 October 2026**. If public launch moves later, run
+the same review 14 calendar days after the first public post and record that date.
+
+- Continue the pilot when at least two recruiters open candidate comparisons,
+  at least five applications are completed, and direct feedback identifies a
+  repeated useful part of the workflow.
+- Change the flow when people start but fewer than half submit, or when feedback
+  repeatedly identifies the same blocker.
+- Pause the pilot when no recruiter reaches comparison, a material privacy or
+  authorization issue appears, or operating the experiment cannot be done safely.
+
+At review, inspect completion drop-off, comparison use, yes-or-no feedback,
+seven-day return use, direct feedback, support burden, privacy issues, and failures.
+Likes and post impressions are not product validation.

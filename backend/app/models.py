@@ -117,3 +117,26 @@ class Application(Base):
     submitted: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+
+class ExperimentEvent(Base):
+    __tablename__ = "experiment_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_type",
+            "visitor_hash",
+            "event_date",
+            "subject_type",
+            "subject_id",
+            name="uq_experiment_event_daily_subject",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(40), index=True)
+    visitor_hash: Mapped[str] = mapped_column(String(64), index=True)
+    event_date: Mapped[str] = mapped_column(String(10), index=True)
+    subject_type: Mapped[str] = mapped_column(String(20), default="none")
+    subject_id: Mapped[int] = mapped_column(Integer, default=0)
+    useful: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
