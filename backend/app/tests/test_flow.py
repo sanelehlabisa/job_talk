@@ -15,9 +15,10 @@ from app.database import Base, SessionLocal, engine
 from app.data_retention import purge_expired_guest_data
 from app.experiment import build_report, visitor_digest
 from app.main import app, settings as app_settings
-from app.services.ai import generate_reply
+from app.services.ai import GeneratedTurn, RoleUpdate, generate_reply
 from app.services.context import build_chat_context
 from app.services.conversation import (
+    apply_ai_role_updates,
     can_publish,
     detect_intent,
     update_candidate_profile,
@@ -1516,6 +1517,181 @@ def test_deterministic_provider_returns_only_each_guided_reply():
     assert second_chat == "describe the job"
 
 
+def test_ai_role_updates_require_current_message_evidence_and_keep_backend_weights():
+    original = {
+        "python": {
+            "kind": "skill",
+            "label": "Python",
+            "importance": None,
+            "years_required": None,
+            "confirmed": False,
+            "weight": 0.5,
+            "description": "importance not confirmed; experience level not confirmed.",
+        },
+        "fastapi": {
+            "kind": "skill",
+            "label": "FastAPI",
+            "importance": None,
+            "years_required": None,
+            "confirmed": False,
+            "weight": 0.5,
+            "description": "importance not confirmed; experience level not confirmed.",
+        },
+    }
+    profile, details = apply_ai_role_updates(
+        original,
+        "Developer",
+        [
+            {
+                "category": "skill",
+                "field_key": "python",
+                "label": "Python",
+                "importance": "required",
+                "years_required": "two years",
+                "measurable_description": (
+                    "Applicants should describe two years of Python work and its outcomes."
+                ),
+                "source_quote": "Required with two years of experience",
+            },
+            {
+                "category": "skill",
+                "field_key": "fastapi",
+                "label": "FastAPI",
+                "importance": "preferred",
+                "years_required": "one year",
+                "measurable_description": (
+                    "Applicants should describe one year of FastAPI work and its outcomes."
+                ),
+                "source_quote": "FastAPI is preferred with one year of experience",
+            },
+            {
+                "category": "location",
+                "field_key": "location",
+                "label": "Johannesburg",
+                "importance": "unspecified",
+                "years_required": "",
+                "measurable_description": "Applicants should work in Johannesburg.",
+                "source_quote": "Johannesburg",
+            },
+        ],
+        (
+            "Required with two years of experience. "
+            "FastAPI is preferred with one year of experience."
+        ),
+        expected_skill="python",
+    )
+
+    assert details == {"title": "Developer", "accepted": 2}
+    assert profile["python"]["importance"] == "required"
+    assert profile["python"]["years_required"] == "two years"
+    assert profile["python"]["weight"] == 0.85
+    assert "outcomes" in profile["python"]["description"]
+    assert profile["fastapi"]["importance"] == "preferred"
+    assert profile["fastapi"]["years_required"] == "one year"
+    assert profile["fastapi"]["weight"] == 0.35
+    assert "location" not in profile
+
+
+def test_ai_interprets_novel_recruiter_criteria_and_persists_review_fields(monkeypatch):
+    def interpreted_turn(context, intent, user_text, fallback):
+        assert intent == "employer"
+        assert context["chat_id"]
+        return GeneratedTurn(
+            reply="I captured the measurable requirements. Please review them before publishing.",
+            role_updates=[
+                RoleUpdate(
+                    category="title",
+                    field_key="title",
+                    label="Plumber",
+                    importance="unspecified",
+                    years_required="",
+                    measurable_description="",
+                    source_quote="plumber",
+                ),
+                RoleUpdate(
+                    category="skill",
+                    field_key="backflow_testing",
+                    label="Backflow testing",
+                    importance="required",
+                    years_required="two years",
+                    measurable_description=(
+                        "Applicants should describe two years of backflow testing work and outcomes."
+                    ),
+                    source_quote="Backflow testing is required with two years of experience",
+                ),
+                RoleUpdate(
+                    category="location",
+                    field_key="location",
+                    label="Cape Town",
+                    importance="unspecified",
+                    years_required="",
+                    measurable_description="Applicants should confirm they can work in Cape Town.",
+                    source_quote="Cape Town",
+                ),
+                RoleUpdate(
+                    category="availability",
+                    field_key="availability",
+                    label="next Monday",
+                    importance="unspecified",
+                    years_required="",
+                    measurable_description="Applicants should be available next Monday.",
+                    source_quote="available next Monday",
+                ),
+            ],
+        )
+
+    monkeypatch.setattr("app.main.generate_turn", interpreted_turn)
+    with TestClient(app) as client:
+        _, headers = authenticate("ai-role-owner@example.com", "recruiter")
+        chat = client.post("/api/chats", headers=headers).json()
+        response = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={
+                "content": (
+                    "We need a plumber in Cape Town. Backflow testing is required with "
+                    "two years of experience. They must be available next Monday."
+                )
+            },
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    job = body["chat"]["job_post"]
+    assert job["title"] == "Plumber"
+    assert job["target_profile"]["backflow_testing"]["weight"] == 0.85
+    assert job["target_profile"]["backflow_testing"]["confirmed"] is True
+    assert "outcomes" in job["target_profile"]["backflow_testing"]["description"]
+    assert job["target_profile"]["location"]["weight"] == 0.55
+    assert job["target_profile"]["availability"]["weight"] == 0.5
+    assert body["chat"]["can_publish"] is True
+
+
+def test_ai_unclear_recruiter_answer_does_not_change_saved_draft(monkeypatch):
+    def unclear_turn(context, intent, user_text, fallback):
+        return GeneratedTurn(
+            reply="I could not connect that answer to a role requirement. Please clarify.",
+            role_updates=[],
+        )
+
+    monkeypatch.setattr("app.main.generate_turn", unclear_turn)
+    with TestClient(app) as client:
+        _, headers = authenticate("unclear-role-owner@example.com", "recruiter")
+        chat = client.post("/api/chats", headers=headers).json()
+        response = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "The weather is lovely today"},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["chat"]["profile"] == {}
+    assert body["chat"]["job_post"]["target_profile"] == {}
+    assert body["chat"]["job_post"]["title"] == "Untitled role"
+    assert body["chat"]["can_publish"] is False
+
+
 def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
     captured = {}
 
@@ -1531,7 +1707,12 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": json.dumps({"reply": "What welding work have you completed?"}),
+                                "text": json.dumps(
+                                    {
+                                        "reply": "What welding work have you completed?",
+                                        "role_updates": [],
+                                    }
+                                ),
                             }
                         ],
                     }
@@ -1549,6 +1730,7 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
         ai_provider="openai",
         openai_api_key="sk-test-only",
         openai_model="gpt-4o-mini",
+        ai_max_output_tokens=1000,
     )
     context = {
         "chat_id": 9,
@@ -1570,8 +1752,11 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["json"]["model"] == "gpt-4o-mini"
     assert captured["json"]["store"] is False
-    assert captured["json"]["max_output_tokens"] == 180
+    assert captured["json"]["max_output_tokens"] == 1000
     assert captured["json"]["text"]["format"]["strict"] is True
+    schema = captured["json"]["text"]["format"]["schema"]
+    assert schema["required"] == ["reply", "role_updates"]
+    assert schema["properties"]["role_updates"]["items"]["additionalProperties"] is False
     assert "unverified claims" in captured["json"]["instructions"]
     assert "denials and contradictions" in captured["json"]["instructions"]
     assert "required_next_step as authoritative" in captured["json"]["instructions"]

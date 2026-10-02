@@ -44,7 +44,8 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
   start a separate private conversation for another role.
 - Recruiters can compare submitted candidates in one consistent evidence view,
   then close recruitment to stop applications and review a ranked top-five shortlist.
-- A deterministic mock AI generator that displays a compact preview of the current message and the context from that specific chat.
+- A deterministic guided fallback plus an optional OpenAI provider for recruiter
+  answer classification and polished, measurable role criteria.
 - One bounded context assembler for response generation: selected job criteria,
   the structured draft, and only the last 12 messages from the authorized chat.
 
@@ -314,12 +315,16 @@ enabling it for invited users. The key is passed only to the backend container.
 OpenAI requests use the Responses API with strict JSON output validation and
 `store: false`. They contain the selected job, structured draft, current message,
 and at most the latest 12 messages from that authorized chat. Contact details and
-other chats are excluded. Each request has input, output, and timeout bounds, and
-each chat can make at most 12 provider calls. Invalid, unavailable, limited, or
-over-budget provider responses use the current guided question without adding
-mock response text, so the application remains usable while OpenAI mode is
-selected. The backend logs the HTTP status and safe provider error code without
-logging the API key or response data.
+other chats are excluded. For recruiter turns, the model returns a reply and
+categorized role updates with exact quotes from the latest message. The backend
+rejects updates without that support, assigns all weights, recalculates readiness,
+and saves accepted measurable descriptions for review before publication.
+
+Each request has input, output, and timeout bounds, and each chat can make at most
+12 provider calls. Invalid, unavailable, limited, or over-budget provider responses
+use the current guided question and deterministic extraction, so job creation stays
+usable while OpenAI mode is selected. The backend logs the HTTP status and safe
+provider error code without logging the API key or response data.
 
 ## Current limits and next steps
 

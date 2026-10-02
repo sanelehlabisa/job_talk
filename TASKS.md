@@ -21,8 +21,9 @@ apply through chat, and can the recruiter compare candidates clearly? Finish the
 local release sequence below before returning to VM and subdomain work.
 
 The reliable create, apply, and compare scenario now passes repeatedly. Complete
-the local desktop and phone sign-off (`JT-043`), then deploy through the existing
-`JT-010` and `JT-011` package (`JT-044`).
+AI-assisted role interpretation (`JT-045`), then the local desktop and phone
+sign-off (`JT-043`) before deploying through the existing `JT-010` and `JT-011`
+package (`JT-044`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -164,6 +165,35 @@ and desktop layouts. No additional blocker was found (2026-10-02).
 - [x] Do not block the pilot on API credits or local model hosting.
 
 **Status:** Complete. Provider experiments remain demand gated under `JT-023`.
+
+### JT-045 - Validate and polish recruiter answers with AI
+
+- [x] Return categorized role updates alongside the recruiter reply through one
+  strict structured-output contract.
+- [x] Use only the current authorized chat, current draft, backend weights, and
+  the recruiter's latest message when interpreting an answer.
+- [x] Require each saved update to quote supporting text from the latest message;
+  leave the previous draft unchanged when an answer is unrelated or unclear.
+- [x] Turn accepted requirements into concise, measurable descriptions while the
+  backend remains responsible for weights and publication readiness.
+- [x] Persist accepted updates to the job draft so the existing review UI shows
+  exactly what matching will use.
+- [x] Preserve the deterministic creation flow when the provider is disabled,
+  unavailable, invalid, or over its per-chat call limit.
+- [x] Cover categorization, unsupported updates, short follow-up answers, strict
+  provider output, persistence, and fallback behavior with focused tests.
+
+**Done when:** AI can interpret and polish recruiter answers without silently
+accepting unrelated content or controlling weights/readiness, and the recruiter
+can review the saved criteria before publishing.
+
+**Status:** Complete. OpenAI turns now return a strict reply plus categorized role
+updates. The backend accepts only updates with an exact quote from the current
+message, owns criterion weights and readiness, and saves accepted measurable
+requirements for the existing review UI. Empty, invalid, unavailable, and capped
+provider results preserve the deterministic flow. The backend suite passes with
+focused coverage for novel skills, short answers, unsupported fields, persistence,
+strict output, and fallback behavior (2026-10-02).
 
 ### JT-043 - Local usability sign-off
 

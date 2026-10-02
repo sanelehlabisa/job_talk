@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Literal
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -13,8 +14,32 @@ OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 MAX_PROVIDER_INPUT_CHARS = 24_000
 
 
+class RoleUpdate(BaseModel):
+    category: Literal[
+        "title",
+        "skill",
+        "experience",
+        "location",
+        "working_arrangement",
+        "availability",
+        "ignore",
+    ]
+    field_key: str
+    label: str
+    importance: Literal["required", "preferred", "unspecified"]
+    years_required: str
+    measurable_description: str
+    source_quote: str
+
+
+class GeneratedTurn(BaseModel):
+    reply: str
+    role_updates: list[RoleUpdate] | None = None
+
+
 class ProviderReply(BaseModel):
     reply: str
+    role_updates: list[RoleUpdate]
 
 
 def _compact_mapping(value: dict, item_limit: int = 12, text_limit: int = 500) -> dict:
@@ -83,7 +108,7 @@ def _openai_reply(
     user_text: str,
     fallback: str,
     settings: Settings,
-) -> str:
+) -> ProviderReply:
     api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not configured")
@@ -103,6 +128,12 @@ def _openai_reply(
                 "For recruiters, clarify each named skill or tool before publishing: ask whether it is required "
                 "or preferred and how many years of experience applicants should have. Summarize the structured "
                 "criteria plainly so the recruiter can spot mistakes and edit them through the conversation. "
+                "For recruiter messages, classify only facts actually supported by the current message and chat. "
+                "Return one role_updates item per supported title, skill, experience, location, working arrangement, "
+                "or availability field. Use category ignore when the answer is unrelated or too unclear to save. "
+                "Include an exact source_quote and a concise measurable_description that says what an applicant "
+                "should demonstrate. Never invent years, importance, tools, locations, or requirements. "
+                "For candidate messages, role_updates must be an empty array. "
                 "Treat required_next_step as authoritative: do not claim a field was captured if it is still missing, "
                 "and preserve any statement that a response is a gap rather than a match. "
                 "Ask at most one question and keep the reply under 90 words."
@@ -117,8 +148,49 @@ def _openai_reply(
                     "strict": True,
                     "schema": {
                         "type": "object",
-                        "properties": {"reply": {"type": "string"}},
-                        "required": ["reply"],
+                        "properties": {
+                            "reply": {"type": "string"},
+                            "role_updates": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "category": {
+                                            "type": "string",
+                                            "enum": [
+                                                "title",
+                                                "skill",
+                                                "experience",
+                                                "location",
+                                                "working_arrangement",
+                                                "availability",
+                                                "ignore",
+                                            ],
+                                        },
+                                        "field_key": {"type": "string"},
+                                        "label": {"type": "string"},
+                                        "importance": {
+                                            "type": "string",
+                                            "enum": ["required", "preferred", "unspecified"],
+                                        },
+                                        "years_required": {"type": "string"},
+                                        "measurable_description": {"type": "string"},
+                                        "source_quote": {"type": "string"},
+                                    },
+                                    "required": [
+                                        "category",
+                                        "field_key",
+                                        "label",
+                                        "importance",
+                                        "years_required",
+                                        "measurable_description",
+                                        "source_quote",
+                                    ],
+                                    "additionalProperties": False,
+                                },
+                            },
+                        },
+                        "required": ["reply", "role_updates"],
                         "additionalProperties": False,
                     },
                 }
@@ -129,28 +201,29 @@ def _openai_reply(
     response.raise_for_status()
     parsed = ProviderReply.model_validate(json.loads(_extract_output_text(response.json())))
     reply = parsed.reply.strip()
-    if not reply or len(reply) > 1200:
+    if not reply or len(reply) > 1200 or len(parsed.role_updates) > 12:
         raise ValueError("OpenAI reply was empty or too long")
-    return reply
+    return parsed
 
 
-def generate_reply(
+def generate_turn(
     context: ChatContext,
     intent: str | None,
     user_text: str,
     fallback: str,
     settings: Settings | None = None,
-) -> str:
-    """Generate one reply through the configured provider."""
+) -> GeneratedTurn:
+    """Generate a reply and optional validated-shape recruiter field proposals."""
     active_settings = settings or get_settings()
     provider_calls = context.get("user_message_count", 0)
     if active_settings.ai_provider != "openai":
-        return fallback
+        return GeneratedTurn(reply=fallback)
     if provider_calls >= active_settings.ai_max_calls_per_chat:
         logger.info("AI call limit reached; using guided fallback")
-        return fallback
+        return GeneratedTurn(reply=fallback)
     try:
-        return _openai_reply(context, intent, user_text, fallback, active_settings)
+        parsed = _openai_reply(context, intent, user_text, fallback, active_settings)
+        return GeneratedTurn(reply=parsed.reply.strip(), role_updates=parsed.role_updates)
     except (httpx.HTTPError, json.JSONDecodeError, ValidationError, ValueError) as exc:
         detail = type(exc).__name__
         if isinstance(exc, httpx.HTTPStatusError):
@@ -164,4 +237,15 @@ def generate_reply(
             if error_code:
                 detail += f", code={error_code}"
         logger.warning("AI provider unavailable; using guided fallback (%s)", detail)
-        return fallback
+        return GeneratedTurn(reply=fallback)
+
+
+def generate_reply(
+    context: ChatContext,
+    intent: str | None,
+    user_text: str,
+    fallback: str,
+    settings: Settings | None = None,
+) -> str:
+    """Generate one reply through the configured provider."""
+    return generate_turn(context, intent, user_text, fallback, settings).reply

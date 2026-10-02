@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_model: str = Field(default="gpt-4o-mini", min_length=1, max_length=100)
     ai_timeout_seconds: float = Field(default=20, ge=1, le=60)
-    ai_max_output_tokens: int = Field(default=180, ge=64, le=500)
+    ai_max_output_tokens: int = Field(default=1000, ge=64, le=2000)
     ai_max_calls_per_chat: int = Field(default=12, ge=1, le=50)
 
     @property

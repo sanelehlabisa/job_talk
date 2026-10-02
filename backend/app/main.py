@@ -1,5 +1,6 @@
 import logging
 import secrets
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
@@ -21,6 +22,7 @@ from .database import get_db
 from .data_retention import delete_candidate_data
 from .experiment import record_event
 from .services.conversation import (
+    apply_ai_role_updates,
     can_publish,
     candidate_reply,
     employer_reply,
@@ -33,7 +35,7 @@ from .services.conversation import (
 )
 from .services.context import build_chat_context
 from .services.matching import match_profiles, rank_jobs, summarize_match
-from .services.ai import generate_reply
+from .services.ai import generate_reply, generate_turn
 from .services.email import send_recruiter_login_code
 from .settings import get_settings
 
@@ -415,7 +417,10 @@ def send_message(
     )
     employer_profile = chat.job_post.target_profile if chat.job_post else chat.profile
     expected_skill = expected_employer_skill(employer_profile, last_assistant_text)
+    employer_profile_before = deepcopy(employer_profile or {})
+    employer_title_before = chat.job_post.title if chat.job_post else None
     candidate_answer_status = None
+    interpret_employer_answer = False
 
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
     if chat.intent and chat.intent != expected_intent:
@@ -424,11 +429,12 @@ def send_message(
     if not chat.intent:
         chat.intent = expected_intent
         if chat.intent == "employer":
+            interpret_employer_answer = True
             chat.profile, details = update_employer_profile(
                 chat.profile, text, expected_skill=expected_skill
             )
             job = models.JobPost(
-                chat_id=chat.id,
+                chat=chat,
                 user_id=chat.user_id,
                 title=details.get("title") or "Untitled role",
                 description=text,
@@ -465,6 +471,7 @@ def send_message(
                     + employer_reply(job.target_profile, False, job.title)
                 )
         else:
+            interpret_employer_answer = True
             chat.profile, details = update_employer_profile(
                 chat.profile,
                 text,
@@ -472,7 +479,7 @@ def send_message(
                 expected_skill,
             )
             if not job:
-                job = models.JobPost(chat_id=chat.id, user_id=chat.user_id)
+                job = models.JobPost(chat=chat, user_id=chat.user_id)
                 db.add(job)
             if details.get("title"):
                 job.title = details["title"]
@@ -497,7 +504,22 @@ def send_message(
         reply = candidate_reply(
             context["draft"], target_profile, candidate_answer_status
         )
-    reply = generate_reply(context, chat.intent, text, reply)
+    if interpret_employer_answer:
+        turn = generate_turn(context, chat.intent, text, reply)
+        reply = turn.reply
+        if turn.role_updates is not None:
+            validated_profile, details = apply_ai_role_updates(
+                employer_profile_before,
+                employer_title_before,
+                [update.model_dump() for update in turn.role_updates],
+                text,
+                expected_skill,
+            )
+            chat.profile = validated_profile
+            job.target_profile = validated_profile
+            job.title = details.get("title") or "Untitled role"
+    else:
+        reply = generate_reply(context, chat.intent, text, reply)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()

@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 
 
 SKILLS = {
@@ -284,6 +285,130 @@ def _skill_requirement(label: str, importance: str | None, years: str | None) ->
         "description": f"{importance_text}; {years_text}.",
         **({"optional": True} if importance == "preferred" else {}),
     }
+
+
+def _clean_role_text(value: object, limit: int = 240) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip(" .,;")[:limit]
+
+
+def _role_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")[:80]
+
+
+def _supported_description(proposed: str, fallback: str, source: str) -> str:
+    description = _clean_role_text(proposed)
+    source_numbers = set(re.findall(r"\d+", source))
+    description_numbers = set(re.findall(r"\d+", description))
+    if len(description) < 15 or not description_numbers.issubset(source_numbers):
+        return fallback
+    return description
+
+
+def apply_ai_role_updates(
+    profile: dict,
+    current_title: str | None,
+    updates: list[Mapping[str, object]],
+    current_text: str,
+    expected_skill: str | None = None,
+) -> tuple[dict, dict]:
+    """Apply model-proposed role fields only when this message supports them.
+
+    The model chooses the semantic category and wording. This function keeps the
+    database contract authoritative: it requires an exact quote from the current
+    recruiter message, owns weights/readiness, and refuses unsupported new skills.
+    """
+    accepted_profile = dict(profile or {})
+    title = current_title
+    accepted = 0
+    normalized_message = _clean_role_text(current_text, 5000).casefold()
+
+    for update in updates[:12]:
+        category = _clean_role_text(update.get("category"), 30).lower()
+        if category == "ignore":
+            continue
+        source = _clean_role_text(update.get("source_quote"), 500)
+        if not source or source.casefold() not in normalized_message:
+            continue
+        label = _clean_role_text(update.get("label"), 100)
+        proposed_description = _clean_role_text(
+            update.get("measurable_description"), 240
+        )
+
+        if category == "title":
+            proposed_title = label if label and label.casefold() in source.casefold() else source
+            if 2 <= len(proposed_title) <= 80:
+                title = proposed_title.title()
+                accepted += 1
+            continue
+
+        if category == "skill":
+            label_key = _role_key(label)
+            field_key = _role_key(str(update.get("field_key") or ""))
+            label_is_supported = bool(label and label.casefold() in source.casefold())
+            expected_key = expected_skill if expected_skill in accepted_profile else None
+            if label_is_supported:
+                proposed_key = field_key if field_key in accepted_profile else label_key
+            else:
+                proposed_key = expected_key
+            if not proposed_key:
+                continue
+            key = proposed_key
+            existing = accepted_profile.get(key, {})
+            saved_label = existing.get("label") or label
+            importance_value = _clean_role_text(update.get("importance"), 20).lower()
+            importance = (
+                importance_value
+                if importance_value in {"required", "preferred"}
+                else existing.get("importance")
+            )
+            years = _years(source) or existing.get("years_required")
+            requirement = _skill_requirement(saved_label, importance, years)
+            default_description = (
+                f"{importance.title() if importance else 'Importance not confirmed'}; "
+                f"{years or 'experience level not confirmed'}. Applicants should describe "
+                f"work using {saved_label}."
+            )
+            requirement["description"] = _supported_description(
+                proposed_description, default_description, source
+            )
+            requirement["source_quote"] = source
+            accepted_profile[key] = requirement
+            accepted += 1
+            continue
+
+        fixed_fields = {
+            "experience": ("experience", 0.8),
+            "location": ("location", 0.55),
+            "working_arrangement": ("working_arrangement", 0.5),
+            "availability": ("availability", 0.5),
+        }
+        if category not in fixed_fields:
+            continue
+        key, weight = fixed_fields[category]
+        years = _years(source) if category == "experience" else None
+        defaults = {
+            "experience": (
+                f"Applicants should describe responsibilities and outcomes from "
+                f"{years or source} of relevant experience."
+            ),
+            "location": f"Applicants should confirm they can work in {label or source}.",
+            "working_arrangement": (
+                f"Applicants should confirm they can work {label or source}."
+            ),
+            "availability": (
+                f"Applicants should confirm whether they meet this start requirement: {source}."
+            ),
+        }
+        accepted_profile[key] = {
+            "weight": weight,
+            "description": _supported_description(
+                proposed_description, defaults[category], source
+            ),
+            "source_quote": source,
+        }
+        accepted += 1
+
+    return accepted_profile, {"title": title, "accepted": accepted}
 
 
 def _skill_clarification_question(key: str, requirement: dict) -> str:
