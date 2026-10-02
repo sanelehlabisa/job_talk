@@ -149,6 +149,23 @@ seeding. The complete backend suite passed twice with 57 tests per run, and the
 live desktop and phone create, publish, apply, compare, close, and delete workflow
 passed twice with fresh recruiters (2026-10-02).
 
+### JT-052 - Freeze the published scoring contract
+
+- [x] Reject recruiter chat edits after a job is published.
+- [x] Hide the recruiter composer and explain that published criteria are locked.
+- [x] Confirm rejected edits cannot change the public job criteria.
+- [x] Keep candidate conversations and recruiter comparison available.
+
+**Done when:** every applicant for a published job is evaluated against the same
+reviewed criteria until the recruiter closes that recruitment.
+
+**Status:** Complete. The API rejects recruiter messages once a job is published,
+and the recruiter UI replaces the composer with a clear locked-criteria state.
+The focused API test proves rejected edits leave the public profile unchanged.
+The complete browser sign-off then passed publication, candidate conversation,
+submission, recruiter comparison, close, and deletion on desktop and phone size
+(2026-10-02).
+
 ## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already

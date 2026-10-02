@@ -400,6 +400,11 @@ def send_message(
         raise HTTPException(status_code=409, detail="This application has already been submitted")
     if chat.status == "closed":
         raise HTTPException(status_code=409, detail="This recruitment is closed")
+    if chat.intent == "employer" and chat.status == "published":
+        raise HTTPException(
+            status_code=409,
+            detail="Published job criteria are locked. Close this recruitment before creating a revised role.",
+        )
     text = payload.content.strip()
     if not text:
         raise HTTPException(status_code=422, detail="Message cannot be empty")

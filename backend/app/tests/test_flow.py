@@ -478,6 +478,16 @@ def test_recruiter_refines_then_publishes_with_explicit_action():
         assert repeated.status_code == 200
         assert [job["id"] for job in client.get("/api/public/jobs").json()] == [job_id]
 
+        locked_profile = repeated.json()["target_profile"]
+        edit_published = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Change Python to five years of required experience."},
+            headers=recruiter_headers,
+        )
+        assert edit_published.status_code == 409
+        assert "criteria are locked" in edit_published.json()["detail"]
+        assert client.get(f"/api/public/jobs/{job_id}").json()["target_profile"] == locked_profile
+
         guest = client.post("/api/auth/guest", json={"job_id": job_id})
         assert guest.status_code == 201
 

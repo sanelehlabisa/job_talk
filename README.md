@@ -41,6 +41,8 @@ contract and intentionally narrow scope are in
 - A structured role summary before publishing. Recruiters can paste a description
   or correct an attribute in ordinary chat. Completion phrases prepare the role
   for review; only the visible `Publish job` button makes it public.
+- Published role criteria are locked so every applicant is scored against the
+  same reviewed requirements; closing the recruitment stops new applications.
 - One canonical job-criterion shape with a stable key, type, measurable target,
   optional unit, backend-owned weight, and description. The pre-publish review
   shows the target and weight, and clarifications update the existing key.

@@ -165,6 +165,8 @@ try {
     if (-not $jobId) { throw "Created recruiter job was not found" }
     Invoke-JavaScript "document.querySelector('.publish-bar button').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.status-pill').textContent.includes('Published')" "published role"
+    Wait-JavaScript "document.querySelector('.submitted-bar')?.textContent.includes('criteria locked')" "locked published criteria"
+    if (Invoke-JavaScript "document.querySelector('.composer') !== null") { throw "Published recruiter chat still offers criteria editing" }
     $recruiterSession = Invoke-JavaScript "sessionStorage.getItem('job-talk-session')"
 
     Invoke-JavaScript "sessionStorage.removeItem('job-talk-session'); location.href='/?job=$jobId'; true" | Out-Null
@@ -242,7 +244,7 @@ try {
     $deletedStatus = Invoke-JavaScript "fetch('http://localhost:8000/api/auth/me', { headers: { Authorization: 'Bearer ' + $candidateTokenJson } }).then(response => response.status)"
     if ($deletedStatus -ne 401) { throw "Deleted candidate session is still valid" }
 
-    Write-Output "Local sign-off passed: create, publish, apply, compare, close, and delete on desktop and phone."
+    Write-Output "Local sign-off passed: create, lock published criteria, apply, compare, close, and delete on desktop and phone."
     Write-Output "Screenshots: $OutputDirectory"
 } finally {
     if ($script:socket) { $script:socket.Dispose() }
