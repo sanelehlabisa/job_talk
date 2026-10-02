@@ -243,6 +243,11 @@ The script submits a fresh guest application to seeded job 2, signs in through
 the Mailpit code, verifies the recruiter comparison, and writes candidate and
 recruiter desktop and phone screenshots under `%TEMP%\jobtalk-browser-smoke`.
 
+The backend flow suite also includes the fixed plumber pilot scenario: a strong
+plumber, a partial handyman with an explicit geyser gap, and an unrelated software
+candidate. It verifies isolated guest submissions, sensible score ordering, and
+the recruiter comparison contract on every test run.
+
 ## Experiment report
 
 Job Talk records privacy-safe pilot events using a keyed hash of a random browser

@@ -20,11 +20,9 @@ The pilot answers one question: can one recruiter create a job, can one candidat
 apply through chat, and can the recruiter compare candidates clearly? Finish the
 local release sequence below before returning to VM and subdomain work.
 
-1. Make job publishing explicit and reliable (`JT-033`).
-2. Run the deterministic three-candidate scenario twice and fix only blockers
-   found in that flow (`JT-040` and `JT-041`).
-3. Complete the local desktop and phone sign-off (`JT-043`).
-4. Then deploy through the existing `JT-010` and `JT-011` package (`JT-044`).
+The reliable create, apply, and compare scenario now passes repeatedly. Complete
+the local desktop and phone sign-off (`JT-043`), then deploy through the existing
+`JT-010` and `JT-011` package (`JT-044`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -147,10 +145,17 @@ comparison layouts at desktop and phone sizes (2026-10-02).
 
 ### JT-041 - Fix only demo-blocking bugs
 
-- [ ] Record issues found during `JT-040`.
-- [ ] Fix only creation, state, scoring, isolation, submission, comparison, and
+- [x] Record issues found during `JT-040`.
+- [x] Fix only creation, state, scoring, isolation, submission, comparison, and
   mobile blockers.
-- [ ] Run the complete deterministic scenario twice without failure.
+- [x] Run the complete deterministic scenario twice without failure.
+
+**Status:** Complete. `JT-040` found one blocker: generic experience wording could
+fill unrelated trade criteria and produce a misleading high score. That matching
+bug was fixed and regression tested. Two clean database runs of the plumber flow
+passed consecutively, followed by another live Compose browser pass covering
+emailed recruiter sign-in, candidate submission, recruiter comparison, and phone
+and desktop layouts. No additional blocker was found (2026-10-02).
 
 ### JT-042 - Keep deterministic mode as the release default
 
