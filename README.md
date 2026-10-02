@@ -180,6 +180,8 @@ database storage. Keep it out of frontend build arguments and browser code.
 
 Production Compose also requires `SUPPORT_EMAIL`. Set it to the monitored address
 shown on the privacy and safety page before building the frontend.
+`AI_MAX_OUTPUT_TOKENS` defaults to 1000 so recruiter responses can contain the
+strict reply and several categorized role updates without truncating the JSON.
 
 The public `/privacy` page explains collection, sharing, acceptable use,
 retention, reporting, and deletion. Candidates can delete a submitted guest

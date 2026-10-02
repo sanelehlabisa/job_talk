@@ -214,12 +214,17 @@ as a 95% location match. The backend suite and frontend production build pass
 
 ### JT-044 - Deploy only after local sign-off
 
-- [ ] Complete `JT-010` and `JT-011` after `JT-043` passes.
+- [x] Validate the production Compose configuration and build the backend,
+  frontend, and proxy images from the signed-off revision.
+- [ ] Complete the VM work in `JT-010` and `JT-011` using the real subdomain and
+  production secret values.
 - [ ] Verify DNS, firewall, TLS renewal, backup, reboot, logs, rollback, and that
   only ports 80 and 443 are public.
 
-**Status:** Ready. The local MVP sign-off passed; production deployment remains
-the next ticket and requires the VM domain and secret values (2026-10-02).
+**Status:** In progress. The production configuration resolves without exposing
+secrets, and all three application images build successfully. Production now uses
+the tested 1,000-token structured AI response bound. The remaining checks require
+the real VM, subdomain, SMTP settings, and production secrets (2026-10-02).
 
 ## Completed foundation
 
