@@ -389,6 +389,18 @@ confirmed requirements at the start of their private application (2026-10-01).
 lifecycle state, so recruiters can distinguish multiple role workspaces and
 candidates can identify their current application (2026-10-02).
 
+### JT-031 - Complete candidate evidence review
+
+- [x] Show every requirement from the selected job before application submission.
+- [x] Distinguish captured evidence, a candidate-reported gap, and missing evidence.
+- [x] Include additional structured evidence that will be shared with the recruiter.
+- [x] Give the candidate a clear way back to the chat to add or correct evidence.
+- [x] Keep honest applications with missing experience possible after clear review.
+
+**Status:** Complete. The final application review now mirrors the selected job's
+requirements, identifies the evidence state for each one, and explains how to
+correct the structured snapshot before consent and submission (2026-10-02).
+
 ### JT-022 - Recruiter candidate comparison
 
 - [x] Treat each recruiter hiring chat as one job workspace with `draft`,

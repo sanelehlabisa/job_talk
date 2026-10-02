@@ -281,6 +281,10 @@ Recruiter conversation navigation uses each role title and its current state
 (`Draft`, `Published`, or `Closed`). Candidate navigation uses the selected job
 title and application state, making multiple hiring workspaces easy to identify.
 
+Before submitting, a candidate sees every requirement from the selected job.
+The review marks captured evidence, reported gaps, and missing evidence, includes
+any additional structured claims, and links back to the conversation for corrections.
+
 ## AI provider
 
 `backend/app/services/ai.py` keeps response generation behind one function and

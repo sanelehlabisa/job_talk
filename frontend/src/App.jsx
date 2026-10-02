@@ -352,7 +352,24 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
   const [preferredContact, setPreferredContact] = useState("");
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const evidence = Object.entries(profile || {}).slice(0, 8);
+  const requirements = item.job.target_profile || {};
+  const requirementKeys = new Set(Object.keys(requirements));
+  const evidence = [
+    ...Object.entries(requirements).map(([key, requirement]) => ({
+      key,
+      label: requirement.label || key.replaceAll("_", " "),
+      requirement: requirement.description,
+      profileItem: profile?.[key],
+    })),
+    ...Object.entries(profile || {})
+      .filter(([key]) => !requirementKeys.has(key) && !["candidate_details", "consent"].includes(key))
+      .map(([key, profileItem]) => ({
+        key,
+        label: key.replaceAll("_", " "),
+        requirement: null,
+        profileItem,
+      })),
+  ];
 
   async function submit(event) {
     event.preventDefault();
@@ -373,10 +390,19 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       </div>
       <p>The recruiter will receive the structured evidence below, your match breakdown, and the contact details you enter here. Your full chat is not shared.</p>
       <div className="review-evidence">
-        {evidence.map(([key, value]) => (
-          <div key={key}><strong>{key.replaceAll("_", " ")}{value.assessment === "gap" ? " · reported gap" : ""}</strong><span>{value.evidence || "Included in your structured profile"}</span></div>
-        ))}
+        {evidence.map(({ key, label, requirement, profileItem }) => {
+          const assessment = profileItem?.assessment;
+          const state = assessment === "gap" ? "gap" : profileItem?.evidence ? "captured" : "missing";
+          return (
+            <div className={`review-evidence-item ${state}`} key={key}>
+              <div><strong>{label}</strong><b>{state === "gap" ? "Reported gap" : state === "captured" ? "Evidence captured" : "Evidence missing"}</b></div>
+              {requirement && <small>Role asks: {requirement}</small>}
+              <span>{profileItem?.evidence || "You have not provided evidence for this requirement yet."}</span>
+            </div>
+          );
+        })}
       </div>
+      <p className="review-correction">See a mistake or missing item? <button type="button" onClick={onCancel}>Return to the chat</button> and describe the correction or evidence before submitting.</p>
       <label htmlFor="candidate-name">Your name</label>
       <input id="candidate-name" value={candidateName} onChange={(event) => setCandidateName(event.target.value)} minLength="2" maxLength="100" autoComplete="name" required />
       <label htmlFor="candidate-contact">Preferred email or phone number</label>
