@@ -616,11 +616,14 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
               <div className="criterion-list">
                 <strong>Criterion breakdown</strong>
                 {criteria.map(([key, value]) => {
-                  const criterionEvidence = profile[key]?.evidence;
-                  const reportedGap = profile[key]?.assessment === "gap";
+                  const criterionEvidence = value.evidence || profile[key]?.evidence;
+                  const reportedGap = value.gap === "reported" || profile[key]?.assessment === "gap";
+                  const candidateValue = value.candidate_value === null || value.candidate_value === undefined ? "No value" : String(value.candidate_value);
+                  const targetValue = value.target_value === null || value.target_value === undefined ? "Not set" : String(value.target_value);
                   return (
                     <div className={value.score < 0.5 ? "criterion-gap" : ""} key={key}>
                       <div><span>{key.replaceAll("_", " ")}</span><b>{Math.round(value.score * 100)}% · weight {Math.round(value.weight * 100)}%</b></div>
+                      <small>Candidate: {candidateValue} · Target: {targetValue}</small>
                       <p>{value.reason}</p>
                       <small>{reportedGap ? `Reported gap: ${criterionEvidence}` : criterionEvidence ? `Candidate claim: ${criterionEvidence}` : "Gap: no direct candidate evidence was captured."}</small>
                     </div>

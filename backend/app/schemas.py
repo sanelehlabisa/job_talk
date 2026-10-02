@@ -81,9 +81,15 @@ class JobOut(ORMModel):
 
 
 class CriterionScoreOut(BaseModel):
+    label: str
+    type: Literal["number", "skill", "text"]
+    candidate_value: str | int | float | bool | None = None
+    target_value: str | int | float | bool | None = None
     score: float
     weight: float
+    evidence: str
     reason: str
+    gap: Literal["reported", "missing"] | None = None
 
 
 class RecommendationOut(BaseModel):

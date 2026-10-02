@@ -65,17 +65,23 @@ production build pass (2026-10-02).
 
 ### JT-048 - Score typed candidate values against typed targets
 
-- [ ] Return candidate value, target value, score, weight, evidence, reason, and
+- [x] Return candidate value, target value, score, weight, evidence, reason, and
   gap state for every criterion.
-- [ ] Keep scoring deterministic and backend-owned for number, skill, and text
+- [x] Keep scoring deterministic and backend-owned for number, skill, and text
   criteria.
-- [ ] Calculate the overall weighted score only from validated criterion results.
-- [ ] Cover strong, partial, explicit-gap, missing, and unrelated answers.
+- [x] Calculate the overall weighted score only from validated criterion results.
+- [x] Cover strong, partial, explicit-gap, missing, and unrelated answers.
 
 **Done when:** every displayed score can be traced from a candidate statement to
 the shared criterion, target, scoring rule, and reason.
 
-**Status:** Next.
+**Status:** Complete. Each saved match criterion now includes its label and type,
+candidate and target values, score, weight, evidence, reason, and explicit
+reported or missing gap state. Numeric criteria compare values directly with a
+capped ratio, while legacy evidence snapshots remain readable through bounded
+deterministic value extraction. The recruiter comparison shows candidate and
+target values. Focused typed scoring, gap, compatibility, and plumber scenario
+tests plus the frontend production build pass (2026-10-02).
 
 ### JT-049 - Recommend only useful job matches
 
@@ -86,6 +92,8 @@ the shared criterion, target, scoring rule, and reason.
 
 **Done when:** a plumber profile recommends the relevant jobs and an unrelated
 profile receives no misleading recommendation.
+
+**Status:** Next.
 
 ### JT-050 - Sign off the complete core loop
 

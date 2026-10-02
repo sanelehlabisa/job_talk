@@ -66,6 +66,29 @@ def _place(value: str) -> str | None:
     return None
 
 
+def _candidate_value(key: str, requirement: dict, candidate_item: dict):
+    if candidate_item.get("assessment") == "gap":
+        return None
+    if "value" in candidate_item:
+        return candidate_item["value"]
+    evidence = candidate_item.get("evidence", "")
+    if not evidence:
+        return None
+    if requirement.get("type") == "number":
+        return _years(evidence)
+    if requirement.get("type") == "skill":
+        return True
+    if key == "location":
+        place = _place(evidence)
+        return place.title() if place else evidence
+    if key == "working_arrangement":
+        return next(
+            (item for item in ("remote", "hybrid", "on-site") if item in evidence.lower()),
+            evidence,
+        )
+    return evidence
+
+
 def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tuple[float, str]:
     candidate_item = candidate_profile.get(key, {})
     evidence = candidate_item.get("evidence", "")
@@ -73,6 +96,25 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
 
     if candidate_item.get("assessment") == "gap":
         return 0.0, f"The candidate explicitly reported a gap: {evidence}"
+
+    if requirement.get("type") == "number" and evidence:
+        target = requirement.get("target")
+        candidate_value = _candidate_value(key, requirement, candidate_item)
+        if isinstance(target, (int, float)) and isinstance(
+            candidate_value, (int, float)
+        ):
+            if target <= 0:
+                return 1.0, "The criterion has no positive minimum target."
+            score = min(1.0, max(0.0, candidate_value / target))
+            unit = str(requirement.get("unit") or "units")
+            return score, (
+                f"The candidate reports {candidate_value} {unit} against a "
+                f"target of {target} {unit}."
+            )
+        return 0.45, (
+            "The candidate provided related evidence, but it does not contain "
+            "the measurable value requested by this criterion."
+        )
 
     if key == "location" and evidence:
         required_place, candidate_place = _place(requirement_text), _place(evidence)
@@ -134,7 +176,26 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
         weight = Decimal(str(requirement.get("weight", 0.5)))
         score, reason = criterion_score(key, requirement, candidate_profile)
         rounded_score = Decimal(str(score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        criteria[key] = {"score": float(rounded_score), "reason": reason, "weight": float(weight)}
+        candidate_item = candidate_profile.get(key, {})
+        evidence = candidate_item.get("evidence", "")
+        gap = (
+            "reported"
+            if candidate_item.get("assessment") == "gap"
+            else "missing"
+            if not evidence
+            else None
+        )
+        criteria[key] = {
+            "label": requirement["label"],
+            "type": requirement["type"],
+            "candidate_value": _candidate_value(key, requirement, candidate_item),
+            "target_value": requirement.get("target"),
+            "score": float(rounded_score),
+            "weight": float(weight),
+            "evidence": evidence,
+            "reason": reason,
+            "gap": gap,
+        }
         weighted_total += rounded_score * weight
         total_weight += weight
     overall = (

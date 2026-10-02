@@ -155,6 +155,11 @@ def test_end_to_end_employer_to_application():
         assert submitted["candidate_profile"]["python"]["criterion_key"] == "python"
         assert submitted["candidate_profile"]["python"]["value"] == 3
         assert submitted["candidate_profile"]["location"]["value"] == "Cape Town"
+        python_match = submitted["match_result"]["criteria"]["python"]
+        assert python_match["candidate_value"] == 3
+        assert python_match["target_value"] == 1
+        assert python_match["evidence"]
+        assert python_match["gap"] is None
         assert submitted["candidate_profile"]["candidate_details"] == {
             "name": "Nomsa Dlamini",
             "location": "Cape Town",
@@ -666,6 +671,9 @@ def test_candidate_evidence_rejects_vague_answers_and_scores_reported_gaps_as_ze
     assert denied["welding"]["value"] is None
     denied_score = match_profiles(denied, target)["criteria"]["welding"]
     assert denied_score["score"] == 0
+    assert denied_score["candidate_value"] is None
+    assert denied_score["target_value"] is True
+    assert denied_score["gap"] == "reported"
     assert "explicitly reported a gap" in denied_score["reason"]
 
     general = update_candidate_profile(
@@ -688,6 +696,42 @@ def test_candidate_evidence_rejects_vague_answers_and_scores_reported_gaps_as_ze
     )
     assert corrected["welding"]["assessment"] == "gap"
     assert match_profiles(corrected, target)["criteria"]["welding"]["score"] == 0
+
+
+def test_typed_number_criterion_scores_candidate_value_against_target():
+    target = {
+        "plumbing_experience": {
+            "key": "plumbing_experience",
+            "label": "Plumbing experience",
+            "type": "number",
+            "target": 4,
+            "unit": "years",
+            "weight": 0.9,
+            "description": "At least four years of plumbing experience.",
+        }
+    }
+    candidate = {
+        "plumbing_experience": {
+            "criterion_key": "plumbing_experience",
+            "value": 2,
+            "evidence": "The candidate reported two years of plumbing experience.",
+            "assessment": "claimed",
+        }
+    }
+
+    result = match_profiles(candidate, target)
+    assert result["criteria"]["plumbing_experience"] == {
+        "label": "Plumbing experience",
+        "type": "number",
+        "candidate_value": 2,
+        "target_value": 4,
+        "score": 0.5,
+        "weight": 0.9,
+        "evidence": "The candidate reported two years of plumbing experience.",
+        "reason": "The candidate reports 2 years against a target of 4 years.",
+        "gap": None,
+    }
+    assert result["overall_score"] == 0.5
 
 
 def test_candidate_followup_repeats_when_answer_is_unrelated():
