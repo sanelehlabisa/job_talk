@@ -496,7 +496,29 @@ def test_pasted_plumber_description_keeps_important_criteria():
             "availability",
         } <= job["target_profile"].keys()
         assert job["target_profile"]["location"]["description"] == "The role is based in Cape Town."
+        location = job["target_profile"]["location"]
+        assert location["key"] == "location"
+        assert location["label"] == "Location"
+        assert location["type"] == "text"
+        assert location["target"] == "Cape Town"
+        plumbing = job["target_profile"]["plumbing"]
+        assert plumbing["key"] == "plumbing"
+        assert plumbing["label"] == "Plumbing"
+        assert plumbing["type"] == "number"
+        assert plumbing["target"] == 3
+        assert plumbing["unit"] == "years"
+        assert plumbing["weight"] == 0.85
         assert response["chat"]["can_publish"] is True
+
+        corrected = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Change plumbing to four years of required experience."},
+            headers=headers,
+        ).json()
+        corrected_profile = corrected["chat"]["job_post"]["target_profile"]
+        assert corrected_profile["plumbing"]["target"] == 4
+        assert corrected_profile["plumbing"]["unit"] == "years"
+        assert [key for key in corrected_profile if key == "plumbing"] == ["plumbing"]
         assert job["published"] is False
 
 

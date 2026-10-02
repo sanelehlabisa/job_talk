@@ -317,7 +317,16 @@ function JobReadiness({ job }) {
         <ul>{attributes.map(([key, value]) => {
           const label = value.label || key.replaceAll("_", " ");
           const needsClarity = value.kind === "skill" && value.confirmed === false;
-          return <li className={needsClarity ? "needs-clarity" : ""} key={key}><strong>{label}</strong><span>{needsClarity ? "Needs importance and experience" : value.description}</span></li>;
+          const target = value.type === "number"
+            ? `${value.target} ${value.unit || ""}`.trim()
+            : value.type === "skill"
+              ? (value.target ? "Required" : "Preferred")
+              : value.target;
+          return <li className={needsClarity ? "needs-clarity" : ""} key={key}>
+            <strong>{label}</strong>
+            <div className="criterion-contract"><b>Target: {target || "Confirm"}</b><b>Weight: {Math.round((value.weight || 0.5) * 100)}%</b></div>
+            <span>{needsClarity ? "Needs importance and experience" : value.description}</span>
+          </li>;
         })}</ul>
         <small>See a mistake? Tell the assistant what to change before you publish.</small>
       </section>

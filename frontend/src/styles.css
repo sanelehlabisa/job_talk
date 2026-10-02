@@ -160,6 +160,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .role-summary li strong, .role-summary li span { display: block; }
 .role-summary li strong { font-size: 9px; text-transform: capitalize; }
 .role-summary li span { color: var(--muted); font-size: 8px; margin-top: 3px; line-height: 1.4; }
+.role-summary .criterion-contract { display: flex; flex-wrap: wrap; gap: 4px 9px; margin-top: 5px; }
+.role-summary .criterion-contract b { color: var(--green); font-size: 8px; font-weight: 700; }
 .role-summary li.needs-clarity { border-color: #e5c9b8; background: #fff8f3; }
 .job-readiness { margin: 16px 0 4px 38px; background: #f8faf5; border: 1px solid #dce5da; border-radius: 13px; padding: 12px 14px; }
 .job-readiness > div { display: flex; justify-content: space-between; align-items: center; }

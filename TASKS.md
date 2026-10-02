@@ -24,20 +24,25 @@ in [`docs/core-mvp.md`](docs/core-mvp.md).
 
 ### JT-046 - Normalize one shared job criteria contract
 
-- [ ] Store every criterion with a stable `key`, `label`, `type`, `target`,
+- [x] Store every criterion with a stable `key`, `label`, `type`, `target`,
   optional `unit`, backend-owned `weight`, and short `description`.
-- [ ] Normalize existing drafts and seeded jobs at the service boundary without
+- [x] Normalize existing drafts and seeded jobs at the service boundary without
   adding infrastructure solely for this change.
-- [ ] Update a criterion by stable key when a recruiter clarifies it; do not add
+- [x] Update a criterion by stable key when a recruiter clarifies it; do not add
   wording variants as duplicates.
-- [ ] Show target, weight or importance, and description in recruiter review.
-- [ ] Preserve existing published jobs and deterministic demo behavior.
+- [x] Show target, weight or importance, and description in recruiter review.
+- [x] Preserve existing published jobs and deterministic demo behavior.
 
 **Done when:** a recruiter can describe the plumber role, review measurable
 targets for each criterion, correct one target, and publish without duplicate
 criteria.
 
-**Status:** In progress (2026-10-02).
+**Status:** Complete. A small service-boundary normalizer adds the canonical
+fields to new drafts, seeded roles, API responses, publication, and matching
+without a database migration. The recruiter review shows target and weight. The
+plumber acceptance test changes the existing criterion from three to four years
+without creating a duplicate. Focused backend tests and the frontend production
+build pass (2026-10-02).
 
 ### JT-047 - Map candidate answers to the published criteria
 
@@ -50,6 +55,8 @@ criteria.
 
 **Done when:** a candidate can apply to the plumber role without an account and
 review evidence mapped to every answered job criterion.
+
+**Status:** Next.
 
 ### JT-048 - Score typed candidate values against typed targets
 

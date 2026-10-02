@@ -1,6 +1,8 @@
 import re
 from collections.abc import Mapping
 
+from .criteria import normalize_target_profile
+
 
 SKILLS = {
     "python": "Python",
@@ -408,7 +410,10 @@ def apply_ai_role_updates(
         }
         accepted += 1
 
-    return accepted_profile, {"title": title, "accepted": accepted}
+    return normalize_target_profile(accepted_profile), {
+        "title": title,
+        "accepted": accepted,
+    }
 
 
 def _skill_clarification_question(key: str, requirement: dict) -> str:
@@ -552,7 +557,7 @@ def update_employer_profile(
         and re.fullmatch(r"[A-Za-z][A-Za-z0-9 +#&/.'-]{1,80}", text.strip())
     ):
         title = text.strip().title()
-    return profile, {"title": title}
+    return normalize_target_profile(profile), {"title": title}
 
 
 def update_candidate_profile(

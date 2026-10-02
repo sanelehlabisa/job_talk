@@ -34,6 +34,7 @@ from .services.conversation import (
     wants_to_publish,
 )
 from .services.context import build_chat_context
+from .services.criteria import normalize_target_profile
 from .services.matching import match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn
 from .services.email import send_recruiter_login_code
@@ -577,6 +578,8 @@ def publish_job(
             status_code=400,
             detail="Complete the guided role questions before publishing",
         )
+    job.target_profile = normalize_target_profile(job.target_profile)
+    job.chat.profile = normalize_target_profile(job.chat.profile)
     job.published = True
     job.chat.status = "published"
     db.add(

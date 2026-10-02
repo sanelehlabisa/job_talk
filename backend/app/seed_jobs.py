@@ -3,6 +3,7 @@ from sqlalchemy import select
 from . import models
 from .database import SessionLocal
 from .settings import get_settings
+from .services.criteria import normalize_target_profile
 
 
 DEMO_JOBS = (
@@ -64,7 +65,7 @@ def seed_jobs() -> int:
                     user_id=recruiter.id,
                     intent="employer",
                     status="published",
-                    profile=definition["target_profile"],
+                    profile=normalize_target_profile(definition["target_profile"]),
                 )
                 db.add(chat)
                 db.flush()
@@ -80,7 +81,7 @@ def seed_jobs() -> int:
                 created += 1
             job.title = definition["title"]
             job.description = definition["description"]
-            job.target_profile = definition["target_profile"]
+            job.target_profile = normalize_target_profile(definition["target_profile"])
             job.published = True
         db.commit()
     print(f"Seeded {len(DEMO_JOBS)} jobs ({created} created)")

@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from .services.criteria import normalize_target_profile
+
 
 def clean_user_text(value: str, allowed_controls: str = "") -> str:
     cleaned = value.strip()
@@ -72,6 +74,10 @@ class JobOut(ORMModel):
     description: str
     target_profile: dict
     published: bool
+
+    _normalize_target_profile = field_validator("target_profile", mode="before")(
+        normalize_target_profile
+    )
 
 
 class CriterionScoreOut(BaseModel):

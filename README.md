@@ -41,6 +41,9 @@ contract and intentionally narrow scope are in
 - A structured role summary before publishing. Recruiters can paste a description
   or correct an attribute in ordinary chat. Completion phrases prepare the role
   for review; only the visible `Publish job` button makes it public.
+- One canonical job-criterion shape with a stable key, type, measurable target,
+  optional unit, backend-owned weight, and description. The pre-publish review
+  shows the target and weight, and clarifications update the existing key.
 - Candidate conversations open with a plain summary of the confirmed recruiter
   requirements before collecting job-specific examples.
 - Up to five published job recommendations with weighted scores and plain language explanations.

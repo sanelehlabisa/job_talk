@@ -2,6 +2,7 @@ import re
 from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import JobPost
+from .criteria import normalize_target_profile
 
 
 def _tokens(value: str) -> set[str]:
@@ -129,7 +130,7 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
     criteria = {}
     weighted_total = Decimal("0")
     total_weight = Decimal("0")
-    for key, requirement in target_profile.items():
+    for key, requirement in normalize_target_profile(target_profile).items():
         weight = Decimal(str(requirement.get("weight", 0.5)))
         score, reason = criterion_score(key, requirement, candidate_profile)
         rounded_score = Decimal(str(score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
