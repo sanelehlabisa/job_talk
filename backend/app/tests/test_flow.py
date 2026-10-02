@@ -735,6 +735,7 @@ def test_typed_number_criterion_scores_candidate_value_against_target():
     assert result["criteria"]["plumbing_experience"] == {
         "label": "Plumbing experience",
         "type": "number",
+        "unit": "years",
         "candidate_value": 2,
         "target_value": 4,
         "score": 0.5,

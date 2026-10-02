@@ -83,6 +83,7 @@ class JobOut(ORMModel):
 class CriterionScoreOut(BaseModel):
     label: str
     type: Literal["number", "skill", "text"]
+    unit: str | None = None
     candidate_value: str | int | float | bool | None = None
     target_value: str | int | float | bool | None = None
     score: float

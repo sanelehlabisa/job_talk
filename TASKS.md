@@ -220,6 +220,25 @@ the chosen job at submission so the same guest cannot apply elsewhere. Focused
 discovery and ownership tests plus the frontend production build pass
 (2026-10-02).
 
+### JT-056 - Make candidate cards easier to scan
+
+- [x] Add a short deterministic summary to every candidate card.
+- [x] Use the recruiter-defined criterion label instead of technical keys.
+- [x] Show candidate value, role target, importance, assessment, and evidence in
+  a consistent readable order.
+- [x] Remove duplicated profile-evidence blocks from the comparison card.
+
+**Done when:** a recruiter can understand a candidate's strongest evidence and
+main gaps quickly, then inspect each criterion without decoding internal fields.
+
+**Status:** Complete. Candidate cards now open with a deterministic summary of up
+to two strengths and two review gaps. Each criterion uses the recruiter label and
+separate candidate value, role target, importance, assessment, and evidence
+sections. Numeric units now travel with saved match results, while duplicate
+profile evidence was removed. Focused matching tests, the frontend production
+build, and the complete desktop and phone browser workflow pass; the rendered
+phone comparison card was visually inspected (2026-10-02).
+
 ## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already

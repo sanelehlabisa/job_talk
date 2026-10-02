@@ -253,15 +253,24 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .candidate-card h3 { font-family: "DM Serif Display", Georgia, serif; font-size: 15px; font-weight: 400; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .candidate-card-head a { color: #62746a; display: block; font-size: 8px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .candidate-card .score { width: 48px; height: 48px; }
-.candidate-evidence, .criterion-list { margin-top: 13px; }
-.candidate-evidence > strong, .criterion-list > strong { color: #7b8980; display: block; font-size: 8px; letter-spacing: .8px; margin-bottom: 6px; text-transform: uppercase; }
-.candidate-evidence > div, .criterion-list > div { border-top: 1px solid #edf0e9; padding: 7px 0; }
-.candidate-evidence span, .criterion-list span { color: var(--green); font-size: 8px; font-weight: 700; text-transform: capitalize; }
-.candidate-evidence p, .criterion-list p { color: #596961; font-size: 8px; line-height: 1.45; margin: 3px 0 0; }
-.criterion-list > div > div { display: flex; justify-content: space-between; gap: 8px; }
-.criterion-list b { color: #67766e; font-size: 8px; font-weight: 600; white-space: nowrap; }
-.criterion-list small { color: #819087; display: block; font-size: 8px; line-height: 1.4; margin-top: 4px; }
-.criterion-list .criterion-gap { background: #fff8f4; border: 1px solid #f0ddd3; border-radius: 8px; margin: 4px 0; padding: 7px; }
+.candidate-summary { background: #f5f8f3; border-radius: 9px; color: #4f6257; font-size: 9px; line-height: 1.5; margin: 12px 0 0; padding: 9px 10px; }
+.candidate-summary strong { color: var(--green); display: block; font-size: 8px; letter-spacing: .7px; margin-bottom: 2px; text-transform: uppercase; }
+.criterion-list { margin-top: 13px; }
+.criterion-list > strong { color: #7b8980; display: block; font-size: 8px; letter-spacing: .8px; margin-bottom: 7px; text-transform: uppercase; }
+.criterion-item { border: 1px solid #e3e9e1; border-radius: 10px; margin-top: 7px; padding: 9px; }
+.criterion-title { display: flex; justify-content: space-between; gap: 8px; }
+.criterion-title span { color: var(--green); font-size: 9px; font-weight: 700; }
+.criterion-title b { background: #edf4ec; border-radius: 99px; color: #4e6b59; font-size: 8px; padding: 3px 6px; white-space: nowrap; }
+.criterion-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+.criterion-values > div { background: #f8faf7; border-radius: 7px; min-width: 0; padding: 6px; }
+.criterion-values small, .criterion-values strong { display: block; overflow-wrap: anywhere; }
+.criterion-values small { color: #8a968f; font-size: 7px; text-transform: uppercase; }
+.criterion-values strong { color: #4f6057; font-size: 8px; line-height: 1.35; margin-top: 2px; }
+.criterion-comment { color: #596961; font-size: 8px; line-height: 1.45; margin: 8px 0 0; }
+.criterion-evidence { border-top: 1px solid #edf0e9; color: #65766c; font-size: 8px; line-height: 1.45; margin: 7px 0 0; padding-top: 7px; }
+.criterion-evidence strong { color: #7b8980; display: block; font-size: 7px; letter-spacing: .5px; margin-bottom: 2px; text-transform: uppercase; }
+.criterion-list .criterion-gap { background: #fff8f4; border-color: #f0ddd3; }
+.criterion-list .criterion-gap .criterion-title b { background: #f7e7df; color: #985135; }
 .shortlist-note { background: #eff5ee; border-radius: 8px; color: var(--green); padding: 8px 10px; }
 .feedback-prompt { margin: 14px 0 4px 38px; border: 1px solid #d5e1d4; border-radius: 12px; background: #f7faf5; padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .candidate-comparison .feedback-prompt { margin-left: 0; }

@@ -98,7 +98,7 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
     requirement_text = requirement.get("description", "")
 
     if candidate_item.get("assessment") == "gap":
-        return 0.0, f"The candidate explicitly reported a gap: {evidence}"
+        return 0.0, "The candidate explicitly reported a gap for this criterion."
 
     if requirement.get("type") == "number" and evidence:
         target = requirement.get("target")
@@ -153,7 +153,7 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
             if concrete
             else "a general claim without a concrete example"
         )
-        return score, f"The candidate provided {quality}: {evidence}"
+        return score, f"The candidate provided {quality} for this criterion."
 
     candidate_text = " ".join(
         item.get("evidence", "")
@@ -191,6 +191,7 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
         criteria[key] = {
             "label": requirement["label"],
             "type": requirement["type"],
+            "unit": requirement.get("unit"),
             "candidate_value": _candidate_value(key, requirement, candidate_item),
             "target_value": requirement.get("target"),
             "score": float(rounded_score),

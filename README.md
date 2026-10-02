@@ -65,6 +65,9 @@ contract and intentionally narrow scope are in
   then close recruitment to stop applications and review a ranked top-five shortlist.
   Closing also stops unfinished candidate chats with a clear prompt to browse
   other jobs while preserving submitted application snapshots.
+- Each candidate card starts with a short strengths-and-gaps summary, followed by
+  readable criterion cards showing candidate value, target, importance,
+  assessment, and supporting evidence.
 - A deterministic guided fallback plus an optional OpenAI provider for recruiter
   answer classification and polished, measurable role criteria.
 - One bounded context assembler for response generation: selected job criteria,

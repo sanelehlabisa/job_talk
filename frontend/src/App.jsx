@@ -566,6 +566,28 @@ function CandidateScorePlot({ applications, targetProfile }) {
   );
 }
 
+function joinLabels(labels) {
+  if (labels.length < 2) return labels[0] || "";
+  return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+}
+
+function candidateCardSummary(criteria, location) {
+  const sorted = [...criteria].sort((left, right) => (right[1].score * right[1].weight) - (left[1].score * left[1].weight));
+  const strengths = sorted.filter(([, value]) => value.score >= 0.75 && value.evidence).slice(0, 2).map(([key, value]) => value.label || key.replaceAll("_", " "));
+  const gaps = sorted.filter(([, value]) => value.gap || value.score < 0.5).slice(0, 2).map(([key, value]) => value.label || key.replaceAll("_", " "));
+  const locationText = location ? `${location}. ` : "";
+  if (strengths.length && gaps.length) return `${locationText}Strongest evidence: ${joinLabels(strengths)}. Review gaps: ${joinLabels(gaps)}.`;
+  if (strengths.length) return `${locationText}Strong evidence across ${joinLabels(strengths)}; no major evidence gaps were identified.`;
+  if (gaps.length) return `${locationText}Limited direct evidence so far. Review ${joinLabels(gaps)}.`;
+  return `${locationText}Review the criterion evidence below before making a decision.`;
+}
+
+function formatCriterionValue(value, unit) {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (typeof value === "boolean") return value ? "Confirmed" : "Not confirmed";
+  return `${String(value)}${unit ? ` ${unit}` : ""}`;
+}
+
 function CandidateComparison({ applications, status, targetProfile, jobId, onCloseJob }) {
   const visible = status === "closed" ? applications.slice(0, 5) : applications;
   let previousScore = null;
@@ -589,16 +611,6 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
           const details = profile.candidate_details || {};
           const criteria = Object.entries(application.match_result?.criteria || {});
           const score = Math.round((application.match_result?.overall_score || 0) * 100);
-          const skillEvidence = Object.entries(profile)
-            .filter(([key]) => !["candidate_details", "consent", "experience", "location", "availability", "working_arrangement", "education", "projects"].includes(key))
-            .map(([key, value]) => `${key.replaceAll("_", " ")}: ${value.evidence}`)
-            .join(" ");
-          const evidence = [
-            ["experience", profile.experience?.evidence],
-            ["skills", skillEvidence],
-            ["location", profile.location?.evidence],
-            ["availability", profile.availability?.evidence],
-          ];
           const contact = details.preferred_contact || "Contact not provided";
           const contactHref = contact.includes("@") ? `mailto:${contact}` : `tel:${contact.replace(/[^+\d]/g, "")}`;
           if (score !== previousScore) previousRank = index + 1;
@@ -610,26 +622,25 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
                 <div><h3>{details.name || "Candidate"}</h3><a href={contactHref}>{contact}</a></div>
                 <div className="score"><strong>{score}%</strong><span>match</span></div>
               </div>
-              <div className="candidate-evidence">
-                <strong>Profile evidence</strong>
-                {evidence.map(([key, value]) => (
-                  <div key={key}><span>{key}</span><p>{value || "No direct evidence was provided."}</p></div>
-                ))}
-              </div>
+              <p className="candidate-summary"><strong>Quick summary</strong>{candidateCardSummary(criteria, details.location)}</p>
               <div className="criterion-list">
-                <strong>Criterion breakdown</strong>
+                <strong>Evidence by criterion</strong>
                 {criteria.map(([key, value]) => {
                   const criterionEvidence = value.evidence || profile[key]?.evidence;
                   const reportedGap = value.gap === "reported" || profile[key]?.assessment === "gap";
-                  const candidateValue = value.candidate_value === null || value.candidate_value === undefined ? "No value" : String(value.candidate_value);
-                  const targetValue = value.target_value === null || value.target_value === undefined ? "Not set" : String(value.target_value);
+                  const missing = value.gap === "missing" || !criterionEvidence;
+                  const criterionScore = Math.round(value.score * 100);
                   return (
-                    <div className={value.score < 0.5 ? "criterion-gap" : ""} key={key}>
-                      <div><span>{key.replaceAll("_", " ")}</span><b>{Math.round(value.score * 100)}% · weight {Math.round(value.weight * 100)}%</b></div>
-                      <small>Candidate: {candidateValue} · Target: {targetValue}</small>
-                      <p>{value.reason}</p>
-                      <small>{reportedGap ? `Reported gap: ${criterionEvidence}` : criterionEvidence ? `Candidate claim: ${criterionEvidence}` : "Gap: no direct candidate evidence was captured."}</small>
-                    </div>
+                    <article className={`criterion-item ${value.score < 0.5 ? "criterion-gap" : ""}`} key={key}>
+                      <div className="criterion-title"><span>{value.label || key.replaceAll("_", " ")}</span><b>{criterionScore}% match</b></div>
+                      <div className="criterion-values">
+                        <div><small>Candidate</small><strong>{formatCriterionValue(value.candidate_value, value.unit)}</strong></div>
+                        <div><small>Role needs</small><strong>{formatCriterionValue(value.target_value, value.unit)}</strong></div>
+                        <div><small>Importance</small><strong>{Math.round(value.weight * 100)}%</strong></div>
+                      </div>
+                      <p className="criterion-comment">{value.reason}</p>
+                      <p className="criterion-evidence"><strong>{reportedGap ? "Reported gap" : missing ? "Evidence gap" : "Evidence"}</strong>{criterionEvidence || "No direct evidence was provided."}</p>
+                    </article>
                   );
                 })}
               </div>
