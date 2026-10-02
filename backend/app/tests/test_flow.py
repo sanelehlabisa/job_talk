@@ -499,6 +499,94 @@ def test_pasted_plumber_description_keeps_important_criteria():
         assert job["published"] is False
 
 
+def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
+    with TestClient(app) as client:
+        _, recruiter_headers = authenticate("plumber-demo@example.com", "recruiter")
+        recruiter_chat = client.post("/api/chats", headers=recruiter_headers).json()
+        role = client.post(
+            f"/api/chats/{recruiter_chat['id']}/messages",
+            json={
+                "content": (
+                    "Job title: Plumber. The role is based in Cape Town. Required skills "
+                    "are plumbing, leak repair, pipe fitting, and geyser installation. "
+                    "Applicants need three years of relevant experience and must be "
+                    "available to start immediately."
+                )
+            },
+            headers=recruiter_headers,
+        ).json()
+        assert role["chat"]["can_publish"] is True
+        job_id = role["chat"]["job_post"]["id"]
+        assert client.post(
+            f"/api/jobs/{job_id}/publish", headers=recruiter_headers
+        ).status_code == 200
+
+        def submit_candidate(name: str, contact: str, evidence: str):
+            guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+            headers = {"Authorization": f"Bearer {guest['access_token']}"}
+            chat = client.get("/api/chats", headers=headers).json()[0]
+            client.post(
+                f"/api/chats/{chat['id']}/messages",
+                json={"content": evidence},
+                headers=headers,
+            )
+            submitted = client.post(
+                f"/api/jobs/{job_id}/apply",
+                json=application_payload(chat["id"], name, contact),
+                headers=headers,
+            )
+            assert submitted.status_code == 201
+            return submitted.json()
+
+        strong = submit_candidate(
+            "Strong Plumber",
+            "strong@example.test",
+            (
+                "I am a plumber with four years of plumbing experience in Cape Town. "
+                "I repaired leaks, fitted pipes, and installed geysers on residential jobs. "
+                "I am available to start immediately."
+            ),
+        )
+        partial = submit_candidate(
+            "Partial Handyman",
+            "partial@example.test",
+            (
+                "I am a handyman in Cape Town with one year of plumbing and basic leak "
+                "repair experience. I have no geyser installation experience and I am "
+                "available immediately."
+            ),
+        )
+        unrelated = submit_candidate(
+            "Unrelated Developer",
+            "developer@example.test",
+            "I am a software engineer with four years of Python, React, and SQL experience.",
+        )
+
+        assert strong["match_result"]["overall_score"] >= 0.85
+        assert 0.2 <= partial["match_result"]["overall_score"] < 0.7
+        assert unrelated["match_result"]["overall_score"] < 0.2
+        assert partial["candidate_profile"]["geyser_installation"]["assessment"] == "gap"
+        assert partial["match_result"]["criteria"]["geyser_installation"]["score"] == 0
+        assert partial["match_result"]["criteria"]["pipe_fitting"]["score"] < 0.5
+
+        compared = client.get(
+            f"/api/applications?job_id={job_id}", headers=recruiter_headers
+        ).json()
+        assert [item["candidate_profile"]["candidate_details"]["name"] for item in compared] == [
+            "Strong Plumber",
+            "Partial Handyman",
+            "Unrelated Developer",
+        ]
+        assert [item["match_result"]["overall_score"] for item in compared] == sorted(
+            [
+                strong["match_result"]["overall_score"],
+                partial["match_result"]["overall_score"],
+                unrelated["match_result"]["overall_score"],
+            ],
+            reverse=True,
+        )
+
+
 def test_guided_job_questions_accept_short_and_uncommon_answers():
     profile, details = update_employer_profile({}, "Job title is Community Liaison")
     assert details["title"] == "Community Liaison"

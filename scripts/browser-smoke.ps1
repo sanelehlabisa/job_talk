@@ -211,7 +211,12 @@ try {
     Wait-JavaScript "document.querySelector('.feedback-prompt.complete') !== null" "recruiter feedback confirmation"
     if (Invoke-JavaScript "document.querySelector('.error-notice') !== null") { throw "Recruiter flow displayed an error" }
     Save-Screenshot "03-recruiter-comparison-desktop.png"
-    Write-Output "Browser smoke passed: candidate phone flow and recruiter desktop comparison."
+    Set-Viewport 390 760 $true
+    Wait-JavaScript "document.querySelector('.candidate-card') !== null" "recruiter phone comparison"
+    Wait-JavaScript "document.querySelector('.sidebar').getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
+    Invoke-JavaScript "document.querySelector('.messages').scrollTop = document.querySelector('.messages').scrollHeight; true" | Out-Null
+    Save-Screenshot "04-recruiter-comparison-phone.png"
+    Write-Output "Browser smoke passed: candidate and recruiter flows on phone and desktop."
 } finally {
     if ($script:socket) {
         $script:socket.Dispose()

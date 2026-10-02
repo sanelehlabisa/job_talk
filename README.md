@@ -240,8 +240,8 @@ powershell -ExecutionPolicy Bypass -File scripts/browser-smoke.ps1
 ```
 
 The script submits a fresh guest application to seeded job 2, signs in through
-the Mailpit code, verifies the recruiter comparison, and writes desktop and phone
-screenshots under `%TEMP%\jobtalk-browser-smoke`.
+the Mailpit code, verifies the recruiter comparison, and writes candidate and
+recruiter desktop and phone screenshots under `%TEMP%\jobtalk-browser-smoke`.
 
 ## Experiment report
 

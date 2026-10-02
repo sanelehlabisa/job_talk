@@ -123,6 +123,32 @@ NEGATION_PATTERN = re.compile(
     re.I,
 )
 
+CRITERION_STOP_WORDS = {
+    "applicant",
+    "applicants",
+    "candidate",
+    "experience",
+    "important",
+    "minimum",
+    "preferred",
+    "relevant",
+    "required",
+    "requirement",
+    "should",
+    "year",
+    "years",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+}
+
 
 def _criterion_terms(key: str, requirement: dict | None = None) -> set[str]:
     terms = {part for part in key.lower().split("_") if len(part) > 2}
@@ -135,8 +161,7 @@ def _criterion_terms(key: str, requirement: dict | None = None) -> set[str]:
         token
         for token in re.findall(r"[a-z]+", description.lower())
         if len(token) > 4
-        and token
-        not in {"candidate", "experience", "preferred", "required", "relevant", "should"}
+        and token not in CRITERION_STOP_WORDS
     )
     return terms
 

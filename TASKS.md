@@ -130,12 +130,20 @@ provider behavior remains backend-only and all user protection paths remain inta
 
 ### JT-040 - Deterministic plumber demo scenario
 
-- [ ] Create and publish a Cape Town plumber role covering plumbing, leak repair,
+- [x] Create and publish a Cape Town plumber role covering plumbing, leak repair,
   pipe fitting, geyser installation, location, and availability.
-- [ ] Submit a strong plumber, a partial handyman with no geyser experience, and
+- [x] Submit a strong plumber, a partial handyman with no geyser experience, and
   an unrelated software candidate through separate guest sessions.
-- [ ] Confirm strong, medium, and very low results with evidence and gaps that make sense.
-- [ ] Compare all three from the recruiter view on desktop and phone size.
+- [x] Confirm strong, medium, and very low results with evidence and gaps that make sense.
+- [x] Compare all three through the recruiter comparison contract and verify the
+  comparison UI on desktop and phone size.
+
+**Status:** Complete. The deterministic flow creates the role through recruiter
+chat, publishes explicitly, submits three isolated guest snapshots, and verifies
+their score order plus the partial candidate's reported and missing trade evidence.
+The scenario exposed and fixed generic experience words falsely filling unrelated
+criteria. The browser walkthrough verifies candidate submission and recruiter
+comparison layouts at desktop and phone sizes (2026-10-02).
 
 ### JT-041 - Fix only demo-blocking bugs
 

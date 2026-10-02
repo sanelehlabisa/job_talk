@@ -21,6 +21,24 @@ NUMBER_WORDS = {
     "ten": 10,
 }
 
+GENERIC_REQUIREMENT_TOKENS = {
+    "applicant",
+    "applicants",
+    "candidate",
+    "experience",
+    "important",
+    "minimum",
+    "preferred",
+    "relevant",
+    "required",
+    "requirement",
+    "role",
+    "should",
+    "year",
+    "years",
+    *NUMBER_WORDS.keys(),
+}
+
 
 def _years(value: str) -> int | None:
     match = re.search(r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[+-]? years?", value, re.I)
@@ -88,7 +106,7 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
         for item in candidate_profile.values()
         if item.get("assessment") != "gap"
     )
-    required_tokens = _tokens(f"{key} {requirement_text}")
+    required_tokens = _tokens(f"{key} {requirement_text}") - GENERIC_REQUIREMENT_TOKENS
     candidate_tokens = _tokens(candidate_text)
     overlap = len(required_tokens & candidate_tokens) / max(len(required_tokens), 1)
     score = min(0.75, overlap * 1.5)
