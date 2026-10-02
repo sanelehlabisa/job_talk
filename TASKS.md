@@ -85,15 +85,20 @@ tests plus the frontend production build pass (2026-10-02).
 
 ### JT-049 - Recommend only useful job matches
 
-- [ ] Apply one documented minimum match threshold before calling a job a
+- [x] Apply one documented minimum match threshold before calling a job a
   recommendation.
-- [ ] Return at most five jobs ordered by weighted score.
-- [ ] Keep weak jobs available to browse without presenting them as strong fits.
+- [x] Return at most five jobs ordered by weighted score.
+- [x] Keep weak jobs available to browse without presenting them as strong fits.
 
 **Done when:** a plumber profile recommends the relevant jobs and an unrelated
 profile receives no misleading recommendation.
 
-**Status:** Next.
+**Status:** Complete. The backend applies a single 50% threshold and returns its
+classification with each scored role. Results remain limited to five and sorted
+by weighted score. Weak selected roles stay applyable, but the UI labels them as
+below the recommendation threshold rather than as strong matches. The plumber
+scenario verifies that its strong candidate qualifies while the unrelated
+candidate does not (2026-10-02).
 
 ### JT-050 - Sign off the complete core loop
 
@@ -107,6 +112,8 @@ profile receives no misleading recommendation.
 
 **Done when:** one recruiter creates a job, one candidate applies through chat,
 and the recruiter can clearly explain which candidate is closest and why.
+
+**Status:** Next.
 
 ## Deployment after the core MVP
 

@@ -95,6 +95,7 @@ class CriterionScoreOut(BaseModel):
 class RecommendationOut(BaseModel):
     job: JobOut
     match_score: float
+    recommended: bool
     explanation: str
     criteria: dict[str, CriterionScoreOut]
 

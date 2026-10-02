@@ -35,7 +35,7 @@ from .services.conversation import (
 )
 from .services.context import build_chat_context
 from .services.criteria import normalize_target_profile
-from .services.matching import match_profiles, rank_jobs, summarize_match
+from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn
 from .services.email import send_recruiter_login_code
 from .settings import get_settings
@@ -545,6 +545,7 @@ def send_message(
                 schemas.RecommendationOut(
                     job=schemas.JobOut.model_validate(job),
                     match_score=result["overall_score"],
+                    recommended=is_recommended(result),
                     explanation=summarize_match(result),
                     criteria=result["criteria"],
                 )
@@ -662,6 +663,7 @@ def get_recommendations(
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
             match_score=result["overall_score"],
+            recommended=is_recommended(result),
             explanation=summarize_match(result),
             criteria=result["criteria"],
         )

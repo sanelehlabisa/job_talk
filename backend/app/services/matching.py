@@ -5,6 +5,9 @@ from ..models import JobPost
 from .criteria import normalize_target_profile
 
 
+MIN_RECOMMENDATION_SCORE = 0.5
+
+
 def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9+#.]+", value.lower()))
 
@@ -208,6 +211,10 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
 def rank_jobs(candidate_profile: dict, jobs: list[JobPost]) -> list[tuple[JobPost, dict]]:
     ranked = [(job, match_profiles(candidate_profile, job.target_profile)) for job in jobs]
     return sorted(ranked, key=lambda item: item[1]["overall_score"], reverse=True)[:5]
+
+
+def is_recommended(result: dict) -> bool:
+    return float(result.get("overall_score", 0)) >= MIN_RECOMMENDATION_SCORE
 
 
 def summarize_match(result: dict) -> str:

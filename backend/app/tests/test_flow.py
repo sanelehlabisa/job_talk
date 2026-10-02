@@ -25,7 +25,7 @@ from app.services.conversation import (
     update_employer_profile,
     wants_to_publish,
 )
-from app.services.matching import match_profiles
+from app.services.matching import is_recommended, match_profiles
 from app.settings import Settings
 
 
@@ -606,6 +606,8 @@ def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
         assert strong["match_result"]["overall_score"] >= 0.85
         assert 0.2 <= partial["match_result"]["overall_score"] < 0.7
         assert unrelated["match_result"]["overall_score"] <= 0.2
+        assert is_recommended(strong["match_result"]) is True
+        assert is_recommended(unrelated["match_result"]) is False
         assert partial["candidate_profile"]["geyser_installation"]["assessment"] == "gap"
         assert partial["match_result"]["criteria"]["geyser_installation"]["score"] == 0
         assert partial["match_result"]["criteria"]["pipe_fitting"]["score"] < 0.5
@@ -732,6 +734,8 @@ def test_typed_number_criterion_scores_candidate_value_against_target():
         "gap": None,
     }
     assert result["overall_score"] == 0.5
+    assert is_recommended(result) is True
+    assert is_recommended({"overall_score": 0.49}) is False
 
 
 def test_candidate_followup_repeats_when_answer_is_unrelated():

@@ -340,7 +340,7 @@ function Recommendation({ item, onApply, applied }) {
     <article className="job-card">
       <div className="job-card-top">
         <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>Selected role</span></div>
+        <div><h3>{item.job.title}</h3><span>{item.recommended ? "Strong match" : "Selected role · below recommendation threshold"}</span></div>
         <div className="score"><strong>{score}%</strong><span>match</span></div>
       </div>
       <p>{item.explanation}</p>
