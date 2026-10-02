@@ -277,6 +277,10 @@ not fill the requested criterion, and a general skill claim scores below a
 concrete work example. The backend owns these decisions; provider wording cannot
 turn a missing criterion or reported gap into a positive match.
 
+Recruiter conversation navigation uses each role title and its current state
+(`Draft`, `Published`, or `Closed`). Candidate navigation uses the selected job
+title and application state, making multiple hiring workspaces easy to identify.
+
 ## AI provider
 
 `backend/app/services/ai.py` keeps response generation behind one function and

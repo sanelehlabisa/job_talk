@@ -336,6 +336,10 @@ def list_chats(
     return db.scalars(
         select(models.Chat)
         .where(models.Chat.user_id == current_user.id)
+        .options(
+            selectinload(models.Chat.job_post),
+            selectinload(models.Chat.target_job),
+        )
         .order_by(models.Chat.created_at.desc())
     ).all()
 

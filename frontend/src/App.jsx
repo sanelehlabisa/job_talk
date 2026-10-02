@@ -259,6 +259,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
 }
 
 function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogout, open, onClose }) {
+  const statusLabel = (status) => ({ active: "In progress", draft: "Draft", published: "Published", closed: "Closed", submitted: "Submitted" }[status] || status);
   return (
     <aside className={`sidebar ${open ? "open" : ""}`} aria-label="Conversation navigation">
       <div className="side-head"><Brand /><button className="mobile-close" type="button" aria-label="Close conversation menu" onClick={onClose}>×</button></div>
@@ -266,10 +267,10 @@ function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogou
       {user.role === "candidate" && <button className="new-chat" type="button" onClick={onBrowseJobs}><Plus size={18} /> Browse other jobs</button>}
       <div className="chat-list-label">YOUR CONVERSATIONS</div>
       <div className="chat-list">
-        {chats.map((item, index) => (
+        {chats.map((item) => (
           <button className={`chat-row ${item.id === activeId ? "active" : ""}`} type="button" aria-current={item.id === activeId ? "page" : undefined} key={item.id} onClick={() => onSelect(item.id)}>
             <span className="chat-type">{item.intent === "employer" ? <BriefcaseBusiness size={17} /> : item.intent === "candidate" ? <UserRoundSearch size={17} /> : <MessageCircleMore size={17} />}</span>
-            <span><strong>{item.intent === "employer" ? "Hiring conversation" : item.intent === "candidate" ? "Job search" : "New conversation"}</strong><small>{index === 0 ? "Most recent" : new Date(item.created_at).toLocaleDateString()}</small></span>
+            <span><strong>{item.workspace_title || (item.intent === "employer" ? "New hiring conversation" : "Job application")}</strong><small>{statusLabel(item.status)} · {new Date(item.created_at).toLocaleDateString()}</small></span>
           </button>
         ))}
         {!chats.length && <p className="empty-side">Your conversations will live here.</p>}

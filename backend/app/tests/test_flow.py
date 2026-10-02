@@ -157,6 +157,36 @@ def test_end_to_end_employer_to_application():
         ).status_code == 409
 
 
+def test_chat_summaries_use_job_titles_and_lifecycle_status():
+    with TestClient(app) as client:
+        _, recruiter_headers = authenticate("workspace-owner@example.com", "recruiter")
+        chat = client.post("/api/chats", headers=recruiter_headers).json()
+        assert chat["workspace_title"] == "New hiring conversation"
+        assert chat["status"] == "draft"
+
+        role = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={"content": "Job title is Community Liaison"},
+            headers=recruiter_headers,
+        ).json()
+        assert role["chat"]["workspace_title"] == "Community Liaison"
+
+        recruiter_summary = client.get(
+            "/api/chats", headers=recruiter_headers
+        ).json()[0]
+        assert recruiter_summary["workspace_title"] == "Community Liaison"
+        assert recruiter_summary["status"] == "draft"
+
+        job_id = create_published_job(title="Workshop Welder")
+        guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
+        candidate_summary = client.get(
+            "/api/chats",
+            headers={"Authorization": f"Bearer {guest['access_token']}"},
+        ).json()[0]
+        assert candidate_summary["workspace_title"] == "Workshop Welder"
+        assert candidate_summary["status"] == "active"
+
+
 def test_privacy_safe_experiment_events_and_feedback():
     job_id = create_published_job()
     visitor_id = "pilot-visitor-1234567890"

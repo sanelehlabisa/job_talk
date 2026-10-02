@@ -377,6 +377,18 @@ importance, requested experience, weight, and confirmation state. Recruiters see
 the resulting role attributes before publishing and candidates receive the same
 confirmed requirements at the start of their private application (2026-10-01).
 
+### JT-030 - Distinguishable job workspaces
+
+- [x] Label recruiter conversations with the role title as soon as it is known.
+- [x] Label candidate conversations with the job being applied for.
+- [x] Show each conversation's draft, active, published, submitted, or closed state.
+- [x] Keep new untitled recruiter conversations clear without exposing message text.
+- [x] Test recruiter and candidate summaries through the authenticated API.
+
+**Status:** Complete. Conversation navigation now uses the linked job title and
+lifecycle state, so recruiters can distinguish multiple role workspaces and
+candidates can identify their current application (2026-10-02).
+
 ### JT-022 - Recruiter candidate comparison
 
 - [x] Treat each recruiter hiring chat as one job workspace with `draft`,

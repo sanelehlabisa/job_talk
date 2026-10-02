@@ -91,6 +91,7 @@ class ChatSummary(ORMModel):
     id: int
     intent: str | None
     status: str
+    workspace_title: str
     target_job_id: int | None = None
     created_at: datetime
 

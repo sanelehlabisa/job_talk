@@ -78,6 +78,18 @@ class Chat(Base):
     )
     target_job: Mapped["JobPost | None"] = relationship(foreign_keys=[target_job_id])
 
+    @property
+    def workspace_title(self) -> str:
+        """Return a useful navigation label without exposing conversation text."""
+        job = self.job_post if self.intent == "employer" else self.target_job
+        if job and job.title and job.title != "Untitled role":
+            return job.title
+        if self.intent == "employer":
+            return "New hiring conversation"
+        if self.intent == "candidate":
+            return "Job application"
+        return "New conversation"
+
 
 class Message(Base):
     __tablename__ = "messages"
