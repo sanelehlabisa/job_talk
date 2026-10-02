@@ -40,6 +40,7 @@ do
 done
 
 domain=$(read_env_value APP_DOMAIN)
+image_tag=$(read_env_value JOB_TALK_IMAGE_TAG)
 public_origin=$(read_env_value PUBLIC_ORIGIN)
 allowed_hosts=$(read_env_value ALLOWED_HOSTS)
 cors_origins=$(read_env_value CORS_ORIGINS)
@@ -47,6 +48,11 @@ htpasswd_path=$(read_env_value STAGING_HTPASSWD_PATH)
 session_pepper=$(read_env_value SESSION_TOKEN_PEPPER)
 ai_provider=$(read_env_value AI_PROVIDER)
 openai_key=$(read_env_value OPENAI_API_KEY)
+
+command -v git >/dev/null 2>&1 || fail "Git is not installed"
+current_commit=$(git rev-parse HEAD 2>/dev/null) || fail "release directory is not a Git checkout"
+test "$image_tag" = "$current_commit" || \
+    fail "JOB_TALK_IMAGE_TAG must equal the checked-out Git commit"
 
 case "$domain" in
     *.*) ;;
@@ -77,5 +83,6 @@ docker compose --env-file "$env_file" -f "$compose_file" config --quiet || \
     fail "production Compose configuration is invalid"
 
 echo "Production preflight passed for $domain."
+echo "Release commit: $image_tag"
 echo "DNS IPv4: $(echo "$resolved_ips" | paste -sd, -)"
 echo "Next: configure the VM firewall, then run ./scripts/issue-certificate.sh"

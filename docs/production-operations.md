@@ -6,9 +6,11 @@ Run every command from the release directory on the VM.
 
 ## Prepare a release
 
-1. Check out the exact Git commit to deploy.
+1. Check out the exact Git commit to deploy and confirm the working tree is clean.
 2. Copy `.env.production.example` to `.env.production` and replace every
-   placeholder. Set `JOB_TALK_IMAGE_TAG` to the full Git commit SHA.
+   placeholder. Set `JOB_TALK_IMAGE_TAG` to the full Git commit SHA. The
+   preflight rejects a tag that differs from the checked-out commit so all three
+   application images share the reviewed release identity.
 3. Create the private staging password file. `htpasswd` prompts for the password
    so it does not appear in shell history:
 

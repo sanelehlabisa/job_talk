@@ -339,8 +339,9 @@ as a 95% location match. The backend suite and frontend production build pass
 
 **Status:** In progress. The production configuration resolves without exposing
 secrets, and all three application images build successfully. Production now uses
-the tested 1,000-token structured AI response bound. The remaining checks require
-the real VM, subdomain, SMTP settings, and production secrets (2026-10-02).
+the tested 1,000-token structured AI response bound. The preflight also requires
+the immutable image tag to equal the checked-out Git commit. The remaining checks
+require the real VM, subdomain, SMTP settings, and production secrets (2026-10-02).
 
 ## Completed foundation
 
