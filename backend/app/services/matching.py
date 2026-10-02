@@ -49,12 +49,20 @@ def _years(value: str) -> int | None:
 
 
 def _place(value: str) -> str | None:
-    match = re.search(r"(?:based|located|role|position|job|from|near) in? ?([A-Za-z .'-]+)", value, re.I)
-    if not match:
-        match = re.search(r"\bin ([A-Za-z .'-]+)", value, re.I)
-    if not match:
-        return None
-    return re.split(r"\b(?:while|and|but|with|whereas)\b", match.group(1))[0].strip(" .,").lower()
+    patterns = (
+        r"\b(?:based|located)\s+in\s+([A-Za-z][A-Za-z '-]{1,60})",
+        r"\b(?:role|position|job)\s+(?:is\s+)?in\s+([A-Za-z][A-Za-z '-]{1,60})",
+        r"\b(?:from|near)\s+([A-Za-z][A-Za-z '-]{1,60})",
+        r"\bin\s+([A-Za-z][A-Za-z '-]{1,60})",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, value, re.I)
+        if match:
+            return re.split(
+                r"\b(?:while|and|but|with|whereas)\b",
+                match.group(1),
+            )[0].strip(" .,").lower()
+    return None
 
 
 def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tuple[float, str]:

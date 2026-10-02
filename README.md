@@ -244,6 +244,21 @@ The script submits a fresh guest application to seeded job 2, signs in through
 the Mailpit code, verifies the recruiter comparison, and writes candidate and
 recruiter desktop and phone screenshots under `%TEMP%\jobtalk-browser-smoke`.
 
+For the complete local release sign-off, first approve a dedicated recruiter and
+then run the full create, publish, apply, compare, close, and delete workflow:
+
+```powershell
+docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve local-signoff@example.com
+powershell -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -RecruiterEmail local-signoff@example.com
+```
+
+The workflow uses the real email-code path through Mailpit, verifies captured
+candidate evidence and a nonzero score, checks that a closed job cannot be
+published or opened publicly, verifies candidate deletion invalidates the guest
+token, and writes desktop and phone screenshots under
+`%TEMP%\jobtalk-local-signoff`. Wait for the configured login-code cooldown before
+reusing the same recruiter address.
+
 The backend flow suite also includes the fixed plumber pilot scenario: a strong
 plumber, a partial handyman with an explicit geyser gap, and an unrelated software
 candidate. It verifies isolated guest submissions, sensible score ordering, and

@@ -82,6 +82,7 @@ def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     output = schemas.ChatOut.model_validate(chat)
     output.can_publish = bool(
         chat.intent == "employer"
+        and chat.status == "draft"
         and chat.job_post
         and can_publish(chat.job_post.target_profile, chat.job_post.title)
         and not chat.job_post.published

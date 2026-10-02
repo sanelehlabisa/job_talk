@@ -20,10 +20,10 @@ The pilot answers one question: can one recruiter create a job, can one candidat
 apply through chat, and can the recruiter compare candidates clearly? Finish the
 local release sequence below before returning to VM and subdomain work.
 
-The reliable create, apply, and compare scenario now passes repeatedly. Complete
-AI-assisted role interpretation (`JT-045`), then the local desktop and phone
-sign-off (`JT-043`) before deploying through the existing `JT-010` and `JT-011`
-package (`JT-044`).
+The reliable create, apply, and compare scenario now passes repeatedly. AI role
+interpretation (`JT-045`) and the local desktop and phone sign-off (`JT-043`) are
+complete. The next release step is deployment through the existing `JT-010` and
+`JT-011` package (`JT-044`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -197,11 +197,20 @@ strict output, and fallback behavior (2026-10-02).
 
 ### JT-043 - Local usability sign-off
 
-- [ ] Run manual approval, email-code login, job creation, publication, comparison,
+- [x] Run manual approval, email-code login, job creation, publication, comparison,
   and close on desktop and phone size.
-- [ ] Run accountless job selection, conversation, review, consent, submission, and
+- [x] Run accountless job selection, conversation, review, consent, submission, and
   deletion on desktop and phone size.
-- [ ] Confirm the local app is reliable enough for one recruiter and one candidate.
+- [x] Confirm the local app is reliable enough for one recruiter and one candidate.
+
+**Status:** Complete. A repeatable Edge workflow manually approves and signs in a
+recruiter, creates and publishes a fresh role, submits an evidence-backed guest
+application with consent, compares it, closes recruitment, deletes the candidate
+data, and verifies the deleted token is rejected. Desktop and phone screenshots
+were inspected. Sign-off exposed and fixed a closed-role publication action and an
+exact-location scoring error; the final candidate scored 91% with Cape Town shown
+as a 95% location match. The backend suite and frontend production build pass
+(2026-10-02).
 
 ### JT-044 - Deploy only after local sign-off
 
@@ -209,7 +218,8 @@ strict output, and fallback behavior (2026-10-02).
 - [ ] Verify DNS, firewall, TLS renewal, backup, reboot, logs, rollback, and that
   only ports 80 and 443 are public.
 
-**Status:** Waiting for the local MVP release sequence.
+**Status:** Ready. The local MVP sign-off passed; production deployment remains
+the next ticket and requires the VM domain and secret values (2026-10-02).
 
 ## Completed foundation
 

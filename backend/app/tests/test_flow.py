@@ -787,9 +787,11 @@ def test_recruiter_compares_candidates_and_closes_recruitment():
         closed = client.post(f"/api/jobs/{job_id}/close", headers=recruiter_headers)
         assert closed.status_code == 200
         assert closed.json()["published"] is False
-        assert client.get(
+        closed_chat = client.get(
             f"/api/chats/{recruiter_chat['id']}", headers=recruiter_headers
-        ).json()["status"] == "closed"
+        ).json()
+        assert closed_chat["status"] == "closed"
+        assert closed_chat["can_publish"] is False
         assert client.get(f"/api/public/jobs/{job_id}").status_code == 404
         assert client.post("/api/auth/guest", json={"job_id": job_id}).status_code == 404
         assert client.post(
@@ -1357,6 +1359,18 @@ def test_matching_explains_location_and_experience_differences():
     assert result["criteria"]["location"]["score"] == 0.3
     assert result["criteria"]["experience"]["score"] == 0.5
     assert "Durban" in result["criteria"]["location"]["reason"]
+
+    matching_location = match_profiles(
+        {"location": {"evidence": "The candidate is based in Cape Town."}},
+        {
+            "location": {
+                "weight": 0.5,
+                "description": "The role is based in Cape Town.",
+            }
+        },
+    )
+    assert matching_location["criteria"]["location"]["score"] == 0.95
+    assert "matches the role" in matching_location["criteria"]["location"]["reason"]
 
 
 def test_trade_worker_can_find_and_apply_to_trade_role():
