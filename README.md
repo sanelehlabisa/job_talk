@@ -33,6 +33,8 @@ contract and intentionally narrow scope are in
   while approved recruiters sign in with a short-lived email code.
 - Three realistic demo jobs, public links and a job picker, and a guest
   conversation anchored to the selected role.
+- Seeker entry shows two quick job choices plus a Start from scratch conversation
+  that returns at most two ranked roles and locks to one role at submission.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Deterministic follow-up questions that ask for the selected job's highest-weight
   missing evidence and resume from the saved draft after a refresh.

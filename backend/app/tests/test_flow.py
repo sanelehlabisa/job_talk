@@ -965,6 +965,74 @@ def test_guest_session_needs_no_email_or_password_and_is_candidate_only():
         assert client.post("/api/auth/login", json={}).status_code == 404
 
 
+def test_seeker_can_start_general_chat_and_choose_from_two_ranked_jobs():
+    job_ids = {
+        create_published_job(
+            email="discovery-welder@example.com",
+            title="Discovery Welder",
+            target_profile={
+                "welding": {"weight": 0.9, "description": "Welding is required."}
+            },
+        ),
+        create_published_job(
+            email="discovery-driver@example.com",
+            title="Discovery Driver",
+            target_profile={
+                "driving": {"weight": 0.9, "description": "Driving is required."}
+            },
+        ),
+        create_published_job(
+            email="discovery-cleaner@example.com",
+            title="Discovery Cleaner",
+            target_profile={
+                "cleaning": {"weight": 0.9, "description": "Cleaning is required."}
+            },
+        ),
+    }
+    with TestClient(app) as client:
+        guest = client.post("/api/auth/guest", json={})
+        assert guest.status_code == 201
+        headers = {"Authorization": f"Bearer {guest.json()['access_token']}"}
+        chat = client.get("/api/chats", headers=headers).json()[0]
+        assert chat["target_job_id"] is None
+
+        initial = client.get(
+            f"/api/chats/{chat['id']}/recommendations", headers=headers
+        ).json()
+        assert len(initial) == 2
+        assert {item["job"]["id"] for item in initial}.issubset(job_ids)
+
+        response = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={
+                "content": "I want welding work and have three years of welding experience."
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        recommendations = response.json()["recommendations"]
+        assert len(recommendations) == 2
+        selected_job_id = recommendations[0]["job"]["id"]
+        other_job_id = next(job_id for job_id in job_ids if job_id != selected_job_id)
+
+        submitted = client.post(
+            f"/api/jobs/{selected_job_id}/apply",
+            json=application_payload(chat["id"]),
+            headers=headers,
+        )
+        assert submitted.status_code == 201
+        scoped_chat = client.get(
+            f"/api/chats/{chat['id']}", headers=headers
+        ).json()
+        assert scoped_chat["target_job_id"] == selected_job_id
+        assert scoped_chat["status"] == "submitted"
+        assert client.post(
+            f"/api/jobs/{other_job_id}/apply",
+            json=application_payload(chat["id"], "Second Application"),
+            headers=headers,
+        ).status_code == 403
+
+
 def test_expired_guest_token_is_deleted_and_cannot_be_replayed():
     job_id = create_published_job()
     with TestClient(app) as client:

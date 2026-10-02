@@ -210,10 +210,10 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
             {error && <div className="error">{error}</div>}
           </>}
           {mode === "jobs" && <>
-            <h2>Available jobs</h2>
-            <p>Choose a job to start a new private conversation for that role.</p>
+            <h2>Two jobs to explore</h2>
+            <p>Choose a visible job now, or start from scratch and describe the work you want.</p>
             <div className="entry-jobs">
-              {jobs.map((job) => (
+              {jobs.slice(0, 2).map((job) => (
                 <button className="entry-job" type="button" disabled={loading} key={job.id} onClick={() => continueAsSeeker(job.id)}>
                   <span className="entry-job-copy">
                     <strong>{job.title}</strong>
@@ -225,6 +225,9 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
               ))}
               {!jobs.length && <div className="error">No published jobs are available yet.</div>}
             </div>
+            <button className="primary full" type="button" disabled={loading} onClick={() => continueAsSeeker()}>
+              Start from scratch <ArrowRight size={17} />
+            </button>
             {error && <div className="error">{error}</div>}
             <button className="auth-toggle" type="button" onClick={() => { setMode("choose"); setError(""); }}>Back</button>
           </>}
@@ -334,13 +337,13 @@ function JobReadiness({ job }) {
   );
 }
 
-function Recommendation({ item, onApply, applied }) {
+function Recommendation({ item, onApply, applied, selected }) {
   const score = Math.round(item.match_score * 100);
   return (
     <article className="job-card">
       <div className="job-card-top">
         <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>{item.recommended ? "Strong match" : "Selected role · below recommendation threshold"}</span></div>
+        <div><h3>{item.job.title}</h3><span>{item.recommended ? "Strong match" : selected ? "Selected role · below recommendation threshold" : "Possible role · add details to improve the match"}</span></div>
         <div className="score"><strong>{score}%</strong><span>match</span></div>
       </div>
       <p>{item.explanation}</p>
@@ -702,9 +705,9 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
-              <div className="recommendation-heading"><span>YOUR APPLICATION</span><small>Selected role</small></div>
+              <div className="recommendation-heading"><span>{chat.target_job_id ? "YOUR APPLICATION" : "RECOMMENDED JOBS"}</span><small>{chat.target_job_id ? "Selected role" : "Top two from your conversation"}</small></div>
               <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
-              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={submitted || applied[item.job.id]} onApply={() => setReviewing(item)} />)}
+              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} selected={Boolean(chat.target_job_id)} applied={submitted || applied[item.job.id]} onApply={() => setReviewing(item)} />)}
               {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}

@@ -147,14 +147,16 @@ def start_guest_session(
     ),
     db: Session = Depends(get_db),
 ):
-    job = db.scalar(
-        select(models.JobPost).where(
-            models.JobPost.id == payload.job_id,
-            models.JobPost.published.is_(True),
+    job = None
+    if payload.job_id is not None:
+        job = db.scalar(
+            select(models.JobPost).where(
+                models.JobPost.id == payload.job_id,
+                models.JobPost.published.is_(True),
+            )
         )
-    )
-    if not job:
-        raise HTTPException(status_code=404, detail="Published job not found")
+        if not job:
+            raise HTTPException(status_code=404, detail="Published job not found")
     guest_id = secrets.token_urlsafe(24)
     user = models.User(
         email=f"guest-{guest_id}@guest.invalid",
@@ -163,7 +165,11 @@ def start_guest_session(
     )
     db.add(user)
     db.flush()
-    chat = models.Chat(user_id=user.id, intent="candidate", target_job_id=job.id)
+    chat = models.Chat(
+        user_id=user.id,
+        intent="candidate",
+        target_job_id=job.id if job else None,
+    )
     db.add(chat)
     db.flush()
     db.add(
@@ -171,9 +177,16 @@ def start_guest_session(
             chat_id=chat.id,
             sender="assistant",
             content=(
-                f"You're applying for {job.title}. "
-                f"{summarize_job_requirements(job.title, job.target_profile)} "
-                "Tell me which requirement you can meet and give one work example."
+                (
+                    f"You're applying for {job.title}. "
+                    f"{summarize_job_requirements(job.title, job.target_profile)} "
+                    "Tell me which requirement you can meet and give one work example."
+                )
+                if job
+                else (
+                    "Tell me what work you want and what experience, skills, and location "
+                    "you can offer. I'll compare your answers with available jobs."
+                )
             ),
         )
     )
@@ -534,7 +547,9 @@ def send_message(
     chat = get_chat_or_404(db, chat_id, current_user.id)
 
     recommendations = []
-    if chat.intent == "candidate" and len(chat.profile) >= 2:
+    if chat.intent == "candidate" and (
+        chat.target_job_id is None or len(chat.profile) >= 2
+    ):
         jobs = db.scalars(
             select(models.JobPost).where(
                 models.JobPost.published.is_(True),
@@ -545,7 +560,10 @@ def send_message(
                 ),
             )
         ).all()
-        for job, result in rank_jobs(chat.profile, jobs):
+        ranked_jobs = rank_jobs(chat.profile, jobs)
+        if chat.target_job_id is None:
+            ranked_jobs = ranked_jobs[:2]
+        for job, result in ranked_jobs:
             recommendations.append(
                 schemas.RecommendationOut(
                     job=schemas.JobOut.model_validate(job),
@@ -673,6 +691,9 @@ def get_recommendations(
             ),
         )
     ).all()
+    ranked_jobs = rank_jobs(chat.profile, jobs)
+    if chat.target_job_id is None:
+        ranked_jobs = ranked_jobs[:2]
     return [
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
@@ -681,7 +702,7 @@ def get_recommendations(
             explanation=summarize_match(result),
             criteria=result["criteria"],
         )
-        for job, result in rank_jobs(chat.profile, jobs)
+        for job, result in ranked_jobs
     ]
 
 
@@ -714,6 +735,8 @@ def apply(
         raise HTTPException(status_code=400, detail="A candidate chat is required")
     if chat.target_job_id is not None and chat.target_job_id != job.id:
         raise HTTPException(status_code=403, detail="This guest session belongs to another job")
+    if chat.target_job_id is None:
+        chat.target_job_id = job.id
     candidate_name = payload.candidate_name.strip()
     candidate_location = payload.candidate_location.strip()
     preferred_contact = payload.preferred_contact.strip()

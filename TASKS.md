@@ -201,6 +201,25 @@ replaces its composer with a closed state that points to Browse other jobs. The
 focused lifecycle test, all 57 backend tests, and the frontend production build
 pass (2026-10-02).
 
+### JT-055 - Add a small seeker discovery path
+
+- [x] Show two available job suggestions when a seeker enters.
+- [x] Let a seeker start a general matching conversation when neither visible job
+  is suitable.
+- [x] Return at most two ranked jobs for a general seeker conversation.
+- [x] Scope the guest conversation to the selected job when an application is
+  submitted.
+
+**Done when:** a seeker can choose one of two quick options or describe their work
+from scratch, then submit only one job-scoped application.
+
+**Status:** Complete. Seeker entry shows at most two quick job choices and a
+Start from scratch action. A general guest conversation ranks at most two
+published jobs, uses clearer non-selected match wording, and becomes scoped to
+the chosen job at submission so the same guest cannot apply elsewhere. Focused
+discovery and ownership tests plus the frontend production build pass
+(2026-10-02).
+
 ## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already
