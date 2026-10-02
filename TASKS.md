@@ -58,15 +58,19 @@ real recruiter use requires them (2026-10-02).
   from a recruiter conversation.
 - [x] Ask only for important missing or unclear criteria.
 - [x] Show the structured criteria and allow plain-language corrections.
-- [ ] Treat pasted job descriptions like ordinary recruiter input and verify the
+- [x] Treat pasted job descriptions like ordinary recruiter input and verify the
   important criteria survive one long message.
-- [ ] Make the visible `Publish job` button the only final publication action;
+- [x] Make the visible `Publish job` button the only final publication action;
   saying the role is done should prepare it for review without publishing it.
-- [ ] Cover pasted input, correction, readiness, explicit publication, and public
+- [x] Cover pasted input, correction, readiness, explicit publication, and public
   visibility with focused tests.
 
 **Done when:** a recruiter can paste or describe a role, answer only necessary
 questions, review the result, and explicitly publish it.
+
+**Status:** Complete. Long recruiter input preserves the plumber demo criteria,
+completion phrases stop at final review, and the explicit publication endpoint is
+idempotent so a repeated click cannot duplicate the public role (2026-10-02).
 
 ### JT-034 - Optional starter job templates
 
@@ -465,23 +469,23 @@ history, and exclusion of submitted contact details (2026-09-30).
 - [x] Let the recruiter refine the title and criteria through multiple messages.
 - [x] Recognize explicit completion commands such as `I am done` or
   `publish the job` without matching ordinary job-description text.
-- [x] Publish through the conversation only when the role has a title and enough
-  meaningful criteria; otherwise explain what is still needed.
+- [x] Use completion commands to request final review only when the role has a
+  title and enough meaningful criteria; publish only from the explicit button.
 - [x] Make the published job immediately available through the public job list
   and accountless candidate entry flow.
 - [x] Show candidates the available job list and let an active guest leave their
   current scoped session to browse jobs and start another private conversation.
-- [x] Keep the existing publish button as an accessible alternative to the chat
-  command and run the frontend production build.
-- [x] Test early completion, multi-message refinement, conversational publishing,
+- [x] Keep the publish button as the single accessible publication action and run
+  the frontend production build.
+- [x] Test early completion, multi-message refinement, explicit publication,
   public visibility, and candidate guest entry.
 
 **Done when:** a recruiter can describe one role, answer follow-up questions,
-say they are done, and see the role become available to a candidate who can later
-return to the job list for another application.
+review it, and explicitly publish it for a candidate who can later return to the
+job list for another application.
 
-**Status:** Complete. Explicit completion publishes only ready recruiter-owned
-jobs, candidate entry lists public jobs, and `Browse other jobs` ends the current
+**Status:** Complete. Explicit completion prepares ready recruiter-owned jobs for
+final review, candidate entry lists public jobs, and `Browse other jobs` ends the current
 guest session before opening a new job-specific conversation. Role readiness now
 requires a title, essential skill, experience, location or work setup, and start
 availability; the assistant asks for the next missing item and the UI shows all

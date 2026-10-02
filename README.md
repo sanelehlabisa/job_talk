@@ -32,9 +32,9 @@ plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
   missing evidence and resume from the saved draft after a refresh.
 - Conversational job drafting that asks whether each detected skill or tool is
   required or preferred and how much experience applicants should have.
-- A structured role summary before publishing. Recruiters can correct an
-  attribute in ordinary chat, then say `I am done` or `publish the job` when all
-  required details are confirmed.
+- A structured role summary before publishing. Recruiters can paste a description
+  or correct an attribute in ordinary chat. Completion phrases prepare the role
+  for review; only the visible `Publish job` button makes it public.
 - Candidate conversations open with a plain summary of the confirmed recruiter
   requirements before collecting job-specific examples.
 - Up to five published job recommendations with weighted scores and plain language explanations.

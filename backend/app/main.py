@@ -455,9 +455,10 @@ def send_message(
             elif job.published:
                 reply = f"{job.title} is already published and visible to candidates."
             elif can_publish(job.target_profile, job.title):
-                job.published = True
-                chat.status = "published"
-                reply = f"{job.title} is now published and visible to candidates."
+                reply = (
+                    f"{job.title} is ready for your final review. "
+                    "Use the Publish job button when the criteria are correct."
+                )
             else:
                 reply = (
                     "The role is not ready to publish yet. "
@@ -546,6 +547,8 @@ def publish_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.chat.status == "closed":
         raise HTTPException(status_code=409, detail="Closed recruitment cannot be republished")
+    if job.published:
+        return job
     if not can_publish(job.target_profile, job.title):
         raise HTTPException(
             status_code=400,

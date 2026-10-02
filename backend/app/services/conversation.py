@@ -50,6 +50,10 @@ SKILLS = {
     "electrical wiring": "Electrical wiring",
     "plumber": "Plumbing",
     "plumbing": "Plumbing",
+    "leak repair": "Leak repair",
+    "pipe fitting": "Pipe fitting",
+    "geyser installation": "Geyser installation",
+    "geyser repair": "Geyser repair",
     "carpenter": "Carpentry",
     "carpentry": "Carpentry",
     "bricklayer": "Bricklaying",
@@ -223,7 +227,7 @@ def _location(text: str) -> str | None:
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
-            value = re.split(r"\b(?:with|and|but|who|for)\b", match.group(1))[0].strip(" .,")
+            value = re.split(r"[.;]|\b(?:with|and|but|who|for)\b", match.group(1))[0].strip(" .,")
             return value
     return None
 
@@ -302,10 +306,11 @@ def update_employer_profile(
     missing_details = missing_job_details(profile, current_title or "Untitled role")
     expected_detail = missing_details[0] if missing_details else None
     skill_hits = _skill_hits(text)
+    shared_years = _years(text)
     for key, label in skill_hits:
         existing = profile.get(key, {})
         importance = _importance(text) or existing.get("importance")
-        years = _years(text) if len(skill_hits) == 1 else existing.get("years_required")
+        years = shared_years or existing.get("years_required")
         profile[key] = _skill_requirement(label, importance, years)
     mentioned_skill_keys = {key for key, _label in skill_hits}
     if (
@@ -328,7 +333,7 @@ def update_employer_profile(
         profile.pop("education", None)
     elif "degree" in lower or "education" in lower:
         profile["education"] = {"weight": 0.45, "description": "Relevant education is preferred."}
-    years = _years(text)
+    years = shared_years
     if years and not expected_skill and not (
         len(skill_hits) == 1 and _importance(text)
     ):
@@ -385,7 +390,7 @@ def update_employer_profile(
     title = title_match.group(1).strip().title() if title_match else None
     if explicit_title:
         title = re.split(
-            r"\b(?:with|requiring|based|located)\b",
+            r"\.(?:\s|$)|\b(?:with|requiring|based|located)\b",
             explicit_title.group(1),
             maxsplit=1,
             flags=re.I,

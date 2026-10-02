@@ -91,13 +91,13 @@ def test_end_to_end_employer_to_application():
         ).json()
         assert response["chat"]["intent"] == "employer"
         assert response["chat"]["can_publish"] is False
-        assert "For Python, is it required or preferred" in response["assistant_message"]["content"]
+        assert "Is Python required or preferred" in response["assistant_message"]["content"]
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
             json={"content": "Python is required with two years of experience."},
             headers=employer_headers,
         ).json()
-        assert "For FastAPI, is it required or preferred" in response["assistant_message"]["content"]
+        assert "Is FastAPI required or preferred" in response["assistant_message"]["content"]
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
             json={"content": "FastAPI is preferred with one year of experience."},
@@ -386,7 +386,7 @@ def test_user_input_is_trimmed_and_control_characters_are_rejected():
         ).status_code == 422
 
 
-def test_recruiter_refines_and_publishes_a_job_by_saying_done():
+def test_recruiter_refines_then_publishes_with_explicit_action():
     with TestClient(app) as client:
         _, recruiter_headers = authenticate("conversation-recruiter@example.com", "recruiter")
         chat = client.post("/api/chats", headers=recruiter_headers).json()
@@ -439,18 +439,64 @@ def test_recruiter_refines_and_publishes_a_job_by_saying_done():
         job_id = second_answer["chat"]["job_post"]["id"]
         assert client.get("/api/public/jobs").json() == []
 
-        published = client.post(
+        ready = client.post(
             f"/api/chats/{chat['id']}/messages",
             json={"content": "I am done"},
             headers=recruiter_headers,
         ).json()
-        assert published["chat"]["status"] == "published"
-        assert published["chat"]["job_post"]["published"] is True
-        assert "visible to candidates" in published["assistant_message"]["content"]
+        assert ready["chat"]["status"] == "draft"
+        assert ready["chat"]["job_post"]["published"] is False
+        assert "Publish job button" in ready["assistant_message"]["content"]
+        assert client.get("/api/public/jobs").json() == []
+
+        published = client.post(
+            f"/api/jobs/{job_id}/publish", headers=recruiter_headers
+        )
+        assert published.status_code == 200
+        assert published.json()["published"] is True
+        assert [job["id"] for job in client.get("/api/public/jobs").json()] == [job_id]
+
+        repeated = client.post(
+            f"/api/jobs/{job_id}/publish", headers=recruiter_headers
+        )
+        assert repeated.status_code == 200
         assert [job["id"] for job in client.get("/api/public/jobs").json()] == [job_id]
 
         guest = client.post("/api/auth/guest", json={"job_id": job_id})
         assert guest.status_code == 201
+
+
+def test_pasted_plumber_description_keeps_important_criteria():
+    with TestClient(app) as client:
+        _, headers = authenticate("pasted-role@example.com", "recruiter")
+        chat = client.post("/api/chats", headers=headers).json()
+        response = client.post(
+            f"/api/chats/{chat['id']}/messages",
+            json={
+                "content": (
+                    "Job title: Plumber. The role is based in Cape Town. Required skills "
+                    "are plumbing, leak repair, pipe fitting, and geyser installation. "
+                    "Applicants need three years of relevant experience and must be "
+                    "available to start immediately."
+                )
+            },
+            headers=headers,
+        ).json()
+
+        job = response["chat"]["job_post"]
+        assert job["title"] == "Plumber"
+        assert {
+            "plumbing",
+            "leak_repair",
+            "pipe_fitting",
+            "geyser_installation",
+            "experience",
+            "location",
+            "availability",
+        } <= job["target_profile"].keys()
+        assert job["target_profile"]["location"]["description"] == "The role is based in Cape Town."
+        assert response["chat"]["can_publish"] is True
+        assert job["published"] is False
 
 
 def test_guided_job_questions_accept_short_and_uncommon_answers():
@@ -1236,13 +1282,13 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         assert response["chat"]["intent"] == "employer"
         assert response["chat"]["job_post"]["title"] == "Welder"
         assert response["chat"]["can_publish"] is False
-        assert "For Welding, is it required or preferred" in response["assistant_message"]["content"]
+        assert "Is Welding required or preferred" in response["assistant_message"]["content"]
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
             json={"content": "Welding is required with two years of experience."},
             headers=employer_headers,
         ).json()
-        assert "For Forklift operation, is it required or preferred" in response["assistant_message"]["content"]
+        assert "Is Forklift operation required or preferred" in response["assistant_message"]["content"]
         response = client.post(
             f"/api/chats/{employer_chat['id']}/messages",
             json={"content": "Forklift operation is preferred with one year of experience."},
