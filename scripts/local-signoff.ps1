@@ -175,6 +175,12 @@ try {
     Invoke-JavaScript "document.querySelector('.entry-job').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.chat-shell') !== null" "candidate conversation"
     $candidateText = "I have three years of welding experience in Cape Town. I repaired workshop gates and frames, and I am available immediately."
+    Invoke-JavaScript "window.__jobTalkFetch = window.fetch; window.fetch = (...args) => { window.fetch = window.__jobTalkFetch; return Promise.reject(new TypeError('Simulated temporary send failure')); }; true" | Out-Null
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" $candidateText
+    Wait-JavaScript "document.querySelector('.error-notice') !== null" "recoverable send error"
+    $preservedMessage = Invoke-JavaScript "document.querySelector(``textarea[aria-label='Conversation message']``).value"
+    if ($preservedMessage -ne $candidateText) { throw "Failed send discarded the candidate message" }
+    Invoke-JavaScript "document.querySelector('.error-dismiss').click(); true" | Out-Null
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $candidateText
     Wait-JavaScript "document.querySelector('.profile-chips')?.textContent.includes('welding') && document.querySelector('.job-card .score strong')?.textContent !== '0%'" "captured candidate evidence" 45
     Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
@@ -244,7 +250,7 @@ try {
     $deletedStatus = Invoke-JavaScript "fetch('http://localhost:8000/api/auth/me', { headers: { Authorization: 'Bearer ' + $candidateTokenJson } }).then(response => response.status)"
     if ($deletedStatus -ne 401) { throw "Deleted candidate session is still valid" }
 
-    Write-Output "Local sign-off passed: create, lock published criteria, apply, compare, close, and delete on desktop and phone."
+    Write-Output "Local sign-off passed: preserve a failed send, create, lock published criteria, apply, compare, close, and delete on desktop and phone."
     Write-Output "Screenshots: $OutputDirectory"
 } finally {
     if ($script:socket) { $script:socket.Dispose() }

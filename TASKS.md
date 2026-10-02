@@ -166,6 +166,21 @@ The complete browser sign-off then passed publication, candidate conversation,
 submission, recruiter comparison, close, and deletion on desktop and phone size
 (2026-10-02).
 
+### JT-053 - Preserve a message when sending fails
+
+- [x] Keep the recruiter's or candidate's typed message in the composer when the
+  API request fails.
+- [x] Show the existing recoverable error notice without an unhandled promise.
+- [x] Confirm the same message can be sent successfully after a temporary failure.
+
+**Done when:** a temporary network or API failure cannot silently discard the
+user's work, and retrying completes the normal conversation flow.
+
+**Status:** Complete. The composer now clears only after the API accepts a
+message. The browser sign-off injects a one-request network failure, verifies the
+exact candidate text remains available, retries it, and completes the desktop
+and phone create, apply, compare, close, and delete flow (2026-10-02).
+
 ## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already

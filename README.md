@@ -48,6 +48,8 @@ contract and intentionally narrow scope are in
   shows the target and weight, and clarifications update the existing key.
 - Candidate conversations open with a plain summary of the confirmed recruiter
   requirements before collecting job-specific examples.
+- A failed message request leaves the exact typed text in the composer so the
+  recruiter or candidate can retry without rewriting it.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - A review and consent step that collects contact details only when the candidate
   submits, including name, location, and email or phone, then freezes the

@@ -653,17 +653,16 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
 
   async function sendPrompt(message) {
-    if (sending) return;
+    if (sending) return false;
     setSending(true);
-    try { await onSend(message); } finally { setSending(false); }
+    try { return await onSend(message); } finally { setSending(false); }
   }
 
   async function submit(event) {
     event.preventDefault();
     if (!text.trim() || sending) return;
     const message = text.trim();
-    setText("");
-    await sendPrompt(message);
+    if (await sendPrompt(message)) setText("");
   }
 
   async function apply(candidateName, candidateLocation, preferredContact) {
@@ -795,12 +794,17 @@ function JobTalkApp() {
   }
 
   async function send(content) {
+    let response;
     try {
-      const response = await api.sendMessage(chat.id, content);
-      setChat(response.chat);
-      setRecommendations(response.recommendations);
-      await loadChats(false);
-    } catch (err) { setError(err.message); }
+      response = await api.sendMessage(chat.id, content);
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+    setChat(response.chat);
+    setRecommendations(response.recommendations);
+    try { await loadChats(false); } catch (err) { setError(err.message); }
+    return true;
   }
 
   async function publish() {
