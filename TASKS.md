@@ -46,17 +46,22 @@ build pass (2026-10-02).
 
 ### JT-047 - Map candidate answers to the published criteria
 
-- [ ] Capture candidate `value` and supporting `evidence` under the exact
+- [x] Capture candidate `value` and supporting `evidence` under the exact
   published criterion key.
-- [ ] Collect name, location, and at least one contact method at review.
-- [ ] Use the current application chat and saved evidence to avoid repeated
+- [x] Collect name, location, and at least one contact method at review.
+- [x] Use the current application chat and saved evidence to avoid repeated
   questions and ask only about material missing or unclear criteria.
-- [ ] Let candidates correct extracted values before consent and submission.
+- [x] Let candidates correct extracted values before consent and submission.
 
 **Done when:** a candidate can apply to the plumber role without an account and
 review evidence mapped to every answered job criterion.
 
-**Status:** Next.
+**Status:** Complete. Candidate claims now carry `criterion_key`, typed `value`,
+`evidence`, and assessment under the published job key. Gaps have a null value.
+The final review displays job targets and extracted values, collects name,
+location, and email or phone, and keeps the existing return-to-chat correction
+path before consent. Focused application and evidence tests plus the frontend
+production build pass (2026-10-02).
 
 ### JT-048 - Score typed candidate values against typed targets
 
@@ -69,6 +74,8 @@ review evidence mapped to every answered job criterion.
 
 **Done when:** every displayed score can be traced from a candidate statement to
 the shared criterion, target, scoring rule, and reason.
+
+**Status:** Next.
 
 ### JT-049 - Recommend only useful job matches
 

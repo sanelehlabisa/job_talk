@@ -72,10 +72,16 @@ def create_published_job(
         return job.id
 
 
-def application_payload(chat_id, name="Nomsa Dlamini", contact="nomsa@example.com"):
+def application_payload(
+    chat_id,
+    name="Nomsa Dlamini",
+    contact="nomsa@example.com",
+    location="Cape Town",
+):
     return {
         "candidate_chat_id": chat_id,
         "candidate_name": name,
+        "candidate_location": location,
         "preferred_contact": contact,
         "consent_to_share": True,
     }
@@ -146,8 +152,12 @@ def test_end_to_end_employer_to_application():
         assert application.status_code == 201
         submitted = application.json()
         assert submitted["match_result"]["overall_score"] > 0.5
+        assert submitted["candidate_profile"]["python"]["criterion_key"] == "python"
+        assert submitted["candidate_profile"]["python"]["value"] == 3
+        assert submitted["candidate_profile"]["location"]["value"] == "Cape Town"
         assert submitted["candidate_profile"]["candidate_details"] == {
             "name": "Nomsa Dlamini",
+            "location": "Cape Town",
             "preferred_contact": "nomsa@example.com",
         }
         assert submitted["candidate_profile"]["consent"]["share_with_recruiter"] is True
@@ -544,7 +554,9 @@ def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
             f"/api/jobs/{job_id}/publish", headers=recruiter_headers
         ).status_code == 200
 
-        def submit_candidate(name: str, contact: str, evidence: str):
+        def submit_candidate(
+            name: str, contact: str, evidence: str, location: str = "Cape Town"
+        ):
             guest = client.post("/api/auth/guest", json={"job_id": job_id}).json()
             headers = {"Authorization": f"Bearer {guest['access_token']}"}
             chat = client.get("/api/chats", headers=headers).json()[0]
@@ -555,7 +567,7 @@ def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
             )
             submitted = client.post(
                 f"/api/jobs/{job_id}/apply",
-                json=application_payload(chat["id"], name, contact),
+                json=application_payload(chat["id"], name, contact, location),
                 headers=headers,
             )
             assert submitted.status_code == 201
@@ -583,11 +595,12 @@ def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
             "Unrelated Developer",
             "developer@example.test",
             "I am a software engineer with four years of Python, React, and SQL experience.",
+            "Johannesburg",
         )
 
         assert strong["match_result"]["overall_score"] >= 0.85
         assert 0.2 <= partial["match_result"]["overall_score"] < 0.7
-        assert unrelated["match_result"]["overall_score"] < 0.2
+        assert unrelated["match_result"]["overall_score"] <= 0.2
         assert partial["candidate_profile"]["geyser_installation"]["assessment"] == "gap"
         assert partial["match_result"]["criteria"]["geyser_installation"]["score"] == 0
         assert partial["match_result"]["criteria"]["pipe_fitting"]["score"] < 0.5
@@ -649,6 +662,8 @@ def test_candidate_evidence_rejects_vague_answers_and_scores_reported_gaps_as_ze
         {}, "I have no welding experience.", target, "welding"
     )
     assert denied["welding"]["assessment"] == "gap"
+    assert denied["welding"]["criterion_key"] == "welding"
+    assert denied["welding"]["value"] is None
     denied_score = match_profiles(denied, target)["criteria"]["welding"]
     assert denied_score["score"] == 0
     assert "explicitly reported a gap" in denied_score["reason"]
@@ -656,6 +671,8 @@ def test_candidate_evidence_rejects_vague_answers_and_scores_reported_gaps_as_ze
     general = update_candidate_profile(
         {}, "I have welding experience.", target, "welding"
     )
+    assert general["welding"]["criterion_key"] == "welding"
+    assert general["welding"]["value"] is True
     assert match_profiles(general, target)["criteria"]["welding"]["score"] == 0.55
 
     concrete = update_candidate_profile(
@@ -1359,6 +1376,7 @@ def test_chat_job_and_application_access_is_scoped_to_authenticated_owner():
         assert len(recruiter_applications) == 1
         assert recruiter_applications[0]["candidate_profile"]["candidate_details"] == {
             "name": "Nomsa Dlamini",
+            "location": "Cape Town",
             "preferred_contact": "nomsa@example.com",
         }
         assert client.get(

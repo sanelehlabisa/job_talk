@@ -697,15 +697,33 @@ def apply(
     if chat.target_job_id is not None and chat.target_job_id != job.id:
         raise HTTPException(status_code=403, detail="This guest session belongs to another job")
     candidate_name = payload.candidate_name.strip()
+    candidate_location = payload.candidate_location.strip()
     preferred_contact = payload.preferred_contact.strip()
-    if len(candidate_name) < 2 or len(preferred_contact) < 3:
-        raise HTTPException(status_code=422, detail="Add your name and preferred contact details")
+    if (
+        len(candidate_name) < 2
+        or len(candidate_location) < 2
+        or len(preferred_contact) < 3
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Add your name, location, and preferred contact details",
+        )
     submitted_at = datetime.now(timezone.utc)
-    result = match_profiles(chat.profile, job.target_profile)
-    profile_snapshot = {
+    candidate_profile = {
         **chat.profile,
+        "location": {
+            "criterion_key": "location",
+            "value": candidate_location,
+            "evidence": f"The candidate is based in {candidate_location}.",
+            "assessment": "claimed",
+        },
+    }
+    result = match_profiles(candidate_profile, job.target_profile)
+    profile_snapshot = {
+        **candidate_profile,
         "candidate_details": {
             "name": candidate_name,
+            "location": candidate_location,
             "preferred_contact": preferred_contact,
         },
         "consent": {

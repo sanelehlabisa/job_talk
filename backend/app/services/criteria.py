@@ -104,3 +104,32 @@ def normalize_target_profile(profile: Mapping[str, object] | None) -> dict:
         )
         for key, requirement in (profile or {}).items()
     }
+
+
+def normalize_candidate_evidence(
+    profile: Mapping[str, object] | None,
+    target_profile: Mapping[str, object] | None,
+) -> dict:
+    """Attach a typed value to evidence under each published criterion key."""
+    normalized = {str(key): dict(value) for key, value in (profile or {}).items()}
+    criteria = normalize_target_profile(target_profile)
+    for key, requirement in criteria.items():
+        item = normalized.get(key)
+        if not isinstance(item, dict) or not item.get("evidence"):
+            continue
+        item["criterion_key"] = key
+        if item.get("assessment") == "gap":
+            item["value"] = None
+            continue
+        evidence = str(item["evidence"])
+        if requirement["type"] == "number":
+            item["value"] = _years(evidence)
+        elif requirement["type"] == "skill":
+            item["value"] = True
+        elif key == "location":
+            item["value"] = _text_target("location", evidence)
+        elif key == "working_arrangement":
+            item["value"] = _text_target("working_arrangement", evidence)
+        else:
+            item["value"] = evidence.removeprefix("The candidate said: ").strip()
+    return normalized

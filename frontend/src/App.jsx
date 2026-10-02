@@ -356,6 +356,7 @@ function Recommendation({ item, onApply, applied }) {
 
 function ApplicationReview({ item, profile, onSubmit, onCancel }) {
   const [candidateName, setCandidateName] = useState("");
+  const [candidateLocation, setCandidateLocation] = useState(profile?.location?.value || "");
   const [preferredContact, setPreferredContact] = useState("");
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -366,6 +367,7 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       key,
       label: requirement.label || key.replaceAll("_", " "),
       requirement: requirement.description,
+      target: requirement.type === "number" ? `${requirement.target} ${requirement.unit || ""}`.trim() : requirement.type === "skill" ? "Required" : requirement.target,
       profileItem: profile?.[key],
     })),
     ...Object.entries(profile || {})
@@ -374,6 +376,7 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
         key,
         label: key.replaceAll("_", " "),
         requirement: null,
+        target: null,
         profileItem,
       })),
   ];
@@ -383,7 +386,7 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
     if (!consent || submitting) return;
     setSubmitting(true);
     try {
-      await onSubmit(candidateName.trim(), preferredContact.trim());
+      await onSubmit(candidateName.trim(), candidateLocation.trim(), preferredContact.trim());
     } finally {
       setSubmitting(false);
     }
@@ -397,13 +400,14 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       </div>
       <p>The recruiter will receive the structured evidence below, your match breakdown, and the contact details you enter here. Your full chat is not shared.</p>
       <div className="review-evidence">
-        {evidence.map(({ key, label, requirement, profileItem }) => {
+        {evidence.map(({ key, label, requirement, target, profileItem }) => {
           const assessment = profileItem?.assessment;
           const state = assessment === "gap" ? "gap" : profileItem?.evidence ? "captured" : "missing";
           return (
             <div className={`review-evidence-item ${state}`} key={key}>
               <div><strong>{label}</strong><b>{state === "gap" ? "Reported gap" : state === "captured" ? "Evidence captured" : "Evidence missing"}</b></div>
-              {requirement && <small>Role asks: {requirement}</small>}
+              {requirement && <small>Target: {target || "Confirm with recruiter"} · {requirement}</small>}
+              {profileItem?.value !== undefined && profileItem?.value !== null && <small>Your extracted value: {String(profileItem.value)}</small>}
               <span>{profileItem?.evidence || "You have not provided evidence for this requirement yet."}</span>
             </div>
           );
@@ -412,6 +416,8 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       <p className="review-correction">See a mistake or missing item? <button type="button" onClick={onCancel}>Return to the chat</button> and describe the correction or evidence before submitting.</p>
       <label htmlFor="candidate-name">Your name</label>
       <input id="candidate-name" value={candidateName} onChange={(event) => setCandidateName(event.target.value)} minLength="2" maxLength="100" autoComplete="name" required />
+      <label htmlFor="candidate-location">Your location</label>
+      <input id="candidate-location" value={candidateLocation} onChange={(event) => setCandidateLocation(event.target.value)} minLength="2" maxLength="100" autoComplete="address-level2" required />
       <label htmlFor="candidate-contact">Preferred email or phone number</label>
       <input id="candidate-contact" value={preferredContact} onChange={(event) => setPreferredContact(event.target.value)} minLength="3" maxLength="320" autoComplete="email" required />
       <label className="consent-check">
@@ -657,8 +663,8 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
     await sendPrompt(message);
   }
 
-  async function apply(candidateName, preferredContact) {
-    await onApply(reviewing.job.id, candidateName, preferredContact);
+  async function apply(candidateName, candidateLocation, preferredContact) {
+    await onApply(reviewing.job.id, candidateName, candidateLocation, preferredContact);
     setApplied((value) => ({ ...value, [reviewing.job.id]: true }));
     setReviewing(null);
     await onReload();
@@ -803,8 +809,8 @@ function JobTalkApp() {
     try { await api.closeJob(chat.job_post.id); await loadChat(chat.id); } catch (err) { setError(err.message); }
   }
 
-  async function apply(jobId, candidateName, preferredContact) {
-    try { await api.apply(jobId, chat.id, candidateName, preferredContact); } catch (err) { setError(err.message); throw err; }
+  async function apply(jobId, candidateName, candidateLocation, preferredContact) {
+    try { await api.apply(jobId, chat.id, candidateName, candidateLocation, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
 
   async function deleteCandidateAccount() {

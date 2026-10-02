@@ -70,12 +70,13 @@ export const api = {
   publish: (jobId) => request(`/jobs/${jobId}/publish`, { method: "POST" }),
   closeJob: (jobId) => request(`/jobs/${jobId}/close`, { method: "POST" }),
   applications: (jobId) => request(jobId ? `/applications?job_id=${jobId}` : "/applications"),
-  apply: (jobId, chatId, candidateName, preferredContact) =>
+  apply: (jobId, chatId, candidateName, candidateLocation, preferredContact) =>
     request(`/jobs/${jobId}/apply`, {
       method: "POST",
       body: JSON.stringify({
         candidate_chat_id: chatId,
         candidate_name: candidateName,
+        candidate_location: candidateLocation,
         preferred_contact: preferredContact,
         consent_to_share: true,
       }),

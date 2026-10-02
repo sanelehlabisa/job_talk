@@ -48,7 +48,11 @@ contract and intentionally narrow scope are in
   requirements before collecting job-specific examples.
 - Up to five published job recommendations with weighted scores and plain language explanations.
 - A review and consent step that collects contact details only when the candidate
-  submits, then freezes the structured application snapshot.
+  submits, including name, location, and email or phone, then freezes the
+  structured application snapshot.
+- Candidate evidence is stored under the exact published criterion key with an
+  extracted typed value; the review shows both the job target and candidate value
+  before consent.
 - Candidates can leave one scoped guest application, browse available jobs, and
   start a separate private conversation for another role.
 - Recruiters can compare submitted candidates in one consistent evidence view,

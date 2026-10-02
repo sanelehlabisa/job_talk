@@ -1,7 +1,7 @@
 import re
 from collections.abc import Mapping
 
-from .criteria import normalize_target_profile
+from .criteria import normalize_candidate_evidence, normalize_target_profile
 
 
 SKILLS = {
@@ -650,7 +650,7 @@ def update_candidate_profile(
             )
         ):
             profile[expected_criterion] = _claimed_evidence(text)
-    return profile
+    return normalize_candidate_evidence(profile, target_profile)
 
 
 def update_candidate_turn(
