@@ -13,6 +13,22 @@ email address. Candidates open a published job and apply without creating an
 account; the backend must still issue an opaque guest token scoped to that
 application. Do not weaken ownership checks to create an accountless flow.
 
+Build one narrow loop before deployment or secondary features:
+
+> Recruiter defines the ideal candidate -> candidate applies through chat ->
+> backend scores the match -> recruiter compares the best candidates.
+
+Every feature must help this loop. The shared job criteria are the product
+contract: the recruiter defines them, the candidate supplies evidence against
+them, deterministic backend code scores them, and the recruiter compares the
+results. See `docs/core-mvp.md` for the canonical shapes and acceptance flow.
+
+Each job criterion must have a stable `key`, visible `label`, `type`, measurable
+`target`, optional `unit`, backend-owned `weight`, and short `description`.
+Candidate evidence and match results must reference that same criterion key.
+Update an existing criterion when the recruiter clarifies it; do not create a
+duplicate with different wording.
+
 ## Demo contract
 
 The primary experiment must support this sequence:
@@ -21,12 +37,14 @@ The primary experiment must support this sequence:
    created job.
 2. A candidate opens that job from a public link without creating an account.
 3. The candidate applies through a job-specific conversation that extracts
-   skills, experience, location, availability, and supporting evidence.
+   values and supporting evidence against the published job criteria.
 4. The candidate reviews and submits the structured application with contact
    details and clear consent.
 5. The recruiter sees submitted candidates in one consistent, comparable view.
 6. Match results show criterion scores, weights, evidence, and gaps without
    presenting the score as a hiring decision.
+7. Recommendations and closed-job comparisons show at most five strong matches;
+   weak matches must not be presented as recommendations.
 
 ## AI boundary
 
@@ -34,6 +52,11 @@ The primary experiment must support this sequence:
 - Use the deterministic mock until a ticket explicitly introduces a real API or
   local model.
 - Always pass only messages from the current chat as model context.
+- Let AI interpret, clarify, and polish user statements into the shared criteria
+  contract. The backend validates saved fields and owns weights, readiness, and
+  every match score.
+- Ask only about an important missing or unclear criterion. Use previously saved
+  answers and do not repeat a resolved question.
 - Keep mock replies deterministic so local and automated tests are repeatable.
 - Never place API keys in source code, Compose files, logs, or frontend builds.
 
@@ -63,11 +86,11 @@ job discovery, external integrations, and branding work beyond the visible
 candidate and recruiter flow. Build only what helps test the current recruiter
 value hypothesis or safely operate the experiment.
 
-Before adding scope, ask whether it directly helps a recruiter create a job, a
-candidate apply through chat, or a recruiter compare applicants. If it does not,
-defer it until real usage shows a need. Prefer hardcoded examples, manual approval,
-deterministic rules, existing components, and deletion over new infrastructure or
-generalized frameworks.
+Before adding scope, ask whether it directly helps a recruiter define criteria, a
+candidate supply evidence, the backend score a match, or a recruiter compare
+applicants. If it does not, defer it until real usage shows a need. Prefer
+hardcoded examples, manual approval, deterministic rules, existing components,
+and deletion over new infrastructure or generalized frameworks.
 
 ## Workflow
 

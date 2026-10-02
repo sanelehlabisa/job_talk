@@ -14,16 +14,96 @@ recruiters and accountless candidate applications. The product hypothesis is:
 Deployment follows in stages: private staging, a small public candidate flow,
 then an evidence-based decision about further investment.
 
-## Remaining path to a usable pilot
+## Core MVP v1 - current ordered work
+
+The revised MVP has one contract and one loop: **Define -> Apply -> Score ->
+Compare.** Complete these tickets in order before VM deployment. Existing work
+is the foundation, but acceptance now depends on the same typed criterion keys
+being visible and traceable through every step. The canonical product context is
+in [`docs/core-mvp.md`](docs/core-mvp.md).
+
+### JT-046 - Normalize one shared job criteria contract
+
+- [ ] Store every criterion with a stable `key`, `label`, `type`, `target`,
+  optional `unit`, backend-owned `weight`, and short `description`.
+- [ ] Normalize existing drafts and seeded jobs at the service boundary without
+  adding infrastructure solely for this change.
+- [ ] Update a criterion by stable key when a recruiter clarifies it; do not add
+  wording variants as duplicates.
+- [ ] Show target, weight or importance, and description in recruiter review.
+- [ ] Preserve existing published jobs and deterministic demo behavior.
+
+**Done when:** a recruiter can describe the plumber role, review measurable
+targets for each criterion, correct one target, and publish without duplicate
+criteria.
+
+**Status:** In progress (2026-10-02).
+
+### JT-047 - Map candidate answers to the published criteria
+
+- [ ] Capture candidate `value` and supporting `evidence` under the exact
+  published criterion key.
+- [ ] Collect name, location, and at least one contact method at review.
+- [ ] Use the current application chat and saved evidence to avoid repeated
+  questions and ask only about material missing or unclear criteria.
+- [ ] Let candidates correct extracted values before consent and submission.
+
+**Done when:** a candidate can apply to the plumber role without an account and
+review evidence mapped to every answered job criterion.
+
+### JT-048 - Score typed candidate values against typed targets
+
+- [ ] Return candidate value, target value, score, weight, evidence, reason, and
+  gap state for every criterion.
+- [ ] Keep scoring deterministic and backend-owned for number, skill, and text
+  criteria.
+- [ ] Calculate the overall weighted score only from validated criterion results.
+- [ ] Cover strong, partial, explicit-gap, missing, and unrelated answers.
+
+**Done when:** every displayed score can be traced from a candidate statement to
+the shared criterion, target, scoring rule, and reason.
+
+### JT-049 - Recommend only useful job matches
+
+- [ ] Apply one documented minimum match threshold before calling a job a
+  recommendation.
+- [ ] Return at most five jobs ordered by weighted score.
+- [ ] Keep weak jobs available to browse without presenting them as strong fits.
+
+**Done when:** a plumber profile recommends the relevant jobs and an unrelated
+profile receives no misleading recommendation.
+
+### JT-050 - Sign off the complete core loop
+
+- [ ] Show the recruiter up to five leading submitted candidates with contact,
+  overall score, criterion values, evidence, reasons, and gaps.
+- [ ] Plot the ideal profile and up to five candidates on the existing parallel
+  comparison using the shared criteria.
+- [ ] Run recruiter create, review, publish, candidate apply, submit, score, and
+  recruiter compare on desktop and phone size.
+- [ ] Repeat the plumber scenario with strong, partial, and unrelated candidates.
+
+**Done when:** one recruiter creates a job, one candidate applies through chat,
+and the recruiter can clearly explain which candidate is closest and why.
+
+## Deployment after the core MVP
+
+Resume `JT-044` only after `JT-046` through `JT-050` pass. Production packaging
+already builds; the remaining VM, DNS, SMTP, TLS, backup, and rollback checks do
+not define product behavior.
+
+## Previous MVP foundation
+
+### Remaining path to a usable pilot
 
 The pilot answers one question: can one recruiter create a job, can one candidate
 apply through chat, and can the recruiter compare candidates clearly? Finish the
 local release sequence below before returning to VM and subdomain work.
 
-The reliable create, apply, and compare scenario now passes repeatedly. AI role
+The earlier create, apply, and compare scenario passes repeatedly. AI role
 interpretation (`JT-045`) and the local desktop and phone sign-off (`JT-043`) are
-complete. The next release step is deployment through the existing `JT-010` and
-`JT-011` package (`JT-044`).
+complete. The revised core contract in `JT-046` through `JT-050` now comes before
+deployment through the existing `JT-010` and `JT-011` package (`JT-044`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application

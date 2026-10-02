@@ -21,6 +21,12 @@ guest application session. The implementation subtasks and acceptance checks are
 in [`TASKS.md`](TASKS.md); the pitch, demo, video, distribution, and measurement
 plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
 
+The current build target is one complete loop: **Define -> Apply -> Score ->
+Compare.** Recruiter criteria use one shared structure throughout the product;
+candidate evidence and match explanations reference those same stable keys. The
+contract and intentionally narrow scope are in
+[`docs/core-mvp.md`](docs/core-mvp.md).
+
 ## What works
 
 - Passwordless entry: job seekers start a private guest conversation immediately,
@@ -286,8 +292,10 @@ compared, seven-day returns, and feedback response/usefulness totals.
 
 ## Match score data
 
-Each recommendation includes a `criteria` object. Every criterion has a `score`
-between 0 and 1, a `weight`, and a plain-language reason. The recruiter comparison
+Each job criterion has a stable key, label, type, target, optional unit, weight,
+and short description. Candidate values, evidence, and match results refer to
+that same key. Each match criterion has a `score` between 0 and 1, its target and
+candidate values, a `weight`, and a plain-language reason. The recruiter comparison
 shows the top five candidates on a parallel-axis plot against an ideal 100% profile;
 missing evidence is marked rather than drawn as a confirmed zero. The evidence
 cards remain the readable source for each score and gap. The overall `match_score`
@@ -352,12 +360,18 @@ that owns the relevant job. The brief proposes WhatsApp and voice notes, verifie
 employers, anonymous top five candidate previews, privacy controls, and
 subscription plus placement fees; those are not implemented yet.
 
+Before deployment, the current implementation is being normalized around the
+shared typed criteria contract described above. This is the active work in
+`JT-046` through `JT-050`; new discovery, dashboard, integration, and branding
+features remain deferred.
+
 ## Deployment goal
 
-The next milestone is deployment to a user-owned VM under a subdomain. Staging
-remains private while the production package and guest application boundary are
-verified. The experiment then exposes published job pages and scoped guest
-applications while recruiter data stays behind authenticated ownership checks.
+After the core loop passes end to end, the next milestone is deployment to a
+user-owned VM under a subdomain. Staging remains private while the production
+package and guest application boundary are verified. The experiment then exposes
+published job pages and scoped guest applications while recruiter data stays
+behind authenticated ownership checks.
 
 The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). It separates the private VM demo from a later public pilot and includes the development Compose rename, production Nginx ingress, environment and secret packaging, safety controls, score visualization, and demo video with QR code.
 
