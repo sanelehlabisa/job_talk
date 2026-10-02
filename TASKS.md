@@ -16,11 +16,15 @@ then an evidence-based decision about further investment.
 
 ## Remaining path to a usable pilot
 
-The core candidate, recruiter, privacy, and private HTTPS package work is ready.
-The smallest useful release now needs this final step:
+The pilot answers one question: can one recruiter create a job, can one candidate
+apply through chat, and can the recruiter compare candidates clearly? Finish the
+local release sequence below before returning to VM and subdomain work.
 
-1. Choose the live subdomain, deploy the stack, and validate certificate renewal
-   on the VM (`JT-010` and `JT-011`).
+1. Make job publishing explicit and reliable (`JT-033`).
+2. Run the deterministic three-candidate scenario twice and fix only blockers
+   found in that flow (`JT-040` and `JT-041`).
+3. Complete the local desktop and phone sign-off (`JT-043`).
+4. Then deploy through the existing `JT-010` and `JT-011` package (`JT-044`).
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -28,6 +32,131 @@ backend and does not include API usage. The optional OpenAI provider uses separa
 API billing and must have an explicit project spend limit before public use.
 Local model and visualization work remain demand-gated experiments and do not
 block the first usable pilot.
+
+## Revised minimal MVP release sequence
+
+Every ticket in this sequence must directly help a recruiter create a job, a
+candidate apply, or a recruiter compare applicants. Prefer existing components,
+hardcoded examples, deterministic rules, and deletion of unused code.
+
+### JT-032 - Keep recruiter access minimal
+
+- [x] Require manual approval before recruiter access.
+- [x] Sign approved recruiters in with a short-lived, single-use email code.
+- [x] Keep local email testing on the same path through Mailpit.
+- [x] Keep approval in the existing owner CLI; do not add an admin dashboard.
+- [x] Do not require a recruiter profile or setup wizard before job creation.
+
+**Status:** Complete through `JT-018`. An approved recruiter can request a code,
+sign in, and create a job immediately. The MVP stores only the recruiter identity
+needed for authorization; name and company profile fields remain deferred until
+real recruiter use requires them (2026-10-02).
+
+### JT-033 - Make conversational job creation reliable
+
+- [x] Extract title, location or work setup, skills, experience, and availability
+  from a recruiter conversation.
+- [x] Ask only for important missing or unclear criteria.
+- [x] Show the structured criteria and allow plain-language corrections.
+- [ ] Treat pasted job descriptions like ordinary recruiter input and verify the
+  important criteria survive one long message.
+- [ ] Make the visible `Publish job` button the only final publication action;
+  saying the role is done should prepare it for review without publishing it.
+- [ ] Cover pasted input, correction, readiness, explicit publication, and public
+  visibility with focused tests.
+
+**Done when:** a recruiter can paste or describe a role, answer only necessary
+questions, review the result, and explicitly publish it.
+
+### JT-034 - Optional starter job templates
+
+- [ ] Revisit only if a real recruiter cannot start a blank hiring conversation.
+- [ ] If needed, hardcode a few editable examples; do not build template management.
+
+**Status:** Deferred. Seeded jobs already support the demo and templates are not
+required to test the core product question.
+
+### JT-035 - Keep candidate entry accountless
+
+- [x] List available published jobs before candidate entry.
+- [x] Start a job-scoped private guest conversation without registration.
+- [x] Allow the candidate to leave the guest session and choose another job.
+
+**Status:** Complete through `JT-020` and `JT-027`.
+
+### JT-036 - Keep candidate applications conversational
+
+- [x] Summarize the selected job and ask only about its criteria.
+- [x] Separate captured evidence, missing evidence, and reported gaps.
+- [x] Review the structured application, contact details, and consent before submit.
+- [x] Keep uploads, documents, certificates, and voice notes deferred.
+
+**Status:** Complete through `JT-021`, `JT-028`, and `JT-031`.
+
+### JT-037 - Keep matching deterministic and explainable
+
+- [x] Score each criterion in backend-owned deterministic code.
+- [x] Show requirement, evidence, score, weight, reason, and gap state.
+- [x] Calculate one repeatable weighted score without LLM scoring.
+
+**Status:** Complete through `JT-001`, `JT-014`, and `JT-028`.
+
+### JT-038 - Keep recruiter comparison focused
+
+- [x] Show submitted count, comparable candidate evidence, contact details, scores,
+  and obvious gaps for one recruiter-owned job.
+- [x] Limit the closed-job shortlist and comparison plot to five candidates.
+- [x] Keep pipelines, interview scheduling, notes, and messaging deferred.
+
+**Status:** Complete through `JT-022`. Reassess the parallel plot during `JT-040`;
+hide it from the default view if it slows comparison.
+
+### JT-039 - Minimal product simplification pass
+
+- [ ] Remove or hide UI and code that does not support create, apply, or compare.
+- [ ] Remove duplicate actions and development wording visible to pilot users.
+- [ ] Preserve privacy, authorization, guest isolation, consent, deletion, and rate limits.
+- [ ] Keep optional providers and future experiments out of the default user flow.
+
+### JT-040 - Deterministic plumber demo scenario
+
+- [ ] Create and publish a Cape Town plumber role covering plumbing, leak repair,
+  pipe fitting, geyser installation, location, and availability.
+- [ ] Submit a strong plumber, a partial handyman with no geyser experience, and
+  an unrelated software candidate through separate guest sessions.
+- [ ] Confirm strong, medium, and very low results with evidence and gaps that make sense.
+- [ ] Compare all three from the recruiter view on desktop and phone size.
+
+### JT-041 - Fix only demo-blocking bugs
+
+- [ ] Record issues found during `JT-040`.
+- [ ] Fix only creation, state, scoring, isolation, submission, comparison, and
+  mobile blockers.
+- [ ] Run the complete deterministic scenario twice without failure.
+
+### JT-042 - Keep deterministic mode as the release default
+
+- [x] Keep job readiness, extraction, follow-ups, and scoring usable without paid AI.
+- [x] Keep OpenAI optional and behind the same bounded backend service.
+- [x] Do not block the pilot on API credits or local model hosting.
+
+**Status:** Complete. Provider experiments remain demand gated under `JT-023`.
+
+### JT-043 - Local usability sign-off
+
+- [ ] Run manual approval, email-code login, job creation, publication, comparison,
+  and close on desktop and phone size.
+- [ ] Run accountless job selection, conversation, review, consent, submission, and
+  deletion on desktop and phone size.
+- [ ] Confirm the local app is reliable enough for one recruiter and one candidate.
+
+### JT-044 - Deploy only after local sign-off
+
+- [ ] Complete `JT-010` and `JT-011` after `JT-043` passes.
+- [ ] Verify DNS, firewall, TLS renewal, backup, reboot, logs, rollback, and that
+  only ports 80 and 443 are public.
+
+**Status:** Waiting for the local MVP release sequence.
 
 ## Completed foundation
 

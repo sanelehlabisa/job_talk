@@ -63,6 +63,12 @@ job discovery, external integrations, and branding work beyond the visible
 candidate and recruiter flow. Build only what helps test the current recruiter
 value hypothesis or safely operate the experiment.
 
+Before adding scope, ask whether it directly helps a recruiter create a job, a
+candidate apply through chat, or a recruiter compare applicants. If it does not,
+defer it until real usage shows a need. Prefer hardcoded examples, manual approval,
+deterministic rules, existing components, and deletion over new infrastructure or
+generalized frameworks.
+
 ## Workflow
 
 Use `TASKS.md` as the ordered source of truth. Work from the first unchecked P0
