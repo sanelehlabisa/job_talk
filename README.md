@@ -367,15 +367,14 @@ that owns the relevant job. The brief proposes WhatsApp and voice notes, verifie
 employers, anonymous top five candidate previews, privacy controls, and
 subscription plus placement fees; those are not implemented yet.
 
-Before deployment, the current implementation is being normalized around the
-shared typed criteria contract described above. This is the active work in
-`JT-046` through `JT-050`; new discovery, dashboard, integration, and branding
-features remain deferred.
+The local core loop now passes with the shared typed criteria contract from job
+definition through candidate comparison. New discovery, dashboard, integration,
+and branding features remain deferred.
 
 ## Deployment goal
 
-After the core loop passes end to end, the next milestone is deployment to a
-user-owned VM under a subdomain. Staging remains private while the production
+The next milestone is deployment to a user-owned VM under a subdomain. Staging
+remains private while the production
 package and guest application boundary are verified. The experiment then exposes
 published job pages and scoped guest applications while recruiter data stays
 behind authenticated ownership checks.

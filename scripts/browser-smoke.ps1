@@ -49,7 +49,11 @@ function Invoke-JavaScript([string]$expression) {
         awaitPromise = $true
         returnByValue = $true
     }
-    if ($result.exceptionDetails) { throw "Browser JavaScript failed" }
+    if ($result.exceptionDetails) {
+        $detail = $result.exceptionDetails.exception.description
+        if (-not $detail) { $detail = $result.exceptionDetails.text }
+        throw "Browser JavaScript failed: $detail"
+    }
     return $result.result.value
 }
 
@@ -121,14 +125,16 @@ try {
     Invoke-JavaScript "[...document.querySelectorAll('.job-card button')].find(button => button.textContent.includes('Review application')).click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#candidate-name') !== null" "application review"
     $candidateFormScript = @"
-(() => {
-  const setValue = (selector, value) => {
+(async () => {
+  const setValue = async (selector, value) => {
     const input = document.querySelector(selector);
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
   };
-  setValue('#candidate-name', 'Browser Test Candidate');
-  setValue('#candidate-contact', 'browser-candidate@example.test');
+  await setValue('#candidate-name', 'Browser Test Candidate');
+  if (document.querySelector('#candidate-location').value !== 'Cape Town') throw new Error('Candidate location was not extracted into review');
+  await setValue('#candidate-contact', 'browser-candidate@example.test');
   document.querySelector('.consent-check input').click();
   document.querySelector('.application-review').requestSubmit();
   return true;
@@ -144,7 +150,7 @@ try {
     Invoke-Cdp "Page.reload" | Out-Null
     Wait-JavaScript "document.querySelector('.submitted-bar') !== null" "submitted application after phone reload"
     Wait-JavaScript "document.querySelector('.feedback-prompt.complete') !== null" "saved candidate feedback after phone reload"
-    if (Invoke-JavaScript "document.querySelector('.sidebar').getBoundingClientRect().right > 0") { throw "Candidate sidebar covers the phone view" }
+    if (Invoke-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right > 0") { throw "Candidate sidebar covers the phone view" }
     Invoke-JavaScript "document.querySelector('.messages').scrollTop = document.querySelector('.messages').scrollHeight; true" | Out-Null
     Save-Screenshot "02-candidate-submitted-phone.png"
 

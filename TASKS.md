@@ -102,24 +102,31 @@ candidate does not (2026-10-02).
 
 ### JT-050 - Sign off the complete core loop
 
-- [ ] Show the recruiter up to five leading submitted candidates with contact,
+- [x] Show the recruiter up to five leading submitted candidates with contact,
   overall score, criterion values, evidence, reasons, and gaps.
-- [ ] Plot the ideal profile and up to five candidates on the existing parallel
+- [x] Plot the ideal profile and up to five candidates on the existing parallel
   comparison using the shared criteria.
-- [ ] Run recruiter create, review, publish, candidate apply, submit, score, and
+- [x] Run recruiter create, review, publish, candidate apply, submit, score, and
   recruiter compare on desktop and phone size.
-- [ ] Repeat the plumber scenario with strong, partial, and unrelated candidates.
+- [x] Repeat the plumber scenario with strong, partial, and unrelated candidates.
 
 **Done when:** one recruiter creates a job, one candidate applies through chat,
 and the recruiter can clearly explain which candidate is closest and why.
 
-**Status:** Next.
+**Status:** Complete. The updated browser workflow passed recruiter email-code
+login, typed role creation, review, publication, accountless candidate chat,
+contact review, consent, submission, typed score comparison, close, and deletion
+on desktop and phone size. The comparison screenshots show the ideal plot and the
+candidate card with contact, overall score, values, targets, evidence, reasons,
+and gaps. The deterministic plumber test covers strong, partial, and unrelated
+candidates. Browser automation now reports JavaScript details and safely waits
+through controlled-input and phone reload updates (2026-10-02).
 
 ## Deployment after the core MVP
 
-Resume `JT-044` only after `JT-046` through `JT-050` pass. Production packaging
-already builds; the remaining VM, DNS, SMTP, TLS, backup, and rollback checks do
-not define product behavior.
+`JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already
+builds, and the remaining work is the real VM, DNS, SMTP, TLS, backup, rollback,
+and public-boundary verification.
 
 ## Previous MVP foundation
 

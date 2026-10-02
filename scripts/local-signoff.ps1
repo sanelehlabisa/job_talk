@@ -40,7 +40,11 @@ function Invoke-JavaScript([string]$expression) {
         awaitPromise = $true
         returnByValue = $true
     }
-    if ($result.exceptionDetails) { throw "Browser JavaScript failed" }
+    if ($result.exceptionDetails) {
+        $detail = $result.exceptionDetails.exception.description
+        if (-not $detail) { $detail = $result.exceptionDetails.text }
+        throw "Browser JavaScript failed: $detail"
+    }
     return $result.result.value
 }
 
@@ -145,7 +149,7 @@ try {
     if (Invoke-JavaScript "document.querySelector('.error-notice') !== null") { throw "Role creation displayed an error" }
     Save-Screenshot "01-role-ready-desktop.png"
     Set-Viewport 390 760 $true
-    Wait-JavaScript "document.querySelector('.sidebar').getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
+    Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
     Save-Screenshot "02-role-ready-phone.png"
     Set-Viewport 1200 800 $false
 
@@ -174,14 +178,16 @@ try {
     Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#candidate-name') !== null" "application review"
     $candidateForm = @"
-(() => {
-  const setValue = (selector, value) => {
+(async () => {
+  const setValue = async (selector, value) => {
     const input = document.querySelector(selector);
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
   };
-  setValue('#candidate-name', 'Local Signoff Candidate');
-  setValue('#candidate-contact', 'local-signoff@example.test');
+  await setValue('#candidate-name', 'Local Signoff Candidate');
+  if (document.querySelector('#candidate-location').value !== 'Cape Town') throw new Error('Candidate location was not extracted into review');
+  await setValue('#candidate-contact', 'local-signoff@example.test');
   document.querySelector('.consent-check input').click();
   document.querySelector('.application-review').requestSubmit();
   return true;
@@ -194,7 +200,7 @@ try {
     Set-Viewport 390 760 $true
     Invoke-Cdp "Page.reload" | Out-Null
     Wait-JavaScript "document.querySelector('.submitted-bar') !== null" "candidate phone submission"
-    Wait-JavaScript "document.querySelector('.sidebar').getBoundingClientRect().right <= 1" "closed candidate phone sidebar" 10
+    Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed candidate phone sidebar" 10
     Save-Screenshot "05-candidate-submitted-phone.png"
 
     $recruiterSessionJson = $recruiterSession | ConvertTo-Json -Compress
@@ -216,7 +222,7 @@ try {
     Save-Screenshot "06-recruiter-comparison-desktop.png"
     Set-Viewport 390 760 $true
     Wait-JavaScript "document.querySelector('.candidate-card') !== null" "phone candidate comparison"
-    Wait-JavaScript "document.querySelector('.sidebar').getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
+    Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
     Save-Screenshot "07-recruiter-comparison-phone.png"
     Invoke-JavaScript "window.confirm = () => true; document.querySelector('.close-job').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.submitted-bar')?.textContent.includes('Recruitment closed')" "closed recruitment"
