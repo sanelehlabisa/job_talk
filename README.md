@@ -97,6 +97,13 @@ starts reuse them unless `requirements.txt` or `package-lock.json` changes.
 Running the command with `--build` is also safe, although the development services
 do not require custom image builds.
 
+FastAPI reload and Vite file watching use polling in the development containers
+so edits on Docker Desktop and OneDrive bind mounts are picked up without a
+manual service restart. Set `WATCHFILES_FORCE_POLLING=false` or
+`VITE_USE_POLLING=false` only when native file events are reliable on the host.
+The complete deterministic backend suite and browser Core MVP workflow have each
+passed twice with this setup.
+
 Open [the app](http://localhost:3000), [the API docs](http://localhost:8000/docs),
 or [the Mailpit inbox](http://localhost:8025). All published development ports
 bind to localhost. Change `FRONTEND_PORT`, `BACKEND_PORT`, or

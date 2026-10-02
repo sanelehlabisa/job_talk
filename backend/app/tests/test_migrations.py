@@ -23,10 +23,16 @@ EXPECTED_TABLES = {
 }
 
 
+def migration_config() -> Config:
+    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    return config
+
+
 def upgrade_database(monkeypatch, database_path: Path) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
     get_settings.cache_clear()
-    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config = migration_config()
     command.upgrade(config, "head")
     get_settings.cache_clear()
 
@@ -46,7 +52,7 @@ def test_initial_migration_adopts_existing_schema(monkeypatch, tmp_path):
     database_path = tmp_path / "existing.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
     get_settings.cache_clear()
-    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config = migration_config()
     command.upgrade(config, "20260929_01")
     engine = create_engine(f"sqlite:///{database_path.as_posix()}")
     with engine.begin() as connection:

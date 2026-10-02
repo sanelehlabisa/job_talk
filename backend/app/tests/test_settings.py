@@ -21,6 +21,8 @@ def production_settings(**overrides) -> Settings:
         "smtp_username": "jobtalk-sender",
         "smtp_password": "smtp-secret-2026-long-value",
         "email_from": "login@jobtalk.co.za",
+        "demo_recruiter_email": None,
+        "seed_demo_jobs": False,
         "database_url": (
             "postgresql+psycopg://job_talk:"
             f"{PRODUCTION_PASSWORD}@postgres:5432/job_talk"

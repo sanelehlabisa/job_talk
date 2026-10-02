@@ -122,7 +122,34 @@ and gaps. The deterministic plumber test covers strong, partial, and unrelated
 candidates. Browser automation now reports JavaScript details and safely waits
 through controlled-input and phone reload updates (2026-10-02).
 
-## Deployment after the core MVP
+## Local usability and reliability - current priority
+
+Production work is paused until the user resumes it. Fix only behavior that can
+stop or confuse a recruiter or candidate in the local Core MVP flow.
+
+### JT-051 - Keep the local app current and repeatable
+
+- [x] Make backend source edits reload automatically in development Compose.
+- [x] Make frontend source edits reload reliably from the Windows and OneDrive
+  bind mount.
+- [x] Run the complete deterministic backend flow twice without order-dependent
+  failures.
+- [x] Run the browser create, apply, compare, close, and delete workflow twice.
+- [x] Fix only reproducible Core MVP blockers found by those runs.
+
+**Done when:** the development URL consistently serves the current source and the
+complete local flow passes twice without a manual container restart.
+
+**Status:** Complete. Development Compose now runs Uvicorn reload through polling
+and Vite uses polling for Docker Desktop and OneDrive bind mounts. Touching each
+source tree produced a backend restart and frontend HMR update without a manual
+container restart. Migration tests now resolve their scripts independently of
+the working directory, and production-setting tests no longer inherit local demo
+seeding. The complete backend suite passed twice with 57 tests per run, and the
+live desktop and phone create, publish, apply, compare, close, and delete workflow
+passed twice with fresh recruiters (2026-10-02).
+
+## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already
 builds, and the remaining work is the real VM, DNS, SMTP, TLS, backup, rollback,
