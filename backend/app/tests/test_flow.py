@@ -891,11 +891,27 @@ def test_recruiter_compares_candidates_and_closes_recruitment():
         assert closed_chat["can_publish"] is False
         assert client.get(f"/api/public/jobs/{job_id}").status_code == 404
         assert client.post("/api/auth/guest", json={"job_id": job_id}).status_code == 404
-        assert client.post(
+        pending_chat = client.get(
+            f"/api/chats/{pending_chat_id}", headers=pending_headers
+        ).json()
+        assert pending_chat["status"] == "closed"
+        closed_message = client.post(
+            f"/api/chats/{pending_chat_id}/messages",
+            json={"content": "Can I add one more example?"},
+            headers=pending_headers,
+        )
+        assert closed_message.status_code == 409
+        assert closed_message.json()["detail"] == "This recruitment is closed"
+        late_application = client.post(
             f"/api/jobs/{job_id}/apply",
             json=application_payload(pending_chat_id, "Late Candidate", "late@example.com"),
             headers=pending_headers,
-        ).status_code == 404
+        )
+        assert late_application.status_code == 409
+        assert late_application.json()["detail"] == "This recruitment is closed"
+        assert client.get(
+            f"/api/chats/{stronger_chat_id}", headers=stronger_headers
+        ).json()["status"] == "submitted"
         assert client.post(
             f"/api/chats/{recruiter_chat['id']}/messages",
             json={"content": "Change the closed role"},

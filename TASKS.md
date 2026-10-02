@@ -181,6 +181,26 @@ message. The browser sign-off injects a one-request network failure, verifies th
 exact candidate text remains available, retries it, and completes the desktop
 and phone create, apply, compare, close, and delete flow (2026-10-02).
 
+### JT-054 - Stop drafts when recruitment closes
+
+- [x] Mark every unsubmitted candidate chat closed when its recruiter closes the
+  job.
+- [x] Reject further messages and applications with a clear closed-recruitment
+  response.
+- [x] Keep already submitted application snapshots available to both sides.
+- [x] Replace the candidate composer with a clear closed state and route them to
+  Browse other jobs.
+
+**Done when:** a candidate cannot spend time editing or submitting a draft after
+the recruiter has stopped accepting applications.
+
+**Status:** Complete. Closing a recruitment now closes all unfinished candidate
+chats for that job while leaving submitted application snapshots intact. The API
+returns a clear conflict for late messages or submissions, and the candidate UI
+replaces its composer with a closed state that points to Browse other jobs. The
+focused lifecycle test, all 57 backend tests, and the frontend production build
+pass (2026-10-02).
+
 ## Deployment after local reliability sign-off
 
 `JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already

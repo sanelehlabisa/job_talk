@@ -61,6 +61,8 @@ contract and intentionally narrow scope are in
   start a separate private conversation for another role.
 - Recruiters can compare submitted candidates in one consistent evidence view,
   then close recruitment to stop applications and review a ranked top-five shortlist.
+  Closing also stops unfinished candidate chats with a clear prompt to browse
+  other jobs while preserving submitted application snapshots.
 - A deterministic guided fallback plus an optional OpenAI provider for recruiter
   answer classification and polished, measurable role criteria.
 - One bounded context assembler for response generation: selected job criteria,

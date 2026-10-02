@@ -621,6 +621,15 @@ def close_job(
         raise HTTPException(status_code=409, detail="Only published recruitment can be closed")
     job.published = False
     job.chat.status = "closed"
+    pending_candidate_chats = db.scalars(
+        select(models.Chat).where(
+            models.Chat.target_job_id == job.id,
+            models.Chat.intent == "candidate",
+            models.Chat.status != "submitted",
+        )
+    ).all()
+    for candidate_chat in pending_candidate_chats:
+        candidate_chat.status = "closed"
     db.add(
         models.Message(
             chat_id=job.chat_id,
@@ -695,8 +704,10 @@ def apply(
             models.Chat.user_id == current_user.id,
         )
     )
-    if not job or not job.published:
+    if not job:
         raise HTTPException(status_code=404, detail="Published job not found")
+    if not job.published:
+        raise HTTPException(status_code=409, detail="This recruitment is closed")
     if not chat:
         raise HTTPException(status_code=404, detail="Candidate chat not found")
     if chat.intent != "candidate":
