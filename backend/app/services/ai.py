@@ -1,6 +1,5 @@
 import json
 import logging
-from collections.abc import Iterator
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -16,60 +15,6 @@ MAX_PROVIDER_INPUT_CHARS = 24_000
 
 class ProviderReply(BaseModel):
     reply: str
-
-
-def _preview(text: str) -> str:
-    """Show at most ten source characters: the first five and last five."""
-    normalized = " ".join(text.split())
-    if len(normalized) <= 10:
-        return normalized
-    return f"{normalized[:5]}{normalized[-5:]}"
-
-
-def _mock_reply_parts(
-    context: ChatContext,
-    intent: str | None,
-    user_text: str,
-    fallback: str,
-) -> Iterator[str]:
-    """Yield deterministic reply sections for tests and provider failures."""
-    history = context["messages"]
-    yield f'"{_preview(user_text)}"'
-    yield "Mock AI received your message."
-
-    previous_user = next(
-        (message["content"] for message in reversed(history) if message["role"] == "user"),
-        None,
-    )
-    context_summary = f"Chat #{context['chat_id']} context: {len(history)} earlier message(s)"
-    if previous_user:
-        context_summary += f'; previous user message "{_preview(previous_user)}".'
-    else:
-        context_summary += "; no previous user message."
-    if context["job"]:
-        context_summary += (
-            f" Selected job #{context['job']['id']}: {context['job']['title']}."
-        )
-    draft_fields = ", ".join(sorted(context["draft"])) or "none"
-    context_summary += f" Draft fields: {draft_fields}."
-    yield context_summary
-
-    if intent == "candidate":
-        yield "Mode: job seeker."
-    elif intent == "employer":
-        yield "Mode: hiring."
-    else:
-        yield "Mode: choosing a chat path."
-    yield fallback
-
-
-def _mock_reply(
-    context: ChatContext,
-    intent: str | None,
-    user_text: str,
-    fallback: str,
-) -> str:
-    return " ".join(_mock_reply_parts(context, intent, user_text, fallback))
 
 
 def _compact_mapping(value: dict, item_limit: int = 12, text_limit: int = 500) -> dict:
@@ -200,7 +145,7 @@ def generate_reply(
     active_settings = settings or get_settings()
     provider_calls = context.get("user_message_count", 0)
     if active_settings.ai_provider != "openai":
-        return _mock_reply(context, intent, user_text, fallback)
+        return fallback
     if provider_calls >= active_settings.ai_max_calls_per_chat:
         logger.info("AI call limit reached; using guided fallback")
         return fallback

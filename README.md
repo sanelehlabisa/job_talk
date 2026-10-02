@@ -289,7 +289,9 @@ any additional structured claims, and links back to the conversation for correct
 
 `backend/app/services/ai.py` keeps response generation behind one function and
 supports `mock` and `openai` providers. Mock mode remains the example default so
-tests are deterministic and a missing provider cannot stop the application.
+tests are deterministic and a missing provider cannot stop the application. It
+shows the same concise guided questions used by the backend, without development
+context or message diagnostics.
 
 To use OpenAI locally, place these values in the ignored `.env` file and rebuild
 the backend:

@@ -117,10 +117,16 @@ hide it from the default view if it slows comparison.
 
 ### JT-039 - Minimal product simplification pass
 
-- [ ] Remove or hide UI and code that does not support create, apply, or compare.
-- [ ] Remove duplicate actions and development wording visible to pilot users.
-- [ ] Preserve privacy, authorization, guest isolation, consent, deletion, and rate limits.
-- [ ] Keep optional providers and future experiments out of the default user flow.
+- [x] Remove or hide UI and code that does not support create, apply, or compare.
+- [x] Remove duplicate actions and development wording visible to pilot users.
+- [x] Preserve privacy, authorization, guest isolation, consent, deletion, and rate limits.
+- [x] Keep optional providers and future experiments out of the default user flow.
+
+**Status:** Complete. Deterministic replies now show only the useful guided response,
+without temporary mock, context, or draft diagnostics. A scoped candidate session
+labels its one job as the selected role and has one clear review action. Optional
+provider behavior remains backend-only and all user protection paths remain intact
+(2026-10-02).
 
 ### JT-040 - Deterministic plumber demo scenario
 
@@ -175,9 +181,9 @@ hide it from the default view if it slows comparison.
 
 - [x] Put response generation behind one `generate_reply` function.
 - [x] Remove the external AI dependency from the local demo path.
-- [x] Echo a ten-character current-message preview in every mock reply.
-- [x] Include current-chat history count and previous-user-message context.
-- [x] Cover message and context behavior with backend tests.
+- [x] Use temporary message and context diagnostics while stabilizing the send flow.
+- [x] Remove those diagnostics from pilot-visible replies during `JT-039`.
+- [x] Cover deterministic guided replies and current-chat context isolation with tests.
 
 ### JT-003 - Stable send-message UI
 

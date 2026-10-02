@@ -325,14 +325,13 @@ function JobReadiness({ job }) {
   );
 }
 
-function Recommendation({ item, onApply, applied, skipped, onSkip }) {
+function Recommendation({ item, onApply, applied }) {
   const score = Math.round(item.match_score * 100);
-  if (skipped) return null;
   return (
     <article className="job-card">
       <div className="job-card-top">
         <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>New opportunity</span></div>
+        <div><h3>{item.job.title}</h3><span>Selected role</span></div>
         <div className="score"><strong>{score}%</strong><span>match</span></div>
       </div>
       <p>{item.explanation}</p>
@@ -341,7 +340,6 @@ function Recommendation({ item, onApply, applied, skipped, onSkip }) {
       </div>
       <div className="job-actions">
         <button className="primary" disabled={applied} onClick={onApply}>{applied ? <><Check size={17} /> Submitted</> : <>Review application <ChevronRight size={17} /></>}</button>
-        {!applied && <button className="ghost" onClick={onSkip}>Not for me</button>}
       </div>
     </article>
   );
@@ -628,7 +626,6 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [applied, setApplied] = useState({});
-  const [skipped, setSkipped] = useState({});
   const [reviewing, setReviewing] = useState(null);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
@@ -688,9 +685,9 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
-              <div className="recommendation-heading"><span>YOUR BEST MATCHES</span><small>{recommendations.length} published role{recommendations.length === 1 ? "" : "s"}</small></div>
+              <div className="recommendation-heading"><span>YOUR APPLICATION</span><small>Selected role</small></div>
               <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
-              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={submitted || applied[item.job.id]} skipped={skipped[item.job.id]} onApply={() => setReviewing(item)} onSkip={() => setSkipped((value) => ({ ...value, [item.job.id]: true }))} />)}
+              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} applied={submitted || applied[item.job.id]} onApply={() => setReviewing(item)} />)}
               {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}

@@ -15,7 +15,7 @@ from app.database import Base, SessionLocal, engine
 from app.data_retention import purge_expired_guest_data
 from app.experiment import build_report, visitor_digest
 from app.main import app, settings as app_settings
-from app.services.ai import _preview, generate_reply
+from app.services.ai import generate_reply
 from app.services.context import build_chat_context
 from app.services.conversation import (
     can_publish,
@@ -1381,7 +1381,7 @@ def test_send_replays_previous_chat_messages(monkeypatch):
     )
 
 
-def test_mock_ai_previews_current_message_and_chat_context():
+def test_deterministic_provider_returns_guided_reply_without_debug_text():
     context = {
         "chat_id": 42,
         "job": {"id": 7, "title": "Workshop Welder", "criteria": {"welding": {}}},
@@ -1393,13 +1393,9 @@ def test_mock_ai_previews_current_message_and_chat_context():
         ],
     }
     reply = generate_reply(context, "candidate", "I also drive forklifts", "fallback")
-    assert reply.startswith('"I alslifts"')
-    assert "Chat #42 context: 3 earlier message(s)" in reply
-    assert 'previous user message "I knolding"' in reply
-    assert "Selected job #7: Workshop Welder." in reply
-    assert "Draft fields: welding." in reply
-    assert "Mode: job seeker." in reply
-    assert reply.endswith("fallback")
+    assert reply == "fallback"
+    assert "Mock AI" not in reply
+    assert "Chat #" not in reply
 
 
 def test_readiness_checks_database_connection():
@@ -1410,14 +1406,7 @@ def test_readiness_checks_database_connection():
     assert response.json() == {"status": "ready"}
 
 
-def test_mock_ai_preview_has_at_most_ten_source_characters():
-    assert _preview("short") == "short"
-    assert _preview("1234567890") == "1234567890"
-    assert _preview("12345678901") == "1234578901"
-    assert _preview("  five   spaces  ") == "five paces"
-
-
-def test_mock_ai_keeps_short_messages_and_chat_context_separate():
+def test_deterministic_provider_returns_only_each_guided_reply():
     first_chat = generate_reply(
         {"chat_id": 1, "job": None, "draft": {}, "messages": []},
         None,
@@ -1435,12 +1424,8 @@ def test_mock_ai_keeps_short_messages_and_chat_context_separate():
         "new role",
         "describe the job",
     )
-    assert first_chat.startswith('"hello"')
-    assert "Chat #1 context: 0 earlier message(s); no previous user message." in first_chat
-    assert "old role" not in first_chat
-    assert "Chat #2 context: 1 earlier message(s)" in second_chat
-    assert 'previous user message "old role"' in second_chat
-    assert "Mode: hiring." in second_chat
+    assert first_chat == "choose a path"
+    assert second_chat == "describe the job"
 
 
 def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
