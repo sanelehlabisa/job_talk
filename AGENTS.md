@@ -42,7 +42,8 @@ still stops applications and does not hide the recruiter's chat.
 
 ## Current usability priority (2026-10-03)
 
-Deployment is paused at the user's request. Follow the current P0 order in
+VM deployment is paused. The user authorized production Compose/HTTPS preparation
+in JT-070; implement and check that configuration locally. Follow the current P0 order in
 `TASKS.md` (JT-057 through JT-062). Completed scripted demos are engineering
 evidence; only the user's manual acceptance in JT-060 establishes usability.
 Resume deployment only when the user explicitly asks after accepting the flow.
@@ -153,3 +154,7 @@ feature branch does not by itself approve merging it.
 Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
+Production uses `docker compose --env-file .env.production -f
+prod.docker-compose.yaml ...`. Only Nginx publishes 80/443; port 80 redirects to
+HTTPS once a certificate exists. Use an isolated project and disposable volumes
+for production checks, never the running development project or its database.

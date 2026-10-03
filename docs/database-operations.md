@@ -13,7 +13,7 @@ a daily scheduler:
 BACKUP_RETENTION_DAYS=7 ./scripts/backup-postgres.sh
 ```
 
-The script uses `production.docker-compose.yaml` and `.env.production` by
+The script uses `prod.docker-compose.yaml` and `.env.production` by
 default. Override `COMPOSE_FILE`, `ENV_FILE`, or `BACKUP_DIR` when needed. It
 creates a PostgreSQL custom-format dump, verifies that `pg_restore` can read its
 catalog, writes a SHA-256 checksum, grants owner-only file access, and deletes
@@ -34,7 +34,7 @@ The command refuses invalid database names and refuses to overwrite the primary
 database. After checking the restored data, remove only the temporary database:
 
 ```sh
-docker compose --env-file .env.production -f production.docker-compose.yaml \
+docker compose --env-file .env.production -f prod.docker-compose.yaml \
   exec -T postgres sh -c 'dropdb --username="$POSTGRES_USER" job_talk_restore_check'
 ```
 
@@ -43,7 +43,7 @@ and empty volume, then restore into its empty configured database:
 
 ```sh
 COMPOSE_PROJECT_NAME=job_talk_restore \
-  docker compose --env-file .env.production -f production.docker-compose.yaml up -d postgres
+  docker compose --env-file .env.production -f prod.docker-compose.yaml up -d postgres
 COMPOSE_PROJECT_NAME=job_talk_restore \
   ./scripts/restore-postgres.sh BACKUP_FILE job_talk --allow-primary-empty
 ```

@@ -12,7 +12,8 @@ The product hypothesis is:
 > Recruiters will find conversational applications and structured candidate
 > comparison useful enough to try again or request continued access.
 
-Deployment is paused by the user (2026-10-03). Passing a scripted scenario is
+VM deployment remains paused (2026-10-03). The user has authorized local
+production Compose/HTTPS preparation in JT-070. Passing a scripted scenario is
 engineering evidence, not the user's usability approval. Ticket status below
 records implementation checks separately from the pending usability sign-off.
 
@@ -23,8 +24,8 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-069**, keep published jobs editable and show seeker
-job examples immediately.
+Current user priority: **JT-070**, prepare production Nginx/HTTPS and rename the
+production Compose file. JT-069 is committed and pushed as `988cc7d`.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -51,6 +52,31 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-070 - Production Compose name and HTTPS entry point
+
+- [x] Rename production Compose to `prod.docker-compose.yaml`; update all
+  scripts and documentation while keeping development configuration unchanged.
+- [x] Use Nginx as the only public service: host 80 redirects to HTTPS on 443,
+  `/` serves the built frontend and `/api/` reaches private FastAPI. Keep the
+  database private and preserve certificate bootstrap/renewal.
+- [x] Preserve application token authentication through the proxy, cover form
+  edits in write limits, use the configured host for readiness checks, and pass
+  current Gemini/admin settings to the backend.
+- [x] Validate Compose, certificate bootstrap, HTTPS frontend/API routing and
+  token access using isolated local resources. Record remaining real DNS/TLS checks.
+
+**Status:** Implemented (2026-10-03). All three production images built. An isolated
+Compose project passed PostgreSQL/API/frontend/proxy health, HTTP bootstrap,
+certificate watcher activation, Nginx syntax, 308 redirect preserving the URL,
+ACME serving, webpage password gate, HTTPS frontend/API, rejection of anonymous
+private-API requests, guest Bearer-token access, and published-port checks.
+The first run caught the readiness probe's incorrect Host header; fixed and
+rechecked. Shell syntax checks passed. Tests used a disposable local certificate
+and mock AI; no CA, email or paid model calls were made. Test containers/volumes
+were removed; development config, services and data were left intact.
+Real DNS, trusted certificate issuance and renewal dry-run remain in JT-010/011.
+No VM deployment was performed. Master merge and JT-060 user acceptance remain pending.
 
 ### JT-069 - Edit published jobs and show immediate discovery guidance
 

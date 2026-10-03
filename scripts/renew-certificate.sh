@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-compose_file=${COMPOSE_FILE:-production.docker-compose.yaml}
+compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
 env_file=${ENV_FILE:-.env.production}
 
 compose() {

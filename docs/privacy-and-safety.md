@@ -33,7 +33,7 @@ least daily on the VM to enforce it; `DEMO_DATA_RETENTION_DAYS` defaults to 30 a
 cannot exceed 30:
 
 ```bash
-docker compose --env-file .env.production -f production.docker-compose.yaml exec backend python -m app.data_retention purge-guests --confirm
+docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.data_retention purge-guests --confirm
 ```
 
 The command removes the guest user, session, conversation, messages, application,
@@ -50,13 +50,13 @@ After the session is gone, verify a request using the application reference and
 the contact detail already stored on that application. Then run:
 
 ```bash
-docker compose --env-file .env.production -f production.docker-compose.yaml exec backend python -m app.data_retention delete-application APPLICATION_ID --confirm
+docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.data_retention delete-application APPLICATION_ID --confirm
 ```
 
 An unused recruiter access request can be removed with:
 
 ```bash
-docker compose --env-file .env.production -f production.docker-compose.yaml exec backend python -m app.recruiters delete recruiter@company.com
+docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.recruiters delete recruiter@company.com
 ```
 
 That command refuses to delete a recruiter who has hiring records. Review and

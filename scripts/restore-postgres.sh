@@ -9,7 +9,7 @@ fi
 backup_path=$1
 target_database=$2
 allow_primary=${3:-}
-compose_file=${COMPOSE_FILE:-production.docker-compose.yaml}
+compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
 env_file=${ENV_FILE:-.env.production}
 
 case "$target_database" in

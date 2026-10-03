@@ -167,7 +167,7 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 
 ## Stack
 
-React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide the API. Development Compose runs Vite, FastAPI, PostgreSQL, and Mailpit. The backend uses SQLite by default when run outside Docker. The production Dockerfiles retain the Nginx frontend image for the later production Compose package.
+React and Vite provide the mobile friendly UI. FastAPI and SQLAlchemy provide the API. Development Compose runs Vite, FastAPI, PostgreSQL, and Mailpit. The backend uses SQLite by default when run outside Docker. Production Compose serves the built frontend and private API through Nginx.
 
 ```text
 Browser :3000 -> Vite frontend -> FastAPI :8000 -> PostgreSQL
@@ -400,7 +400,7 @@ again. The frontend image does not need rebuilding.
 To rotate the PostgreSQL password, first take a backup, change the `job_talk`
 database role password in PostgreSQL, update both `POSTGRES_PASSWORD` and the
 URL-encoded password in `DATABASE_URL`, then recreate the backend service. The
-production Compose and deployment tickets will provide the exact VM commands.
+production commands are in [production operations](docs/production-operations.md).
 
 To rotate the SMTP password, replace `SMTP_PASSWORD` in the VM environment file
 and recreate the backend service. Existing recruiter sessions remain valid;
@@ -408,20 +408,27 @@ new sign-in codes use the updated SMTP credentials.
 
 ## Production Compose
 
-Deployment and further production work are paused pending the usability plan and
-user approval. The package below is retained for later use.
+Production Compose/HTTPS preparation is authorized in JT-070. VM deployment
+remains paused pending user acceptance and an explicit deployment request.
 
-[`production.docker-compose.yaml`](production.docker-compose.yaml) builds backend
+[`prod.docker-compose.yaml`](prod.docker-compose.yaml) builds backend
 and frontend images under one Git commit tag. PostgreSQL, FastAPI, and the
 frontend have no host port bindings. The public Nginx proxy is the only service
 that publishes ports, on `80:80` and `443:443`, and it sends `/api/` directly to
 FastAPI while serving the frontend at `/`.
+Open `http://your-subdomain` on port 80; after certificate setup it redirects to
+`https://your-subdomain` on port 443. The production project is `job_talk_prod`,
+separate from the development containers and data.
 
-The production package keeps staging behind HTTP basic authentication, obtains
+The production package keeps the staging webpage behind HTTP basic authentication, obtains
 TLS certificates through a pinned Certbot container, checks renewal twice a day,
 and reloads changed certificates without restarting Nginx. Exact password,
 certificate, build, start, health, log, upgrade, rollback, and shutdown commands
 are in [`docs/production-operations.md`](docs/production-operations.md).
+API routes use the application's existing Bearer-token, ownership and guest
+scope checks; the webpage password gate does not replace those checks. Public
+API routes remain public through Nginx. Gemini and `ADMIN_EMAIL` are configured
+in the ignored production environment file, never in frontend build arguments.
 
 ## Database migrations and recovery
 
@@ -520,7 +527,7 @@ Read the aggregate report from an operator shell:
 docker compose -f dev.docker-compose.yaml exec -T backend python -m app.experiment_report
 ```
 
-For the VM, run the same module with `production.docker-compose.yaml`. The report
+For the VM, run the same module with `prod.docker-compose.yaml`. The report
 shows unique visitors, starts, submissions, comparison opens, recruiters who
 compared, seven-day returns, and feedback response/usefulness totals.
 
