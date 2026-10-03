@@ -4,6 +4,20 @@ $formJobId = $null
 $formGuestSession = $null
 $formRecruiterSession = Invoke-JavaScript "sessionStorage.getItem('job-talk-session')"
 
+function Assert-MatchScore {
+    return Invoke-JavaScript @'
+(async () => {
+  const token=JSON.parse(sessionStorage.getItem('job-talk-session')).access_token;
+  const chatId=Number(document.querySelector('.chat-row.active').dataset.chatId);
+  const submitted=document.querySelector('.application-match')?.textContent.includes('Submitted match');
+  const items=await fetch('http://localhost:8000/api/'+(submitted ? 'applications' : 'chats/'+chatId+'/recommendations'),{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
+  const score=submitted ? items.find(item=>item.candidate_chat_id===chatId)?.match_result.overall_score : items[0]?.match_score;
+  if (!Number.isFinite(score) || document.querySelector('.application-match strong')?.textContent !== Math.round(score*100)+'%') throw new Error('Visible match score differs from saved backend score');
+  return score;
+})()
+'@
+}
+
 function Save-Answer([string]$key, [string]$value) {
     $keyJson = $key | ConvertTo-Json -Compress
     $valueJson = $value | ConvertTo-Json -Compress
@@ -19,9 +33,20 @@ function Save-Answer([string]$key, [string]$value) {
 })()
 "@ | Out-Null
     Wait-JavaScript "document.querySelector('.application-summary [role=status]')?.textContent.includes('Answer saved') && !document.querySelector('.typing')" 'saved answer'
+    Assert-MatchScore | Out-Null
 }
 
 try {
+    Invoke-JavaScript @'
+(async () => {
+  const icon=document.querySelector('link[rel=icon]');
+  const logo=document.querySelector('.brand-mark');
+  if (!icon || !logo?.complete || !logo.naturalWidth || icon.href !== logo.src) throw new Error('Shared logo/favicon is missing');
+  const response=await fetch(icon.href);
+  if (!response.ok || !response.headers.get('content-type')?.includes('image/svg+xml')) throw new Error('SVG browser icon did not load');
+  return true;
+})()
+'@ | Out-Null
     Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('[data-template-id=generic-role]') !== null" 'template picker'
     Invoke-JavaScript "document.querySelector('[data-template-id=generic-role]').click(); true" | Out-Null
@@ -44,23 +69,31 @@ try {
     Invoke-JavaScript "document.querySelector('.entry-job').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#answer-working_hours') !== null" 'application form'
     $formGuestSession = Invoke-JavaScript "sessionStorage.getItem('job-talk-session')"
+    Wait-JavaScript "/^\d+%$/.test(document.querySelector('.application-match strong')?.textContent)" 'initial match score'
+    $initialMatch = Assert-MatchScore
     if (Invoke-JavaScript "document.querySelector('.messages .job-card, .messages .application-review, .application-summary .draft-state') !== null || document.querySelector('[data-field-key=working_hours] p') !== null") { throw 'Duplicate application details remain' }
     if (-not (Invoke-JavaScript "document.querySelector('.application-summary button.primary.full')?.disabled")) { throw 'Submit should require consent' }
     Save-Answer 'experience' '1.5 years building Python APIs'
+    if ((Assert-MatchScore) -le $initialMatch) { throw 'Saved experience did not improve the initial match score' }
     Save-Answer 'working_hours' '40 hours a week'
     if (Invoke-JavaScript "document.querySelectorAll('.message-wrap.user').length !== 0") { throw 'Form changes cluttered chat' }
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'I am based in Cape Town. Correction: I can work 30 hours a week.'
     Wait-JavaScript "document.querySelector('#answer-working_hours')?.value.includes('30') && !document.querySelector('.typing')" 'chat correction in form' 45
+    $beforeGap = Assert-MatchScore
     if (-not (Invoke-JavaScript "document.querySelector('#answer-experience')?.value === '1.5 years building Python APIs'")) { throw 'Chat changed unrelated form answer' }
     Save-Answer 'experience' "I don't have that experience"
+    if ((Assert-MatchScore) -ge $beforeGap) { throw 'Reported gap did not reduce the match score' }
     if (-not (Invoke-JavaScript "document.querySelector('[data-field-key=experience]')?.dataset.fieldState === 'gap'")) { throw 'Honest gap was not recorded' }
     Invoke-JavaScript "[...document.querySelectorAll('.application-summary button')].find(b=>b.getAttribute('aria-label') === 'Clear Working hours answer').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#answer-working_hours')?.value === '' && !document.querySelector('.typing')" 'cleared answer'
+    Assert-MatchScore | Out-Null
     Save-Answer 'working_hours' '30 hours a week'
     Save-Screenshot 'seeker-form-desktop.png'
     Invoke-JavaScript "window.__formReload=true; true" | Out-Null
     Invoke-Cdp 'Page.reload' | Out-Null
     Wait-JavaScript "!window.__formReload && document.querySelector('#answer-working_hours')?.value === '30 hours a week'" 'saved answers after reload'
+    Wait-JavaScript "/^\d+%$/.test(document.querySelector('.application-match strong')?.textContent)" 'reloaded match score'
+    Assert-MatchScore | Out-Null
     Set-Viewport 390 760 $true
     Invoke-JavaScript "document.querySelector('.application-summary').scrollIntoView({block:'start',behavior:'instant'}); true" | Out-Null
     Save-Screenshot 'seeker-form-phone.png'
@@ -82,8 +115,10 @@ try {
     Save-Screenshot 'seeker-form-submit-phone.png'
     Invoke-JavaScript "document.querySelector('.application-review').requestSubmit(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.submitted-bar')?.textContent.includes('Application submitted')" 'submitted from sidebar'
+    Wait-JavaScript "/^\d+%$/.test(document.querySelector('.application-match strong')?.textContent)" 'submitted match score'
+    Assert-MatchScore | Out-Null
     if (Invoke-JavaScript "document.querySelector('.application-review') !== null || !document.querySelector('#answer-working_hours').readOnly") { throw 'Submitted form remains editable' }
-    Write-Output 'Seeker form browser check passed: direct save, chat correction, preserved answers, gap, clear, reload, phone layout and explicit consent/submit.'
+    Write-Output 'Seeker form browser check passed: shared logo/favicon, backend match score after edits/chat/gap/clear/reload/submission, phone layout and consent/submit.'
     Write-Output "Screenshots: $OutputDirectory"
 } finally {
     if ($formGuestSession) {

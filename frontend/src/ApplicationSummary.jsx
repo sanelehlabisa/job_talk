@@ -12,7 +12,7 @@ function requirementText(field) {
   return `${field.target ?? ""}${field.unit ? ` ${field.unit}` : ""}`;
 }
 
-export function ApplicationSummary({ fields, job, profile, submitted, closed, busy, onChange, onEditingChange, onSubmit, children }) {
+export function ApplicationSummary({ fields, job, profile, matchScore, submitted, closed, busy, onChange, onEditingChange, onSubmit, children }) {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -50,6 +50,10 @@ export function ApplicationSummary({ fields, job, profile, submitted, closed, bu
   return (
     <details className="template-draft application-summary" open>
       <summary>Your application</summary>
+      {(!closed || submitted) && <div className="application-match" aria-live="polite">
+        <div><span>{submitted ? "Submitted match" : "Match so far"}</span><strong>{busy ? "Updating…" : Number.isFinite(matchScore) ? `${Math.round(matchScore * 100)}%` : "Unavailable"}</strong></div>
+        <small>Based on {submitted ? "submitted" : "saved"} answers, not a hiring decision.</small>
+      </div>}
       <p>{submitted ? "Your submitted answers are saved." : closed ? "This job is no longer accepting applications." : "Edit an answer or describe it in chat. An honest skill gap is a valid answer."}</p>
       <SourceNotice source={job.source} />
       <ul>{fields.map((field) => (

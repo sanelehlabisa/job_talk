@@ -23,7 +23,7 @@ button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #d46f3c; outline-offset: 3px; }
 
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-.brand-mark { width: 37px; height: 37px; display: grid; place-items: center; color: white; background: var(--green); border-radius: 12px 12px 12px 4px; }
+.brand-mark { width: 37px; height: 37px; display: block; flex-shrink: 0; }
 .primary { border: 0; background: var(--green); color: white; padding: 12px 18px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-weight: 600; transition: .2s ease; }
 .primary:hover { background: var(--green-dark); transform: translateY(-1px); }
 .primary:disabled { opacity: .65; cursor: default; transform: none; }
@@ -361,6 +361,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .draft-state.gap { background: #fff0df; color: #88521d; }
 .application-summary li[data-field-state="captured"], .application-summary li[data-field-state="gap"] { border-color: #a7c6a3; }
 .application-summary .application-review { border: 0; border-top: 1px solid #dce3da; border-radius: 0; background: transparent; padding: 12px 0 0; }
+.application-match { margin-top: 14px; padding: 10px 12px; background: #edf4ec; border-radius: 9px; color: var(--green); }
+.application-match > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.application-match strong { font-size: 18px; }
+.application-match small { display: block; margin-top: 4px; font-size: 10px; line-height: 1.5; color: #596961; }
 .discovery-empty { margin: 20px 0; padding: 18px; border: 1px solid #dce3da; border-radius: 12px; background: white; font-size: 13px; line-height: 1.6; }
 .discovery-empty p { color: var(--muted); margin-bottom: 0; }
 .discovery-sidebar .discovery-empty { margin: 0 0 12px; padding: 14px; }

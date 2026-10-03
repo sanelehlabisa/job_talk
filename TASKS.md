@@ -26,7 +26,7 @@ scrapers, template management, or deployment work.
 
 The user approved merging the completed history through JT-071 (`fae157a`)
 into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
-Current user priority: **JT-072**, a simpler editable seeker application form.
+Current user priority: **JT-073**, a chat logo/favicon and a visible candidate match score.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -53,6 +53,21 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-073 - Chat logo and candidate match score
+
+- [x] Use one small chat-bubble SVG for the app logo and browser tab icon.
+- [x] Show the backend's match percentage above the selected-job application
+  form; refresh after chat replies and direct edits/clears. Submitted applications
+  show their saved score. Keep the form simple and scoring on the backend.
+- [x] Build the frontend and check the icon, score changes and phone layout.
+
+**Status:** Implemented on `feat/simple-seeker-form`. Frontend build and local
+desktop/phone browser checks passed. The SVG loads as the shared logo/favicon.
+Visible percentages matched API results after direct edits, chat correction,
+reported gap, clear, reload and submission. Test guest deleted and fictional job
+closed. No scoring changes or database reset; master merge and deployment remain
+pending user approval.
 
 ### JT-072 - One editable seeker application form
 

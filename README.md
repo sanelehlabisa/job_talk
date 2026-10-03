@@ -52,6 +52,9 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   layout. Edit or clear your answers directly, or fill them through chat. Review
   contact details, consent and **Submit application** at the bottom of this form.
   Application cards and the separate review panel are removed from the chat.
+- JT-073 adds a shared chat-bubble logo/browser icon and **Match so far** above
+  the application form. The backend score refreshes after chat replies and saved
+  edits; submitted applications show their original saved match percentage.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. JT-065 uses the same recruiter workspace for admin, with
   all job-creation chats, owner labels and editing controls. Ordinary recruiters

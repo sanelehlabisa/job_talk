@@ -22,7 +22,7 @@ import { SourceNotice, InterestSummary } from "./JobSources";
 function Brand() {
   return (
     <div className="brand">
-      <div className="brand-mark"><MessageCircleMore size={23} strokeWidth={2.2} /></div>
+      <img className="brand-mark" src="/branding/jobtalk.svg" alt="" width="37" height="37" />
       <span>job talk</span>
     </div>
   );
@@ -599,6 +599,9 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
   const [selecting, setSelecting] = useState(false);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
+  const applicationScore = submitted
+    ? applications.find((item) => item.candidate_chat_id === chat?.id)?.match_result?.overall_score
+    : recommendations.find((item) => item.job.id === chat?.target_job_id)?.match_score;
   const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : chat?.status === "closed" ? "Closed" : chat?.status === "draft" ? "Draft" : "Live profile";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
@@ -696,7 +699,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
         </div>
       </div>
       {chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
-      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary key={chat.id} fields={chat.application_fields || []} job={chat.target_job} profile={chat.profile} submitted={submitted} closed={chat.status === "closed"} busy={sending} onChange={changeAnswer} onEditingChange={setEditingDraft} onSubmit={apply}>
+      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary key={chat.id} fields={chat.application_fields || []} job={chat.target_job} profile={chat.profile} matchScore={applicationScore} submitted={submitted} closed={chat.status === "closed"} busy={sending} onChange={changeAnswer} onEditingChange={setEditingDraft} onSubmit={apply}>
         {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
       </ApplicationSummary></aside>}
       {chat.intent === "candidate" && !chat.target_job_id && <aside className="draft-sidebar discovery-sidebar" aria-label="Job suggestions">
@@ -864,6 +867,13 @@ function JobTalkApp() {
     const chatId = chat.id;
     const updated = await api.editApplicationField(chatId, value);
     setChat((current) => current?.id === chatId ? updated : current);
+    if (chatId === activeChatId.current) setRecommendations([]);
+    try {
+      const items = await api.recommendations(chatId);
+      if (chatId === activeChatId.current) setRecommendations(items);
+    } catch {
+      if (chatId === activeChatId.current) setError("Your answer was saved, but the match score could not refresh. Reload the view to try again.");
+    }
     return updated;
   }
 

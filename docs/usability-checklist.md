@@ -18,6 +18,18 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Logo and visible match score (JT-073)
+
+Check that the browser tab uses the app's chat-bubble logo. Open a job as a
+candidate and check **Match so far** above the form. Save an answer, correct it
+in chat, then report a gap; the score should reflect the saved evidence. After
+submission, **Submitted match** uses the saved application score.
+
+**Engineering checks:** Frontend build and the existing `-SeekerFormOnly`
+desktop/phone browser check passed. Displayed scores were compared with backend
+results after edits, chat correction, gap, clear, reload and submission. The SVG
+loaded successfully for both the page logo and favicon. No scoring code changed.
+
 ### Editable seeker application (JT-072)
 
 1. Open a published job as a seeker. Check that **Your application** shows one
