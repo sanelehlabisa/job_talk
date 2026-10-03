@@ -4,7 +4,8 @@ param(
     [switch]$TemplatesOnly,
     [switch]$RecruiterDraftOnly,
     [switch]$AdminOnly,
-    [switch]$VacancyOnly
+    [switch]$VacancyOnly,
+    [switch]$DraftEditorOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -150,6 +151,10 @@ try {
     }
     if ($VacancyOnly) {
         . "$PSScriptRoot/manual-vacancy-check.ps1"
+        return
+    }
+    if ($DraftEditorOnly) {
+        . "$PSScriptRoot/draft-editor-check.ps1"
         return
     }
 

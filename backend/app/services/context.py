@@ -22,6 +22,7 @@ class ChatContext(TypedDict):
     messages: list[ContextMessage]
     user_message_count: NotRequired[int]
     job_draft: NotRequired[dict | None]
+    form_edit: NotRequired[dict]
 
 
 def build_chat_context(

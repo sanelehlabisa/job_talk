@@ -15,6 +15,39 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Recruiter form control (JT-067)
+
+1. Describe a role in one message. Check that red fields mean missing/unclear
+   answers and green fields mean confirmed/not required.
+2. Ask chat to add a separate job-related requirement, such as soldering PCB
+   components. Check the new label and description.
+3. Use **Add a field**, then **Save & polish** with a misspelled requirement.
+   Edit it again; confirm its meaning is preserved. If AI is unavailable, the
+   notice must say the original wording was saved.
+4. Remove a field. Click **Done** or say "ready for publication": blank optional
+   suggestions disappear; required job details and unclear answers remain.
+5. Refresh and check the saved form. Only **Publish job** makes it public; the
+   published criteria then remain locked. Try this at phone width too.
+
+**Engineering checks, 2026-10-03:** The full 108-test backend suite passed, followed
+by 20 final draft/history checks covering removal and numeric guards. The frontend
+production build passed. Real Gemini
+captured the reported Durban paragraph, added soldering through chat, polished
+a misspelled form edit and stored an age restriction as an informational note
+excluded from scoring. Done and explicit publication passed in disposable SQLite.
+The real browser also passed emailed sign-in, add/polish, edit, remove, Done,
+reload and phone layout; its dedicated fictional draft remains unpublished.
+This is implementation evidence; the user's manual usability approval is pending.
+
+Repeat the browser check with an approved test recruiter:
+
+```powershell
+./scripts/local-signoff.ps1 -RecruiterEmail draft-editor-check@example.com -DraftEditorOnly
+```
+
+The check makes three real AI requests when a provider is enabled. It creates
+only its own fictional draft and leaves it unpublished.
+
 ### Local test data incident, 2026-10-03
 
 During JT-064, an incorrectly isolated pytest run imported the application before

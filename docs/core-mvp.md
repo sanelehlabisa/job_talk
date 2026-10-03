@@ -155,8 +155,25 @@ Title, description, and source metadata do not become scoring criteria.
 
 Publication requires a clear title and role description, arrangement/location
 rules (including any remote location restriction or explicit lack of one), at
-least one meaningful confirmed assessment criterion, and all other template
-fields confirmed or explicitly not required. The **Publish** action stays final.
+least one meaningful confirmed assessment criterion, and all remaining fields
+confirmed or explicitly not required. The **Publish** action stays final.
+
+JT-067 lets recruiters edit, add and remove fields directly in the same summary.
+Save sends the current chat and one explicit form edit to AI for polishing, then
+validates it before updating the saved draft and scoring profile. Form edits are
+recorded in the conversation, so later replies see the recruiter's corrections.
+If polishing is unavailable, a notice says the original wording was saved.
+Numeric targets retain their quantity/unit; weights are never client-controlled.
+
+**Done**, including "ready for publication" in chat, removes unanswered optional
+suggestions. It preserves title, duties, work arrangement, location rules and any
+partially answered requirement needing clarification. Removed keys stay in the
+draft JSON so historical quotes cannot reintroduce them; a new explicit request
+can restore them. An explicit chat request to remove a field also removes it.
+Unanswered/unclear fields show red labels; confirmed/not-required fields show green.
+Age and other personal characteristics are informational notes only and are
+excluded from the candidate application structure, scores and matching filters.
+No new table, migration or template-management system is introduced.
 
 ## Candidate flow
 

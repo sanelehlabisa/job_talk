@@ -662,10 +662,11 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
   );
 }
 
-function ChatView({ chat, recommendations, applications, isAdmin, onSend, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
+function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraftChange, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  const [editingDraft, setEditingDraft] = useState(false);
   const [applied, setApplied] = useState({});
   const [reviewing, setReviewing] = useState(null);
   const [selecting, setSelecting] = useState(false);
@@ -708,6 +709,14 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onPubl
   async function selectJob(jobId) {
     setSelecting(true);
     try { await onSelectJob(jobId); } finally { setSelecting(false); }
+  }
+
+  async function changeDraft(action, value) {
+    if (sendingRef.current) throw new Error("Wait for the current change to finish.");
+    sendingRef.current = true;
+    setSending(true);
+    try { return await onDraftChange(action, value); }
+    finally { sendingRef.current = false; setSending(false); }
   }
 
   return (
@@ -759,14 +768,14 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onPubl
           <div ref={bottomRef} />
         </div>
       </div>
-      {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} /></aside>}
+      {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
       {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
       </div>
-      {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" disabled={sending} onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
+      {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" disabled={sending || editingDraft} onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>{chat.target_job?.source ? "Your interest is saved with Job Talk. It has not been sent to the advertised employer." : "Your approved snapshot is now frozen for the recruiter."}</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
-          <textarea aria-label="Conversation message" rows="1" maxLength="5000" disabled={sending} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
-          <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
+          <textarea aria-label="Conversation message" rows="1" maxLength="5000" disabled={sending || editingDraft} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
+          <button aria-label="Send message" disabled={!text.trim() || sending || editingDraft}><Send size={18} /></button>
         </div>
         <small>Job Talk turns your conversation into a structured profile.</small>
       </form>}
@@ -906,6 +915,16 @@ function JobTalkApp() {
     try { await api.publish(chat.job_post.id); await loadChat(chat.id); await loadChats(false); } catch (err) { setError(err.message); }
   }
 
+  async function changeDraft(action, value) {
+    const chatId = chat.id;
+    const result = action === "done" ? await api.finishDraft(chatId)
+      : action === "remove" ? await api.removeDraftField(chatId, value)
+      : await api.editDraftField(chatId, value);
+    setChat((current) => current?.id === chatId ? result.chat : current);
+    try { await loadChats(false); } catch (err) { setError(err.message); }
+    return result;
+  }
+
   async function closeJob() {
     if (!window.confirm("Close this recruitment and stop new applications?")) return;
     try { await api.closeJob(chat.job_post.id); await loadChat(chat.id); await loadChats(false); } catch (err) { setError(err.message); }
@@ -958,7 +977,7 @@ function JobTalkApp() {
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
       {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} isAdmin={user.is_admin} onCancel={() => setTemplateChoices(null)} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
-          <ChatView chat={chat} recommendations={recommendations} applications={applications} isAdmin={user.is_admin} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
+          <ChatView chat={chat} recommendations={recommendations} applications={applications} isAdmin={user.is_admin} onSend={send} onDraftChange={changeDraft} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>
       ) : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" type="button" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>

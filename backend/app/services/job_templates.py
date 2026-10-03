@@ -35,6 +35,7 @@ class JobDraft(BaseModel):
     description: str
     fields: list[DraftField]
     source: VacancySource | None = None
+    removed_keys: list[str] = Field(default_factory=list)
 
 
 class DraftUpdate(BaseModel):
@@ -65,6 +66,39 @@ ALIASES = {
     "tools": ("tools", "tool", "equipment"),
 }
 
+ESSENTIAL_FIELDS = {"job_title", "role_description", "working_arrangement", "location"}
+
+
+def informational_only(key: str, label: str, target, description: str) -> bool:
+    """Personal characteristics are never inputs to automated hiring scores."""
+    wording = f"{key.replace('_', ' ')} {label} {target} {description}"
+    return bool(re.search(
+        r"\b(age|aged|birth|gender|sex|race|racial|ethnicity|ethnic|religion|religious|"
+        r"disability|disabled|marital|pregnant|pregnancy)\b|"
+        r"\b(?:younger|older) than\b|\byears? old\b|"
+        r"\b(?:under|over) \d+\b(?![.\d]|\s*(?:years?|months?|weeks?|days?|hours?|minutes?|percent|%|kg|cm)\b)",
+        wording, re.I,
+    ))
+
+
+def remove_draft_field(draft: dict, key: str) -> dict:
+    result = JobDraft.model_validate(draft)
+    if key in ESSENTIAL_FIELDS:
+        raise ValueError("Keep the role, description, work arrangement and location rules.")
+    if not any(field.key == key for field in result.fields):
+        raise ValueError("Field not found.")
+    result.fields = [field for field in result.fields if field.key != key]
+    result.removed_keys = list(dict.fromkeys([*result.removed_keys, key]))
+    return result.model_dump()
+
+
+def finish_draft(draft: dict) -> dict:
+    """Drop only blank optional suggestions, never partially answered requirements."""
+    for field in JobDraft.model_validate(draft).fields:
+        if field.key not in ESSENTIAL_FIELDS and field.state == "unanswered" and field.target is None:
+            draft = remove_draft_field(draft, field.key)
+    return draft
+
 
 def _mentions(field: DraftField, text: str) -> bool:
     terms = (*ALIASES.get(field.key, ()), field.label, field.key.replace("_", " "))
@@ -85,6 +119,8 @@ def _explicit_exclusion(field: DraftField, source: str, expected: str | None) ->
         return close[0] if close else word
     source = re.sub(r"[a-zA-Z]+", correct_word, source)
     names = "(?:" + "|".join(re.escape(term) for term in terms) + ")"
+    if re.search(rf"\b(?:remove|delete|drop) (?:the )?{names}\b", source, re.I):
+        return not re.search(r"\b(?:not|don't|do not|never)\b", source, re.I)
     return bool(re.search(
         rf"\b(?:no (?:specific |prior |formal )?{names}\b|{names} (?:is |are )?not (?:required|needed)|"
         rf"(?:don't|do not) (?:need|require) (?:a |any )?{names}\b|without (?:a |any )?{names}\b)", source, re.I))
@@ -115,6 +151,7 @@ def draft_profile(draft: dict) -> dict:
         }
         for f in JobDraft.model_validate(draft).fields
         if f.scope == "criterion" and f.state == "confirmed" and f.target is not None
+        and not informational_only(f.key, f.label, f.target, f.description)
     }
 
 
@@ -158,6 +195,18 @@ def _title_supported(title: str, source: str) -> bool:
     return True
 
 
+def _new_label_supported(label: str, source: str) -> bool:
+    # Allow paraphrasing/spelling repairs without inventing a wholly unrelated skill.
+    generic = {"required", "preferred", "requirement", "requirements", "ability", "knowledge",
+               "skill", "skills", "experience", "familiarity", "proficiency", "restriction",
+               "restrictions", "minimum", "maximum", "level", "limit"}
+    words = re.findall(r"[a-z0-9+#]+", source.casefold())
+    label_words = re.findall(r"[a-z0-9+#]+", label.casefold())
+    meaningful_words = [word for word in label_words if word not in generic] or label_words
+    return any(word in words or (len(word) >= 5 and get_close_matches(word, words, n=1, cutoff=.75))
+               for word in meaningful_words)
+
+
 def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                         earlier_user_texts: list[str] | None = None) -> dict:
     """Validate grounding, types and explicit exclusions before changing a draft."""
@@ -180,14 +229,18 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,59}", update.key):
             continue
         field = fields.get(update.key)
+        if from_history and update.key in result.removed_keys:
+            continue
         if field is None:
             # Prefer existing labels/keys; never manufacture a duplicate criterion.
             field = next((f for f in result.fields if f.label.casefold() == update.label.casefold()), None)
+        if from_history and field is None and result.removed_keys:
+            continue  # A removed criterion must not return under a new synonym/key.
         if from_history and field is not None and (field.state != "unanswered" or field.source_quote):
             continue  # Earlier wording may fill a gap, never restore superseded answers.
         if field is None:
-            if (len(result.fields) >= 24 or not 2 <= len(update.label) <= 80
-                    or update.label.casefold() not in source.casefold()):
+            if (len(result.fields) >= 24 or not 2 <= len(update.label.strip()) <= 80
+                    or not _new_label_supported(update.label, source)):
                 continue
             field = DraftField(key=update.key, label=update.label, type=update.type,
                                weight=.85, description="Details not confirmed.")
@@ -198,6 +251,11 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
             if field.key in {"job_title", "role_description", "working_arrangement"}:
                 continue
             if not _explicit_exclusion(field, source, expected):
+                continue
+            if field.key not in ESSENTIAL_FIELDS and re.search(r"\b(remove|delete|drop)\b", source, re.I):
+                result.fields = [f for f in result.fields if f.key != field.key]
+                result.removed_keys = list(dict.fromkeys([*result.removed_keys, field.key]))
+                fields.pop(field.key, None)
                 continue
             field.target, field.unit, field.state = None, None, "not_required"
             field.importance = "unspecified"
@@ -210,7 +268,7 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                     target = "on-site"
             supporting_source = source
             if field.target == target and field.type == update.type and field.source_quote:
-                supporting_source += " " + field.source_quote
+                supporting_source = field.source_quote + " " + source
             if update.state == "confirmed" or target is not None:
                 if update.type == "number":
                     if (isinstance(target, bool) or not isinstance(target, (int, float))
@@ -261,7 +319,12 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                 if field.key not in ALIASES or field.key in {"skills", "tools", "education"}:
                     if field.importance == "unspecified":
                         field.state = "needs_clarification"
+        if 2 <= len(update.label.strip()) <= 80 and update.label.casefold() != field.label.casefold():
+            field.label = update.label.strip()
+        if informational_only(field.key, field.label, field.target, field.description):
+            field.scope, field.weight = "metadata", 0
         field.source_quote = source if update.state == "not_required" else supporting_source[-2000:]
+        result.removed_keys = [key for key in result.removed_keys if key != field.key]
         if field.key not in fields:
             result.fields.append(field)
             fields[field.key] = field

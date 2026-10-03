@@ -76,6 +76,28 @@ class MessageCreate(BaseModel):
     _clean_content = field_validator("content")(clean_message_text)
 
 
+class DraftFieldEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,59}$")
+    label: str = Field(min_length=2, max_length=80)
+    type: Literal["text", "number", "skill"] = "text"
+    target: str | float | bool
+    unit: str | None = Field(default=None, max_length=40)
+    importance: Literal["required", "preferred", "unspecified"] = "required"
+    description: str = Field(min_length=4, max_length=500)
+
+    _clean_fields = field_validator("label", "description")(clean_user_text)
+
+    @field_validator("target")
+    @classmethod
+    def clean_target(cls, value):
+        if isinstance(value, str):
+            value = clean_user_text(value)
+            if not 2 <= len(value) <= 500:
+                raise ValueError("Enter a requirement between 2 and 500 characters.")
+        return value
+
+
 class MessageOut(ORMModel):
     id: int
     sender: Literal["user", "assistant"]
@@ -141,6 +163,11 @@ class MessageResponse(BaseModel):
     chat: ChatOut
     assistant_message: MessageOut
     recommendations: list[RecommendationOut] = []
+
+
+class DraftEditResponse(BaseModel):
+    chat: ChatOut
+    notice: str
 
 
 class ApplyRequest(BaseModel):

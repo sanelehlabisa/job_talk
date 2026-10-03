@@ -90,8 +90,8 @@ def wants_to_publish(text: str) -> bool:
     normalized = re.sub(r"[^a-z0-9']+", " ", text.lower()).strip()
     return bool(
         re.fullmatch(
-            r"(?:(?:i(?:'m| am)?|we(?:'re| are)?) )?"
-            r"(?:am |are )?(?:done|finished|ready to publish)(?: now)?",
+            r"(?:(?:i(?:'m| am)?|we(?:'re| are)?|it(?:'s| is)|(?:the )?(?:job|role) is) )?"
+            r"(?:am |are )?(?:done|finished|ready (?:to publish|for publi(?:cation|cations)))(?: now)?",
             normalized,
         )
         or normalized

@@ -23,7 +23,7 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-066**, stop asking recruiters for answers already given.
+Current user priority: **JT-067**, let recruiters control the draft form directly.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -43,6 +43,34 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-067 - Recruiter controls the form; chat assists
+
+- [x] Add, edit and remove draft fields in the existing right-hand summary.
+  Save requests AI polishing of the chosen field; keep manual changes if the
+  provider is unavailable and say clearly when wording was not polished.
+- [x] Support readable new criterion labels in chat, retaining stable keys and
+  validating source quotes, quantities and backend-owned weights.
+- [x] Show red unanswered/unclear states and green confirmed/not-required states.
+  Done (or "ready for publication" in chat) removes blank optional fields while
+  keeping essential job details, unresolved requirements and explicit Publish.
+- [x] Preserve ownership/admin access, published locks and shared scoring keys;
+  removed fields cannot be revived by old chat history. Personal characteristics
+  such as age are informational notes, excluded from scores and filtering.
+- [x] Run isolated regressions, frontend build and actual Gemini/browser checks;
+  record the results separately from the user's usability sign-off.
+
+**Status:** Implemented (2026-10-03). No new tables or infrastructure.
+Deployment remains paused; this ticket does not replace JT-060 acceptance.
+
+**Checks:** The full isolated backend suite passed (108 tests), followed by 20
+focused final draft/history checks including chat removal and numeric-polishing
+guards. Frontend production build passed. Four actual Gemini calls in disposable
+SQLite verified the reported paragraph, a new soldering criterion, form wording
+polish and a non-scored age note, followed by Done and explicit publication.
+The real browser passed emailed sign-in, add/polish, edit, remove, Done, refresh
+and phone layout. Its dedicated fictional draft remains unpublished. The current
+user's chats were not changed. See the JT-067 manual checklist for user sign-off.
 
 ### JT-066 - Recover recruiter answers from the whole conversation
 

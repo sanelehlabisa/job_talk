@@ -78,8 +78,16 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - Template conversations can fill multiple fields in one answer and correct an
   existing field. Qualifications can be explicitly not required; text and
   practical skill targets do not need years. The backend only publishes once
-  every field is resolved, location rules are clear, and at least one meaningful
+  every remaining field is resolved, location rules are clear, and at least one meaningful
   assessment criterion is confirmed. Review the summary, then click **Publish**.
+- Recruiters can **Add a field**, **Edit**, or **Remove** in the right-hand form.
+  **Save & polish** asks AI to refine that field; if unavailable, the entered
+  value is saved with a notice. Red marks missing/unclear answers; green marks
+  confirmed/not-required fields. **Done** (or "ready for publication" in chat)
+  removes blank optional suggestions. Essential job details and partially answered
+  requirements remain. Review the result and use the separate **Publish job** button.
+  Personal characteristics such as age are informational only, excluded from
+  candidate scores and filters. Published requirements keep their existing lock.
 - When AI is unavailable, the chat explains guided mode once per conversation.
   Later replies go straight to the next question. Use explicit answers
   such as `Location: Cape Town`, `Working hours: weekdays`, or `No degree needed`.

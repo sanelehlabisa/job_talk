@@ -1,4 +1,5 @@
 import logging
+import re
 import secrets
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
@@ -43,8 +44,9 @@ from .services.matching import is_recommended, match_profiles, rank_jobs, summar
 from .services.ai import generate_reply, generate_turn, guided_reply
 from .services.email import send_recruiter_login_code
 from .services.job_templates import (
-    JobDraft, new_job_draft, starter_templates, apply_draft_updates,
+    JobDraft, DraftUpdate, new_job_draft, starter_templates, apply_draft_updates,
     draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
+    finish_draft, remove_draft_field, ESSENTIAL_FIELDS,
 )
 from .settings import get_settings
 
@@ -530,6 +532,97 @@ def get_chat(
     return serialize_chat(get_chat_or_404(db, chat_id, current_user))
 
 
+def sync_job_draft(chat: models.Chat, draft: dict):
+    job = chat.job_post
+    job.draft = draft
+    fields = {field["key"]: field for field in draft["fields"]}
+    job.title = fields["job_title"]["target"] or "Untitled role"
+    job.description = fields["role_description"]["target"] or ""
+    job.target_profile = draft_profile(draft)
+    chat.profile = job.target_profile
+
+
+def editable_draft(db: Session, chat_id: int, user: models.User) -> models.Chat:
+    chat = get_chat_or_404(db, chat_id, user)
+    if user.role != "recruiter" or chat.intent != "employer" or not chat.job_post or not chat.job_post.draft:
+        raise HTTPException(status_code=403, detail="Only recruiters can edit a job draft.")
+    if chat.status != "draft" or chat.job_post.published:
+        raise HTTPException(status_code=409, detail="Published or closed job requirements are locked.")
+    return chat
+
+
+def save_draft_action(db: Session, chat: models.Chat, draft: dict, action: str, notice: str):
+    sync_job_draft(chat, draft)
+    db.add(models.Message(chat_id=chat.id, sender="user", content=action))
+    db.add(models.Message(chat_id=chat.id, sender="assistant", content=notice))
+    db.commit()
+    db.refresh(chat)
+    return schemas.DraftEditResponse(chat=serialize_chat(chat), notice=notice)
+
+
+@app.put("/api/chats/{chat_id}/draft/field", response_model=schemas.DraftEditResponse)
+def edit_draft_field(chat_id: int, payload: schemas.DraftFieldEdit,
+                     current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    chat = editable_draft(db, chat_id, current_user)
+    fields = {field["key"]: field for field in chat.job_post.draft["fields"]}
+    key = payload.key or re.sub(r"[^a-z0-9]+", "_", payload.label.lower()).strip("_")[:60]
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,59}", key):
+        raise HTTPException(status_code=422, detail="Start the field label with a letter.")
+    if payload.key and key not in fields:
+        raise HTTPException(status_code=404, detail="Field not found.")
+    if not payload.key and (key in fields or any(f["label"].casefold() == payload.label.casefold() for f in fields.values())):
+        raise HTTPException(status_code=409, detail="That field already exists. Use Edit to change it.")
+    source = (f"Form edit — {payload.label}: {payload.target} {payload.unit or ''}. "
+              f"{payload.description} Importance: {payload.importance}.")
+    source = " ".join(source.split())
+    update = DraftUpdate(**payload.model_dump(exclude={"key"}), key=key,
+                         state="confirmed", source_quote=source)
+    draft = apply_draft_updates(chat.job_post.draft, [update], source)
+    saved = next((f for f in draft["fields"] if f["key"] == key), None)
+    if not saved or not saved["source_quote"].endswith(source) or saved["state"] != "confirmed":
+        raise HTTPException(status_code=422, detail="Check the value, type and importance. Add a clear requirement before saving.")
+    context = build_chat_context(chat)
+    context["form_edit"] = update.model_dump()
+    turn = generate_turn(context, "employer", source, "Polish only this form edit without changing its meaning.")
+    polished = False
+    for proposal in turn.template_updates or []:
+        if (proposal.key != key or proposal.type != update.type or proposal.state != "confirmed"
+                or proposal.importance != update.importance
+                or (update.type != "text" and (proposal.target != update.target or proposal.unit != update.unit))):
+            continue
+        candidate = apply_draft_updates(draft, [proposal], source)
+        accepted = next(f for f in candidate["fields"] if f["key"] == key)
+        if accepted != saved:
+            draft, saved, polished = candidate, accepted, True
+        elif proposal.source_quote in source and proposal.label == saved["label"] and proposal.target == saved["target"] and proposal.description == saved["description"]:
+            polished = True
+        break
+    notice = "Saved and polished. Review the wording before publishing." if polished else "Saved as entered. AI polishing was unavailable; you can edit the wording yourself."
+    if saved["scope"] == "metadata" and key not in ESSENTIAL_FIELDS:
+        notice += " This is an informational note; it is not used to score or filter applicants."
+    return save_draft_action(db, chat, draft, source, notice)
+
+
+@app.delete("/api/chats/{chat_id}/draft/fields/{key}", response_model=schemas.DraftEditResponse)
+def delete_draft_field(chat_id: int, key: str, current_user: models.User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    chat = editable_draft(db, chat_id, current_user)
+    field = next((f for f in chat.job_post.draft["fields"] if f["key"] == key), None)
+    try:
+        draft = remove_draft_field(chat.job_post.draft, key)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return save_draft_action(db, chat, draft, f"Removed field: {field['label']}.", "Field removed. " + draft_question(draft))
+
+
+@app.post("/api/chats/{chat_id}/draft/done", response_model=schemas.DraftEditResponse)
+def complete_draft(chat_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    chat = editable_draft(db, chat_id, current_user)
+    draft = finish_draft(chat.job_post.draft)
+    return save_draft_action(db, chat, draft, "Done — remove unanswered optional fields.",
+                             "Unanswered optional fields removed. " + draft_question(draft))
+
+
 @app.post("/api/chats/{chat_id}/messages", response_model=schemas.MessageResponse)
 def send_message(
     chat_id: int,
@@ -583,7 +676,9 @@ def send_message(
         job = chat.job_post
         context = build_chat_context(chat)
         guided_fallback = False
-        if not wants_to_publish(text):
+        if wants_to_publish(text):
+            sync_job_draft(chat, finish_draft(job.draft))
+        else:
             turn = generate_turn(context, chat.intent, text, draft_question(job.draft))
             updates = turn.template_updates
             if updates is None:
@@ -593,12 +688,12 @@ def send_message(
                 job.draft, updates, text,
                 [m.content for m in chat.messages if m.sender == "user"],
             )
-            fields = {field["key"]: field for field in job.draft["fields"]}
-            job.title = fields["job_title"]["target"] or "Untitled role"
-            job.description = fields["role_description"]["target"] or ""
-            job.target_profile = draft_profile(job.draft)
-            chat.profile = job.target_profile
+            sync_job_draft(chat, job.draft)
         reply = draft_question(job.draft)
+        if wants_to_publish(text):
+            reply = "Unanswered optional fields removed. " + reply
+        if any(f["scope"] == "metadata" and f["key"] not in ESSENTIAL_FIELDS for f in job.draft["fields"]):
+            reply += " Personal characteristics are informational only and are not used to score or filter applicants."
         if guided_fallback:
             reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"], recruiter=True)
     elif not chat.intent:
