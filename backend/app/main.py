@@ -40,7 +40,7 @@ from .services.context import build_chat_context
 from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers
 from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
-from .services.ai import generate_reply, generate_turn
+from .services.ai import generate_reply, generate_turn, guided_reply
 from .services.email import send_recruiter_login_code
 from .services.job_templates import (
     JobDraft, new_job_draft, starter_templates, apply_draft_updates,
@@ -616,7 +616,9 @@ def send_message(
             job.description = fields["role_description"]["target"] or ""
             job.target_profile = draft_profile(job.draft)
             chat.profile = job.target_profile
-        reply = ("I'm using guided questions for now. You can answer with a field label, such as Location: Cape Town. " if guided_fallback else "") + draft_question(job.draft)
+        reply = draft_question(job.draft)
+        if guided_fallback:
+            reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"], recruiter=True)
     elif not chat.intent:
         chat.intent = expected_intent
         if chat.intent == "employer":
@@ -709,7 +711,7 @@ def send_message(
             ) else "unclear" if chat.profile == candidate_profile_before and expected_criterion else None
         reply = candidate_reply(chat.profile, target_profile, candidate_answer_status)
         if turn.candidate_updates is None:
-            reply = "I'm using guided questions for now. " + reply
+            reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"])
         if target_profile is not None:
             chat.profile = {key: value for key, value in chat.profile.items() if key in target_profile}
     if template_turn:

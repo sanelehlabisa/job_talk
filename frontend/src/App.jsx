@@ -665,6 +665,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
 function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [applied, setApplied] = useState({});
   const [reviewing, setReviewing] = useState(null);
   const [selecting, setSelecting] = useState(false);
@@ -676,16 +677,25 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   if (!chat) return <div className="loading-screen"><div className="pulse" />Opening conversation…</div>;
 
   async function sendPrompt(message) {
-    if (sending) return false;
+    if (!message.trim() || sendingRef.current) return false;
+    sendingRef.current = true;
     setSending(true);
-    try { return await onSend(message); } finally { setSending(false); }
+    setText("");
+    try {
+      const sent = await onSend(message);
+      if (!sent) setText(message);
+      return sent;
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   }
 
   async function submit(event) {
     event.preventDefault();
     if (!text.trim() || sending) return;
     const message = text.trim();
-    if (await sendPrompt(message)) setText("");
+    await sendPrompt(message);
   }
 
   async function apply(candidateName, candidateLocation, preferredContact) {
@@ -719,7 +729,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {chat.messages.map((message) => (
             <div className={`message-wrap ${message.sender}`} key={message.id}>
               {message.sender === "assistant" && <div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
-              <div className="message"><p>{message.content}</p><time>{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
+              <div className="message"><p>{message.content}</p><time>{message.pending ? "Sending…" : new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div>
               {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
             </div>
           ))}
@@ -751,10 +761,10 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
       {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} /></aside>}
       {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
       </div>
-      {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
+      {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" disabled={sending} onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>{chat.target_job?.source ? "Your interest is saved with Job Talk. It has not been sent to the advertised employer." : "Your approved snapshot is now frozen for the recruiter."}</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
-          <textarea aria-label="Conversation message" rows="1" maxLength="5000" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
+          <textarea aria-label="Conversation message" rows="1" maxLength="5000" disabled={sending} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
         </div>
         <small>Job Talk turns your conversation into a structured profile.</small>
@@ -843,6 +853,9 @@ function JobTalkApp() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [showAdminJobs, setShowAdminJobs] = useState(false);
   const user = session?.user;
+  const activeChatId = useRef(chat?.id);
+
+  useEffect(() => { activeChatId.current = chat?.id; }, [chat?.id]);
 
   useEffect(() => { api.visit().catch(() => {}); }, []);
 
@@ -933,15 +946,26 @@ function JobTalkApp() {
   }
 
   async function send(content) {
+    const chatId = chat.id;
+    const pendingId = `pending-${crypto.randomUUID()}`;
+    setError("");
+    setChat((current) => current?.id === chatId ? {
+      ...current,
+      messages: [...current.messages, { id: pendingId, sender: "user", content, created_at: new Date().toISOString(), pending: true }],
+    } : current);
     let response;
     try {
-      response = await api.sendMessage(chat.id, content);
+      response = await api.sendMessage(chatId, content);
     } catch (err) {
+      setChat((current) => current?.id === chatId ? {
+        ...current, messages: current.messages.filter((message) => message.id !== pendingId),
+      } : current);
       setError(err.message);
       return false;
     }
-    setChat(response.chat);
-    setRecommendations(response.recommendations);
+    setChat((current) => current?.id === chatId ? response.chat : current);
+    // A late reply must not replace another conversation's results.
+    setRecommendations((current) => chatId === activeChatId.current ? response.recommendations : current);
     try { await loadChats(false); } catch (err) { setError(err.message); }
     return true;
   }

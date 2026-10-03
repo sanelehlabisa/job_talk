@@ -74,9 +74,13 @@ Deployment resumes only after user acceptance and an explicit request to resume.
   practical skill targets do not need years. The backend only publishes once
   every field is resolved, location rules are clear, and at least one meaningful
   assessment criterion is confirmed. Review the summary, then click **Publish**.
-- When AI is unavailable, the chat identifies guided mode. Use explicit answers
+- When AI is unavailable, the chat explains guided mode once per conversation.
+  Later replies go straight to the next question. Use explicit answers
   such as `Location: Cape Town`, `Working hours: weekdays`, or `No degree needed`.
   This fallback is limited; it does not establish natural-language understanding.
+- Sending a message immediately shows your bubble and clears the composer while
+  the reply loads. Failed sends restore the text for retry; successful replies
+  replace the temporary bubble with the saved message.
 - Passwordless entry: job seekers start a private guest conversation immediately,
   while approved recruiters sign in with a short-lived email code.
 - Three realistic demo jobs, public links and a job picker, and a guest

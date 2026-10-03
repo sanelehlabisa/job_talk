@@ -179,7 +179,8 @@ quotes. They cannot return jobs or modify criteria, weights or scores. Validatio
 limits updates to actual criterion keys after selection and prevents an older
 statement from overwriting a later saved correction. If polished wording adds
 unsupported terms, the source wording is retained. The deterministic fallback
-keeps separate clauses' durations and gaps together and identifies guided mode.
+keeps separate clauses' durations and gaps together and identifies guided mode
+once per conversation, without repeating the notice in every reply.
 Both paths reject an explicitly different known trade/tool as evidence for a
 scoped experience requirement: Python years must not satisfy plumbing years.
 Keep the original experience wording so the recruiter can see its scope. This

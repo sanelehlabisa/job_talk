@@ -23,6 +23,7 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
+User-prioritized fix **JT-063** is implemented; return to JT-060 acceptance.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
 The final usability ticket covers the whole experience, including owner access
 and manually entered jobs. JT-057 is complete. JT-058 is implemented with
@@ -39,6 +40,32 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-063 - Immediate message feedback and quieter guided replies
+
+- [x] Show the user's bubble and clear the composer as soon as Send is pressed,
+  including starter prompts and pasted vacancy text. Keep the reply loading state.
+- [x] Replace the temporary bubble with the saved conversation without duplicates;
+  prevent duplicate sends, and restore the draft with an error if sending fails.
+  A late reply must not switch the user back from another conversation.
+- [x] Explain guided fallback once per chat instead of repeating "I'm using
+  guided questions for now" on every recruiter/candidate response.
+- [x] Check delayed success, failure/retry and conversation switching in the
+  browser; run focused backend checks and the frontend production build.
+
+**Status:** Implemented (2026-10-03). Guided replies introduce the fallback only
+once, using the saved chat history even beyond the model's context window. The
+user bubble appears immediately with a sending label; the composer is cleared
+and disabled until completion. Failures remove the temporary bubble and restore
+the draft, and a late reply does not replace another conversation.
+
+**Checks:** 15 focused backend tests passed (recruiter drafts, candidate updates,
+and the new notice regressions), and the frontend production build passed. A
+headless browser check with deliberately delayed synthetic replies verified the
+pending bubble, duplicate-send prevention, success replacement, failure/retry,
+starter prompts and switching chats while a reply is pending. Desktop/phone
+screenshots were reviewed. This check used no live LLM calls or database writes;
+deployment and full JT-060 sign-off stay paused.
 
 ### JT-057 - Add simple job templates
 
