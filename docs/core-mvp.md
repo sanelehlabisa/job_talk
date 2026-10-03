@@ -13,10 +13,12 @@ apply through chat, and can the recruiter compare candidates clearly?**
 ## Current usability target (2026-10-03)
 
 The conversation fills a shared structure; it does not remove that structure.
-The user has not accepted the current app as usable. Deployment is paused while
-the planned tickets JT-057 through JT-062 in [TASKS.md](../TASKS.md) improve the
-existing flow. Passing prior scripted tests does not replace manual acceptance.
-The behavior below describes the target. JT-057 supplies the template picker and
+The user has not completed final usability sign-off. The planned production URL
+is `https://jobtalk.roventics.com`; live DNS/TLS/SMTP checks and VM deployment are
+pending. JT-070 prepared and locally verified production HTTPS. JT-069 keeps
+published chats editable, preserves submitted scores and shows immediate job
+examples. Passing scripted tests does not replace manual acceptance.
+The behavior below describes the implemented loop. JT-057 supplies the template picker and
 persisted draft structure. JT-058 implements validated template updates,
 not-required handling, the live summary and publication gate.
 JT-059 adds explicit candidate selection, structured updates and a live application

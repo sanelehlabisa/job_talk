@@ -43,12 +43,13 @@ still stops applications and does not hide the recruiter's chat.
 ## Current usability priority (2026-10-03)
 
 VM deployment is paused. The user authorized production Compose/HTTPS preparation
-in JT-070; implement and check that configuration locally. Follow the current P0 order in
-`TASKS.md` (JT-057 through JT-062). Completed scripted demos are engineering
+in JT-070, which passed isolated local checks. The chosen production address is
+`https://jobtalk.roventics.com`; it is not yet verified live. JT-071 records current
+readiness and environment organization. Follow `TASKS.md`. Completed demos are engineering
 evidence; only the user's manual acceptance in JT-060 establishes usability.
 Resume deployment only when the user explicitly asks after accepting the flow.
 
-The next implementation uses three fixed templates and the existing database,
+The current implementation uses three fixed templates and the existing database,
 AI boundary, authentication, discovery chat, and comparison views. Templates are
 suggestions, never assumed requirements. Track unanswered, unclear, confirmed,
 and not-required fields; only confirmed assessment criteria are scored.
@@ -87,8 +88,8 @@ The primary experiment must support this sequence:
 ## AI boundary
 
 - Keep all response generation behind `backend/app/services/ai.py`.
-- Use the deterministic mock until a ticket explicitly introduces a real API or
-  local model.
+- Use the configured `AI_PROVIDER`; JT-064 introduced Gemini and local testing
+  uses it. Mock mode remains for deterministic tests and explicit offline work.
 - Pass the complete authorized chat as model context; never mix chats or silently
   truncate individual messages/history. Oversized inputs use the bounded fallback.
 - Recruiter updates may recover unanswered fields from earlier user quotes.

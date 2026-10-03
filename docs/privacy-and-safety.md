@@ -4,6 +4,31 @@ The public `/privacy` page is the user-facing summary. The operator must replace
 `SUPPORT_EMAIL` with a monitored address before building the production frontend.
 Use that inbox for privacy, abuse, access, and deletion reports.
 
+## API access boundary
+
+Production is planned for `https://jobtalk.roventics.com`. Only Nginx exposes
+host ports 80/443. FastAPI and PostgreSQL have no public host ports; `/api/`
+still reaches the backend through HTTPS and enforces application authentication.
+
+Private routes require an expiring `Authorization: Bearer <token>` session.
+The backend stores a token hash, rejects unknown/expired tokens, and revokes the
+session on logout. A login code is short-lived and single-use, not an API token.
+Approved recruiters access their own hiring chats/jobs and submitted applicants;
+the approved configured admin can manage all hiring chats and applications.
+Guest sessions access only their own candidate chat and application. Recruiter
+and admin applicant views expose submitted snapshots, not full candidate chats.
+
+Job listings, guest-session creation, code requests/verification, health and
+anonymous visit counting are intentionally public endpoints. They do not list
+candidate chats or contact details. The staging HTTP Basic password applies to
+the webpage; API authorization remains the backend's responsibility.
+
+**Verified 2026-10-03:** 22 focused isolated tests passed for session expiry,
+approval, login codes, recruiter ownership, guest isolation and admin access.
+JT-070 also checked anonymous rejection and valid Bearer access through the
+production proxy locally. This is scoped engineering verification; the live VM
+configuration and real-domain access still need testing before inviting users.
+
 ## Operator application review
 
 The approved recruiter whose email matches backend `ADMIN_EMAIL` uses the shared
@@ -66,9 +91,10 @@ case rather than bypassing the guard.
 ## Abuse and logging
 
 Nginx limits all API traffic to five requests per second per address and limits
-POST and DELETE operations to 30 requests per minute with a small burst. The
-backend also limits recruiter email codes per approved address. Keep the private
-staging password enabled until the operator is ready to monitor the support inbox.
+POST, PUT, PATCH and DELETE operations to 30 requests per minute with a small
+burst. The backend also limits recruiter email codes per approved address.
+Keep the staging webpage password enabled until the operator is ready to monitor
+the support inbox.
 
 Application logs must contain operation names, record IDs when needed, status,
 and exception types only. Do not add message text, names, contact details,

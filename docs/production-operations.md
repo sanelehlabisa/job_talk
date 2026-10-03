@@ -1,5 +1,9 @@
 # Production Compose operations
 
+**Target:** `https://jobtalk.roventics.com`. The production environment example
+already sets this domain, HTTPS origin, allowed host and CORS origin. DNS, trusted
+TLS, real SMTP and the live hiring flow have not yet been verified on the VM.
+
 The production package keeps PostgreSQL, FastAPI, and the built frontend on
 private Compose networks. Only the Nginx proxy publishes host ports 80 and 443.
 Run every command from the release directory on the VM.
@@ -17,8 +21,11 @@ retain its existing volumes. Do not run that older project beside development.
 ## Prepare a release
 
 1. Check out the exact Git commit to deploy and confirm the working tree is clean.
-2. Copy `.env.production.example` to `.env.production` and replace every
-   placeholder. Set `JOB_TALK_IMAGE_TAG` to the full Git commit SHA. The
+2. Copy `.env.production.example` to `.env.production` and replace every secret
+   and email placeholder; retain the chosen `jobtalk.roventics.com` domain fields.
+   Sections group release, database, backend, authentication, email, LLM, frontend
+   and Nginx/TLS settings. Keep development `.env` local. Set `JOB_TALK_IMAGE_TAG`
+   to the full Git commit SHA. The
    preflight rejects a tag that differs from the checked-out commit so all three
    application images share the reviewed release identity.
 3. Create the private staging password file. `htpasswd` prompts for the password

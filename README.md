@@ -27,11 +27,16 @@ candidate evidence and match explanations reference those same stable keys. The
 contract and intentionally narrow scope are in
 [`docs/core-mvp.md`](docs/core-mvp.md).
 
-## Current priority: local usability
+## Current status: deployment preparation and usability sign-off
 
-**Deployment is paused (2026-10-03).** The existing automated demos pass, but the
-user has not signed off the app as usable. The conversation should fill a shared
-structure that both the recruiter and candidate can read and correct.
+**Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
+This is the chosen destination, not confirmation that the service is live.
+
+The core hiring loop works locally. JT-069 added editing after publication and
+immediate seeker job examples; all 118 backend tests and the focused browser
+checks passed. JT-070 prepared `prod.docker-compose.yaml` and verified Nginx/HTTPS
+in an isolated local stack. Production preparation is authorized; VM deployment
+and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
@@ -48,6 +53,11 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   all job-creation chats, owner labels and editing controls. Ordinary recruiters
   keep access to their own chats and applications. JT-062 adds manual entry of
   source-labelled vacancies through the existing draft/review/publish flow.
+- JT-069: published recruiter chats remain editable; **Publish changes** updates
+  the live job while preserving submitted scores. Discovery shows real examples
+  immediately and updates suggestions using confirmed job requirements.
+- JT-070: production images build; isolated HTTP bootstrap, HTTPS routing and
+  Bearer-token access passed. Real DNS, certificates and SMTP still need VM checks.
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
   The latest guided comparison checks fixed unrelated experience being counted
@@ -69,6 +79,39 @@ in the development stack. Protected endpoints already use expiring bearer
 sessions issued after sign-in; the single-use login code is not an API token.
 Manually entered vacancies retain their source details in the existing job draft.
 Deployment resumes only after user acceptance and an explicit request to resume.
+
+### Deployment readiness
+
+Ready for a controlled VM setup once its environment is configured; **not yet
+verified for a public launch**. Before inviting candidates:
+
+- Point `jobtalk.roventics.com` to the VM and allow Nginx ports 80/443.
+- Prepare ignored `.env.production` with strong database/session secrets, working
+  SMTP, the selected LLM key, monitored contact addresses and `ADMIN_EMAIL`.
+  A local `.env.production` has not been created in this workspace.
+- Issue the real certificate, run the renewal dry-run, verify backups and test
+  email-code login plus create/apply/compare on the live domain.
+- Complete the [manual usability check](docs/usability-checklist.md). The latest
+  completed work is on `feat/production-https-compose`; merge into `master` still
+  needs explicit approval.
+
+The [production guide](docs/production-operations.md) contains the commands.
+
+### Protection of private information
+
+| Information or action | Server-side protection |
+| --- | --- |
+| Chats, messages, drafts and job edits | Expiring Bearer token plus chat/job ownership; approved admin can manage hiring chats. |
+| Submitted applications and contact details | The candidate's own session, the owning approved recruiter, or the configured approved admin. |
+| Admin-only vacancy-interest totals | Approved recruiter matching backend `ADMIN_EMAIL`, checked on each request. |
+| Public listings, guest entry, code sign-in and health checks | Intentionally public; they do not expose candidate chats or applications. |
+
+Tokens are random, stored as hashes on the backend, checked for expiry, and
+revoked on logout. Email codes are short-lived and single-use; the code itself
+cannot authorize API calls. Nginx is the only production service with host ports,
+and requests to private API routes still require app authentication through it.
+The staging webpage password is an extra webpage gate, not the API's data guard.
+See [privacy and access details](docs/privacy-and-safety.md).
 
 ## Existing implementation
 
@@ -416,8 +459,8 @@ and frontend images under one Git commit tag. PostgreSQL, FastAPI, and the
 frontend have no host port bindings. The public Nginx proxy is the only service
 that publishes ports, on `80:80` and `443:443`, and it sends `/api/` directly to
 FastAPI while serving the frontend at `/`.
-Open `http://your-subdomain` on port 80; after certificate setup it redirects to
-`https://your-subdomain` on port 443. The production project is `job_talk_prod`,
+Open `http://jobtalk.roventics.com` on port 80; after certificate setup it redirects
+to `https://jobtalk.roventics.com` on port 443. The production project is `job_talk_prod`,
 separate from the development containers and data.
 
 The production package keeps the staging webpage behind HTTP basic authentication, obtains
@@ -429,6 +472,10 @@ API routes use the application's existing Bearer-token, ownership and guest
 scope checks; the webpage password gate does not replace those checks. Public
 API routes remain public through Nginx. Gemini and `ADMIN_EMAIL` are configured
 in the ignored production environment file, never in frontend build arguments.
+Environment files are grouped into database, backend, authentication, email,
+LLM and frontend settings; production also has release and Nginx/TLS sections.
+Local `.env` stays ignored and retains its local settings. Copy the production
+example for the VM; its domain/origin fields already target `jobtalk.roventics.com`.
 
 ## Database migrations and recovery
 
@@ -636,8 +683,9 @@ provider error code without logging the API key or response data.
 
 ## Current limits and next steps
 
-The app uses text only, a small rule based vocabulary, and heuristic scores. It
-does not verify candidate skills or automate employer identity checks.
+The app uses text chat with a configured LLM (Gemini in local testing), a limited
+guided fallback, and deterministic backend scores. It does not verify candidate
+skills or automate employer identity checks.
 Submitted application data is visible to the candidate guest session, the recruiter
 that owns the relevant job, and the configured approved Job Talk operator, as
 explained during submission and on the privacy page. These recruiter/operator
@@ -650,12 +698,13 @@ remains unapproved. The current tickets improve the existing creation,
 application, and comparison flows. Advanced discovery, dashboards, integrations,
 and branding remain deferred.
 
-## Deployment goal - paused
+## Deployment goal: jobtalk.roventics.com
 
 The next milestone is the user's local usability acceptance. Deployment to a
-user-owned VM under a subdomain waits for that acceptance and an explicit request
-to resume. When deployment resumes, staging remains private while the production
-package and guest application boundary are verified. The experiment then exposes
+user-owned VM at `https://jobtalk.roventics.com` waits for that acceptance and an
+explicit request to resume. The production package is prepared and locally
+checked. Its staging webpage remains password-gated while the live domain,
+email and certificate are verified. The experiment then exposes
 published job pages and scoped guest applications while recruiter data stays
 behind authenticated ownership checks.
 
@@ -663,4 +712,6 @@ The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). I
 
 ## Project workflow
 
-[`AGENTS.md`](AGENTS.md) records the product boundaries, mock AI contract, safety requirements, and completion checks used for future tickets. The small robot artwork used for assistant messages is existing Roventics branding; Job Talk remains the primary product name in the interface.
+[`AGENTS.md`](AGENTS.md) records product boundaries, AI behavior, access controls,
+and completion checks. Chat participants use matching circular robot/person
+icons; Roventics branding appears in the footer. Job Talk is the primary product name.

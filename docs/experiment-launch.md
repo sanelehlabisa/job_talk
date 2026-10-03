@@ -1,5 +1,10 @@
 # Job Talk recruiter experiment
 
+**Planned app/QR destination:** `https://jobtalk.roventics.com`.
+Use it in launch material after DNS/TLS and the live hiring flow are verified.
+The local flow and production package have passed focused engineering checks;
+the VM launch and final user usability sign-off are still pending.
+
 ## Experiment statement
 
 **Question:** Will recruiters find conversational applications and structured

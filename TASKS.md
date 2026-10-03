@@ -24,8 +24,10 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-070**, prepare production Nginx/HTTPS and rename the
-production Compose file. JT-069 is committed and pushed as `988cc7d`.
+Current user priority: **JT-071**, record `https://jobtalk.roventics.com`, group
+environment settings and verify deployment/access status. JT-069 (`988cc7d`)
+and JT-070 (`097a0f1`) are committed and pushed on feature branches; master merge
+awaits explicit approval.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -52,6 +54,24 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-071 - Record deployment address and current readiness
+
+- [x] Record `https://jobtalk.roventics.com` in the README, context and production
+  example. Keep local development URLs and credentials unchanged.
+- [x] Group local `.env` and both example files by component. Keep `.env` ignored;
+  verify all local assignments are preserved without printing secret values.
+- [x] Reconcile docs with editable published jobs, Gemini, prepared HTTPS,
+  remaining live checks and the actual token/ownership boundaries.
+- [x] Validate both Compose files and rerun focused private-data access checks;
+  commit and push documentation/configuration updates.
+
+**Status:** Implemented (2026-10-03). Both Compose files validate quietly. All 11
+local environment assignments were preserved exactly; secrets stay ignored.
+The 22 focused auth/ownership/admin/guest tests passed in disposable SQLite.
+Production `.env.production` is not present locally. Domain choice is
+confirmed; DNS, VM secrets, SMTP, real TLS/renewal, backups and the live hiring
+flow remain unverified. This ticket does not deploy or approve a master merge.
 
 ### JT-070 - Production Compose name and HTTPS entry point
 
@@ -546,7 +566,8 @@ window, confirm Job Talk is the recipient, then inspect All jobs and its counts.
   evidence, and contact review/consent before submission.
 - [ ] Compare strong, partial, and unrelated applicants. Trace visible summaries,
   stored candidate values, weights, scores, exclusions, and plot axes back to the
-  exact same confirmed criteria. Retain the locked published job contract.
+  same confirmed criteria version. Published edits need explicit republishing;
+  earlier applications keep their original scores as implemented in JT-069.
 - [x] Exercise owner-curated job persistence and owner/recruiter/guest access
   boundaries from JT-061 and JT-062, including direct API requests.
 - [x] Record deterministic fallback tests separately from actual LLM runs. For
@@ -723,6 +744,10 @@ live desktop and phone create, publish, apply, compare, close, and delete workfl
 passed twice with fresh recruiters (2026-10-02).
 
 ### JT-052 - Freeze the published scoring contract
+
+**Historical behavior, superseded by JT-069:** Recruiter chats/forms now remain
+editable. Explicit **Publish changes** updates the live role; submitted scores
+retain their original requirements and are labelled when those requirements differ.
 
 - [x] Reject recruiter chat edits after a job is published.
 - [x] Hide the recruiter composer and explain that published criteria are locked.
@@ -1181,7 +1206,8 @@ the real subdomain on the VM (updated 2026-10-01).
 **Status:** Paused by the user (2026-10-03). Resume only after the current
 usability plan and JT-060 manual acceptance, with an explicit deployment request.
 
-- [ ] Choose the final subdomain and create its DNS record.
+- [x] Choose the final subdomain: `jobtalk.roventics.com` (user confirmed 2026-10-03).
+- [ ] Create or verify its DNS record against the VM's actual public IP.
 - [x] Add a production preflight that checks required values without printing
   secrets, verifies origin consistency and DNS, and validates Compose.
 - [ ] Configure the VM firewall to allow SSH, HTTP, and HTTPS only as required.

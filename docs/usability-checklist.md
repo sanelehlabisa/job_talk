@@ -6,7 +6,10 @@ implementation checks recorded in the recruiter and candidate test notes.
 JT-061 owner access and JT-062 manual vacancies passed backend/local browser
 checks, including persistence across restart (see TASKS.md). Live
 OpenAI attempts returned `credit_balance_exhausted`. JT-064's actual Gemini
-checks below cover one hiring flow and discovery extraction. Deployment stays paused.
+checks below cover one hiring flow and discovery extraction. JT-069 added
+published editing and immediate discovery examples; JT-070 verified the
+production package locally. The target is `https://jobtalk.roventics.com`;
+deployment and live-domain acceptance remain pending.
 
 Use fictional people and an approved test recruiter. Run the existing local
 stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
