@@ -37,12 +37,12 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
 
 - JT-057 adds three fixed templates and separate saved drafts. JT-058 implements
   validated field updates, explicit not-required answers, and a live **Who you're
-  looking for** summary. Live language verification is pending: the configured
-  provider returned `credit_balance_exhausted` on 2026-10-03.
+  looking for** summary. JT-064 verified a developer draft, correction and
+  publication with actual Gemini responses on 2026-10-03.
 - JT-059 implements two available-job cards, **Find a different job** across all
   open listings, explicit job selection, and a live **Your application** summary.
-  Deterministic/browser checks cover corrections and honest gaps; live language
-  verification is pending the same API-credit issue.
+  Deterministic/browser checks cover corrections and honest gaps. JT-064 also
+  verified one live Gemini application and a focused discovery extraction.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. **All jobs** shows drafts, open and closed jobs, and
   submitted applications across recruiters. Ordinary recruiters keep access
@@ -51,8 +51,14 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
   The latest guided comparison checks fixed unrelated experience being counted
-  toward a trade requirement and singular "one year" blocking a draft. All 84
-  backend tests pass; live AI verification and user sign-off remain open.
+  toward a trade requirement and singular "one year" blocking a draft. Broader
+  live language scenarios and user sign-off remain open.
+
+**Local data incident:** A JT-064 test setup error dropped the earlier development
+database tables. Those records are not recovered. The UI currently uses a
+separate seeded `job_talk_gemini_test` database; sign in again or use a private
+window. The affected volume is preserved and recovery is pending the user's
+answer. See the [incident record](docs/usability-checklist.md#local-test-data-incident-2026-10-03).
 
 Ready for a local hands-on check: follow the
 [quick walkthrough](docs/usability-checklist.md#quick-local-walkthrough) to create
@@ -129,7 +135,7 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - Each candidate card starts with a short strengths-and-gaps summary, followed by
   readable criterion cards showing candidate value, target, importance,
   assessment, and supporting evidence.
-- A deterministic guided fallback plus an optional OpenAI provider for recruiter
+- A deterministic guided fallback plus optional Gemini and OpenAI providers for recruiter
   answer classification and polished, measurable role criteria.
 - One bounded context assembler for response generation: selected job criteria,
   the structured draft, and only the last 12 messages from the authorized chat.
@@ -407,6 +413,15 @@ cd backend
 pytest
 ```
 
+Tests select disposable SQLite before importing the app, and the reset fixture
+refuses any other database. In Docker, use a separate container and select the
+test database before Python starts (never run database-reset tests against the
+development backend's PostgreSQL connection):
+
+```bash
+docker compose -f dev.docker-compose.yaml run --rm --no-deps -T -w /tmp -e PYTHONPATH=/app -e DATABASE_URL=sqlite:///./test_job_talk.db -e AI_PROVIDER=mock -e SEED_DEMO_JOBS=false --entrypoint /opt/venv/bin/pytest backend /app/app/tests -q -o cache_dir=/tmp/pytest-jobtalk
+```
+
 For the frontend, run `npm run build` inside `frontend`.
 
 With the development stack running on its default ports, Windows users with
@@ -503,13 +518,48 @@ any additional structured claims, and links back to the conversation for correct
 ## AI provider
 
 `backend/app/services/ai.py` keeps response generation behind one function and
-supports `mock` and `openai` providers. Mock mode remains the example default so
+supports `mock`, `gemini` and `openai` providers. Mock mode remains the example default so
 tests are deterministic and a missing provider cannot stop the application. It
 shows the same concise guided questions used by the backend, without development
 context or message diagnostics.
 
-To use OpenAI locally, place these values in the ignored `.env` file and rebuild
-the backend:
+### Gemini for local testing
+
+Put the key from Google AI Studio in the ignored `.env` file:
+
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.5-flash-lite
+AI_MAX_OUTPUT_TOKENS=3000
+AI_MAX_CALLS_PER_CHAT=12
+```
+
+Apply the settings, then open [the local UI](http://localhost:3000) and start a
+new conversation:
+
+```bash
+docker compose -f dev.docker-compose.yaml up -d --no-deps backend
+```
+
+`gemini-3.5-flash-lite` accepted live requests from the configured free-tier
+project on 2026-10-03. Google's older 2.5 Flash-Lite endpoint rejected generation
+for this new project. See [model availability](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-lite)
+and [current pricing and free-tier data use](https://ai.google.dev/gemini-api/docs/pricing).
+Use fictional data for these checks. Free-tier quotas still apply; no billing
+change, retry loop, search tool, or automatic upgrade is configured.
+
+The backend calls `generateContent` with minimal thinking and a JSON schema,
+using the existing bounded chat context and validation. Gemini proposes fields;
+the backend validates them, chooses the next question and calculates scores.
+The key is sent in a backend HTTP header, never in the browser or request URL.
+Provider failures use the guided fallback. Set `AI_PROVIDER=mock` and recreate
+the backend to return to deterministic testing.
+
+### OpenAI
+
+To use OpenAI locally, place these values in the ignored `.env` file and recreate
+the backend with the same Compose command:
 
 ```dotenv
 AI_PROVIDER=openai
@@ -532,7 +582,8 @@ and saves accepted measurable descriptions for review before publication.
 Each request has input, output, and timeout bounds, and each chat can make at most
 12 provider calls. Invalid, unavailable, limited, or over-budget provider responses
 use the current guided question and deterministic extraction, so job creation stays
-usable while OpenAI mode is selected. The backend logs the HTTP status and safe
+available while a real provider is selected. Guided extraction remains limited
+and is not evidence of successful LLM understanding. The backend logs the HTTP status and safe
 provider error code without logging the API key or response data.
 
 ## Current limits and next steps

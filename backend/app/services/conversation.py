@@ -186,6 +186,8 @@ def _criterion_terms(key: str, requirement: dict | None = None) -> set[str]:
 
 def _criterion_denied(text: str, key: str, requirement: dict | None = None) -> bool:
     lower = text.lower().strip()
+    # Willingness is not a denial; preserve other negatives in the same answer.
+    lower = re.sub(r"\b(?:don't|dont|do not) mind\b", "am open to", lower)
     if not NEGATION_PATTERN.search(lower):
         return False
     if lower in {"no", "none", "not yet", "never", "i don't", "i do not"}:
@@ -282,10 +284,15 @@ def _supports_expected_criterion(
 
 
 def _location(text: str) -> str | None:
+    known = re.search(
+        r"\b(?:in|from|near) (Cape Town|Johannesburg|Pretoria|Durban|Gqeberha|Bloemfontein|Stellenbosch|London|New York|Berlin|Nairobi)\b",
+        text, re.I,
+    )
+    if known:
+        return known.group(1).title()
     patterns = [
         r"(?:based|located|role|position|job) in ([A-Z][A-Za-z .'-]{2,40})",
         r"(?:from|near) ([A-Z][A-Za-z .'-]{2,40})",
-        r"\bin (Cape Town|Johannesburg|Pretoria|Durban|Gqeberha|Bloemfontein|Stellenbosch|London|New York|Berlin|Nairobi)\b",
     ]
     for pattern in patterns:
         match = re.search(pattern, text)

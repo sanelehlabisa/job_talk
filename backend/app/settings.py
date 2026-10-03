@@ -59,9 +59,11 @@ class Settings(BaseSettings):
     postgres_password: str | None = None
     auth_session_hours: int = Field(default=24, ge=1, le=168)
     session_token_pepper: str = "dev-only-session-token-pepper"
-    ai_provider: Literal["mock", "openai"] = "mock"
+    ai_provider: Literal["mock", "openai", "gemini"] = "mock"
     openai_api_key: SecretStr | None = None
     openai_model: str = Field(default="gpt-4o-mini", min_length=1, max_length=100)
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = Field(default="gemini-3.5-flash-lite", pattern=r"^[a-z0-9][a-z0-9.-]{0,99}$")
     ai_timeout_seconds: float = Field(default=20, ge=1, le=60)
     ai_max_output_tokens: int = Field(default=3000, ge=64, le=6000)
     ai_max_calls_per_chat: int = Field(default=12, ge=1, le=50)
@@ -131,6 +133,10 @@ class Settings(BaseSettings):
             or not self.openai_api_key.get_secret_value().strip()
         ):
             raise ValueError("OPENAI_API_KEY is required when AI_PROVIDER=openai")
+        if self.ai_provider == "gemini" and (
+            self.gemini_api_key is None or not self.gemini_api_key.get_secret_value().strip()
+        ):
+            raise ValueError("GEMINI_API_KEY is required when AI_PROVIDER=gemini")
         return self
 
 

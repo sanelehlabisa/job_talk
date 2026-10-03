@@ -9,6 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .job_sources import VacancySource
+from .criteria import NUMBER_WORDS
 
 class DraftField(BaseModel):
     key: str
@@ -180,6 +181,10 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
             field.description = "Not required by the recruiter."
         else:
             target = update.target
+            if field.key == "working_arrangement" and isinstance(target, str):
+                target = target.strip().casefold()
+                if target in {"onsite", "on site"}:
+                    target = "on-site"
             supporting_source = source
             if field.target == target and field.type == update.type and field.source_quote:
                 supporting_source += " " + field.source_quote
@@ -188,7 +193,6 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
                     if (isinstance(target, bool) or not isinstance(target, (int, float))
                             or not math.isfinite(target) or not 0 <= target <= 100000):
                         continue
-                    from .criteria import NUMBER_WORDS
                     numbers = {float(n) for n in re.findall(r"\b\d+(?:\.\d+)?\b", supporting_source)}
                     numbers.update(v for k, v in NUMBER_WORDS.items() if re.search(r"\b" + k + r"\b", supporting_source, re.I))
                     unit_pattern = (r"years?" if (update.unit or "").casefold() in {"year", "years"}
@@ -211,7 +215,10 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
                     continue
             # Reject invented quantities in polished descriptions/targets.
             proposed = f"{update.description} {target if isinstance(target, str) else ''}"
-            if not set(re.findall(r"\d+", proposed)).issubset(set(re.findall(r"\d+", supporting_source))):
+            source_numbers = set(re.findall(r"\d+", supporting_source))
+            source_numbers.update(str(value) for word, value in NUMBER_WORDS.items()
+                                  if re.search(r"\b" + word + r"\b", supporting_source, re.I))
+            if not set(re.findall(r"\d+", proposed)).issubset(source_numbers):
                 continue
             if not 4 <= len(update.description.strip()) <= 500:
                 continue

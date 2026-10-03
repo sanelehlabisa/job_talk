@@ -101,6 +101,9 @@ The primary experiment must support this sequence:
 - Keep secrets in ignored environment files or the VM secret store.
 - Add focused tests for backend behavior and run the frontend production build
   for UI changes.
+- Run database-reset tests in disposable SQLite with `DATABASE_URL` selected
+  before Python starts. Use the isolated Compose command in README. Never run
+  reset fixtures against development PostgreSQL; preserve the refusal guard.
 - Preserve deterministic seed and demo behavior.
 
 ## Experiment boundaries

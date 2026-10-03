@@ -23,16 +23,18 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-User-prioritized fix **JT-063** is implemented; return to JT-060 acceptance.
+JT-064 Gemini integration is implemented. Next: resolve the local data incident
+recorded below and return to **JT-060** acceptance with the user.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
 The final usability ticket covers the whole experience, including owner access
 and manually entered jobs. JT-057 is complete. JT-058 is implemented with
-deterministic checks; its live LLM acceptance remains open because API credit is
-exhausted. The user approved merging that work and proceeding with JT-059;
+deterministic checks; OpenAI API credit was exhausted. JT-064 now records a
+successful live Gemini developer-role and application check. The user approved
+merging the earlier work and proceeding with JT-059;
 candidate implementation checks are recorded below, with live acceptance also
 pending. JT-061 owner access and JT-062 manual vacancy entry are implemented and
-checked. JT-060 remains the acceptance gate; actual LLM checks and the user's
-hands-on sign-off are still open.
+checked. JT-060 remains the acceptance gate; broader actual LLM scenarios and
+the user's hands-on sign-off are still open.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
@@ -40,6 +42,47 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-064 - Test the hiring flow with Gemini's free tier
+
+- [x] Add Gemini behind the existing AI boundary, reusing validated updates,
+  current-chat context, deterministic scoring and the guided fallback.
+- [x] Use `gemini-3.5-flash-lite`, a small model with a documented free tier;
+  keep the key backend-only, cap calls/output, use minimal thinking and
+  avoid provider retries, tools or automatic model upgrades.
+- [x] Wire ignored `.env` settings into the development backend and document
+  setup. Do not change account billing or deployment configuration.
+- [x] Fix the reproduced lowercase-location and "don't mind" validation errors
+  so correct candidate answers can be saved and stop repeated questions.
+- [x] Run isolated regressions and a few fictional live Gemini conversations;
+  verify the browser receives real extracted fields and record the actual model,
+  outcomes and remaining limitations separately from mocked tests.
+
+**Status:** Implemented (2026-10-03), ready for UI testing with fictional data in
+the separate local `job_talk_gemini_test` database. The user-supplied key stays in
+ignored `.env`. Deployment and full usability sign-off remain paused.
+
+**Checks:** 95 isolated backend tests passed; after the final recruiter casing
+and written-number fixes, 13 focused draft/provider checks and then all 11
+Gemini regressions passed. A real `gemini-3.5-flash-lite` browser conversation
+filled all ten developer draft fields from one paragraph, corrected one year to
+two, excluded qualifications, published explicitly, captured an accountless
+application, recorded a Git gap, and submitted with consent. The recruiter card
+showed a 77% deterministic match with the same two-year target and three-year
+candidate evidence. The browser check rejected guided fallback. Screenshots are
+under `%TEMP%/jobtalk-gemini-smoke`. A separate real Gemini discovery call saved
+Cape Town and hybrid preference without repeating the location question.
+This verifies these examples, not every JT-060 conversation. Free quotas can
+still trigger fallback; no billing changes were made.
+
+**Local data incident — unresolved:** An assistant test setup error imported the
+app before selecting SQLite and dropped the development `job_talk` application
+tables. Earlier jobs/chats/applications have not been recovered. Reset guards
+and a regression now prevent this test path from touching PostgreSQL or the
+normal SQLite database. The affected volume is preserved in an ignored archive;
+an older September 16 volume is untouched. UI testing uses a separate database
+with seeded jobs and the configured owner approved. The user's backup/recovery
+answer is pending. See the [incident record](docs/usability-checklist.md#local-test-data-incident-2026-10-03).
 
 ### JT-063 - Immediate message feedback and quieter guided replies
 

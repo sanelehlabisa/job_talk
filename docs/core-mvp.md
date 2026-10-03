@@ -18,12 +18,17 @@ the planned tickets JT-057 through JT-062 in [TASKS.md](../TASKS.md) improve the
 existing flow. Passing prior scripted tests does not replace manual acceptance.
 The behavior below describes the target. JT-057 supplies the template picker and
 persisted draft structure. JT-058 implements validated template updates,
-not-required handling, the live summary and publication gate; actual LLM
-acceptance is still pending (provider credit exhausted in the local check).
+not-required handling, the live summary and publication gate.
 JT-059 adds explicit candidate selection, structured updates and a live application
-summary; live candidate interpretation is also unverified because of exhausted
-API credit. JT-061 implements owner access; JT-062 adds manually entered,
+summary. JT-064 passed one developer hiring loop and discovery extraction with
+actual Gemini responses; broader live scenarios and user acceptance remain open.
+OpenAI attempts were blocked by exhausted API credit. JT-061 implements owner access; JT-062 adds manually entered,
 source-labelled vacancies and operator-only submission consent.
+
+The local UI currently uses a separate seeded Gemini test database after an
+assistant test-isolation error dropped the earlier development tables. Prior
+records are not recovered; see the [incident record](usability-checklist.md#local-test-data-incident-2026-10-03)
+before changing local database settings or removing volumes.
 
 ## One shared criteria contract
 

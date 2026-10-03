@@ -1,12 +1,12 @@
 # Manual usability check
 
-Status: **Pending actual LLM verification and user acceptance (2026-10-03).** This is
+Status: **Focused Gemini checks passed; broader scenarios and user acceptance pending (2026-10-03).** This is
 the acceptance checklist for JT-057 through JT-062. JT-057/JT-058/JT-059 have
 implementation checks recorded in the recruiter and candidate test notes.
 JT-061 owner access and JT-062 manual vacancies passed backend/local browser
 checks, including persistence across restart (see TASKS.md). Live
-OpenAI attempts returned `credit_balance_exhausted`; language quality remains
-unverified. Deployment stays paused.
+OpenAI attempts returned `credit_balance_exhausted`. JT-064's actual Gemini
+checks below cover one hiring flow and discovery extraction. Deployment stays paused.
 
 Use fictional people and an approved test recruiter. Run the existing local
 stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
@@ -14,6 +14,32 @@ flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
 
 ## Quick local walkthrough
+
+### Local test data incident, 2026-10-03
+
+During JT-064, an incorrectly isolated pytest run imported the application before
+selecting SQLite. Its reset fixture reached development PostgreSQL and dropped
+the application tables in `job_talk`. Existing jobs/chats/applications have **not
+been recovered**. This was an assistant test setup error, not a Gemini action.
+
+Tests now select SQLite before application imports and refuse to reset any
+connection other than the disposable test database. A regression verifies that
+PostgreSQL and the normal application SQLite filename are both rejected.
+
+The affected volume was stopped and preserved in ignored local storage at
+`backups/2026-10-03-test-incident/affected-postgres-volume.tar.gz`. This captures
+the state **after** the loss; it is not a working pre-incident backup. The older
+`job-talk_job_talk_data` Docker volume, last modified September 16, remains
+untouched. No recent backup has been located. Recovery or permission to abandon
+the earlier test records is pending the user's answer.
+
+For UI testing, local `.env` now selects `POSTGRES_DB=job_talk_gemini_test`, a
+separate database with three seeded jobs and the configured owner approved.
+Sign in again or use a private window; earlier sessions refer to the affected
+database. Do not remove the affected database, archive or older volume while
+the recovery question remains open.
+
+### Guided core loop
 
 Use this first to check the core loop. The labelled recruiter text also works in
 guided fallback; success here does not verify actual LLM understanding.
@@ -98,6 +124,9 @@ Record the result in this table when executing JT-060:
 | Deterministic/fallback scenarios | See [recruiter](recruiter-draft-checks.md) and [candidate](candidate-application-checks.md) engineering checks |
 | Actual LLM: provider/model, date, scenarios, outcomes | OpenAI / `gpt-4o-mini`, 2026-10-03; recruiter and candidate attempts blocked by API credit |
 | Live cases that fell back or failed | Both used guided fallback after HTTP 429 `credit_balance_exhausted` |
+| JT-064 actual Gemini | `gemini-3.5-flash-lite`, 2026-10-03: browser developer draft from one paragraph (10/10 fields), numeric correction, no degree, publish, accountless multi-field application, Git gap, consent/submit and recruiter comparison passed without fallback. Candidate scored 77%, with 3 years against the corrected 2-year target. Separate live discovery extraction captured Cape Town/hybrid and stopped the repeated location question. |
+| JT-064 failures and limits | 2.5 Flash-Lite returned 404 for this new project. Early 3.5 checks exposed rejected short source quotes, capitalized Hybrid, and descriptions converting written numbers to digits; prompt/validation fixes passed the final live developer flow. Plumber/Generic live conversations, broader ambiguity and user sign-off remain untested. |
+| JT-064 test safety | 95 isolated backend tests passed, followed by focused checks after the last validation fixes (13 draft/provider checks and all 11 Gemini regressions). Earlier incorrectly isolated run caused the local data incident documented above. |
 | Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
 | Owner/recruiter/guest access checks | JT-061: 78 backend tests and focused owner browser check passed; user acceptance pending |
 | Manual vacancies and persistence | JT-062: 81 backend tests, build, guided browser flow and two backend/PostgreSQL restarts passed with fictional data; no live LLM calls |

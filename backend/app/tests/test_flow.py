@@ -30,6 +30,8 @@ from app.settings import Settings
 
 
 def setup_function():
+    if engine.url.get_backend_name() != "sqlite" or engine.url.database != "./test_job_talk.db":
+        raise RuntimeError("Refusing to reset a database other than the disposable test SQLite database")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
