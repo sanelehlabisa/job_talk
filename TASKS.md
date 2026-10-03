@@ -23,7 +23,7 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-065**, simplify admin access to the recruiter workspace.
+Current user priority: **JT-066**, stop asking recruiters for answers already given.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -43,6 +43,38 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-066 - Recover recruiter answers from the whole conversation
+
+- [x] Send the complete authorized chat without the 12-message/800-character
+  truncation; preserve saved criteria, current-message priority and request caps.
+- [x] Let the model map natural wording and spelling mistakes to existing fields;
+  validate quoted evidence and types without requiring literal field labels.
+- [x] Recover unanswered fields from prior user statements in this chat without
+  overwriting later corrections or using assistant/template text as evidence.
+- [x] Reproduce the Durban graduate-electronics example with real Gemini, verify
+  qualifications/on-site/no-experience recovery, and ask only for actual gaps.
+  Add isolated regressions for history, corrections and unsupported evidence.
+
+**Status:** Implemented (2026-10-03). Gemini already identified most fields in the
+short reported chat; backend spelling/keyword checks rejected them. The prompt
+and validator also blocked recovery from earlier user messages. Known fields now
+accept natural classification, titles permit spelling repairs, and explicit
+"no experince" is accepted as not required. The full chat is sent; oversized
+input fails closed to fallback at 128,000 characters. Existing call/output caps
+remain, and historical evidence can only fill previously unanswered fields.
+
+**Checks:** All 103 isolated backend tests passed, including full-history and
+long-message preservation, cross-chat isolation, old-chat recovery, later
+corrections, unsupported quantities, unrelated titles and ambiguous exclusions.
+Actual `gemini-3.5-flash-lite` calls saved the misspelled first paragraph and a
+later change to two years. An old-state recovery initially failed because the
+model joined separated phrases into a source quote; the prompt now explicitly
+requires contiguous verbatim excerpts. The final live recovery accepted degree/
+60% requirements, no-experience and circuit skills from the original message.
+The next question was working hours, with availability/tools still unanswered.
+No saved user chats were changed by these tests. Broader language quality and
+user sign-off remain open; deployment stays paused.
 
 ### JT-065 - Use the same recruiter workspace for admin
 

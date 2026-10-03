@@ -3,6 +3,7 @@
 import json
 import math
 import re
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Literal
 
@@ -54,7 +55,7 @@ class DraftUpdate(BaseModel):
 ALIASES = {
     "job_title": ("job title", "title", "role", "hire", "hiring", "need"),
     "role_description": ("description", "responsibilities", "duties", "will", "build", "repair", "maintain"),
-    "working_arrangement": ("remote", "hybrid", "on-site", "onsite", "work arrangement"),
+    "working_arrangement": ("remote", "hybrid", "on-site", "onsite", "on site", "work arrangement"),
     "location": ("location", "based", "in", "anywhere", "worldwide", "restrictions"),
     "education": ("education", "degree", "qualifications", "qualification", "certificate", "certification", "diploma"),
     "experience": ("experience", "years", "project", "entry level", "entry-level"),
@@ -76,6 +77,13 @@ def _explicit_exclusion(field: DraftField, source: str, expected: str | None) ->
     if field.key == "location" and re.search(r"\b(anywhere|worldwide|no location restrictions|unrestricted)\b", source, re.I):
         return True
     terms = (*ALIASES.get(field.key, ()), field.label, field.key.replace("_", " "))
+    # Accept a small spelling error in an explicit exclusion, e.g. "no experince".
+    vocabulary = {word.casefold() for term in terms for word in term.split() if len(word) >= 5}
+    def correct_word(match):
+        word = match.group().casefold()
+        close = get_close_matches(word, vocabulary, n=1, cutoff=.8) if len(word) >= 5 else []
+        return close[0] if close else word
+    source = re.sub(r"[a-zA-Z]+", correct_word, source)
     names = "(?:" + "|".join(re.escape(term) for term in terms) + ")"
     return bool(re.search(
         rf"\b(?:no (?:specific |prior |formal )?{names}\b|{names} (?:is |are )?not (?:required|needed)|"
@@ -141,19 +149,33 @@ def draft_question(draft: dict) -> str:
     return questions.get(field.key, f"For {field.label}, what should applicants demonstrate, and is it required, preferred, or not needed?")
 
 
-def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> dict:
+def _title_supported(title: str, source: str) -> bool:
+    """Permit spelling repairs, but not extra qualifications or seniority in titles."""
+    words = re.findall(r"[a-z0-9]+", source.casefold())
+    for word in re.findall(r"[a-z0-9]+", title.casefold()):
+        if word not in words and not (len(word) >= 5 and get_close_matches(word, words, n=1, cutoff=.8)):
+            return False
+    return True
+
+
+def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
+                        earlier_user_texts: list[str] | None = None) -> dict:
     """Validate grounding, types and explicit exclusions before changing a draft."""
     result = JobDraft.model_validate(draft)
     fields = {f.key: f for f in result.fields}
     gaps = draft_gaps(draft)
     expected = gaps[0].key if gaps else None
     normalized = " ".join(text.casefold().split())
+    history = [" ".join(message.casefold().split()) for message in (earlier_user_texts or [])]
     vague = r"(?:that'?s fine|that is fine|fine|ok(?:ay)?|yes|no|sure|whatever|sounds good)[.! ]*"
     if re.fullmatch(vague, normalized):
         return result.model_dump()
     for update in updates[:24]:
         source = " ".join(update.source_quote.split())
-        if not source or len(source) > 1600 or source.casefold() not in normalized:
+        if not source or len(source) > 1600:
+            continue
+        from_history = source.casefold() not in normalized
+        if from_history and not any(source.casefold() in message for message in history):
             continue
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,59}", update.key):
             continue
@@ -161,16 +183,17 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
         if field is None:
             # Prefer existing labels/keys; never manufacture a duplicate criterion.
             field = next((f for f in result.fields if f.label.casefold() == update.label.casefold()), None)
+        if from_history and field is not None and (field.state != "unanswered" or field.source_quote):
+            continue  # Earlier wording may fill a gap, never restore superseded answers.
         if field is None:
             if (len(result.fields) >= 24 or not 2 <= len(update.label) <= 80
                     or update.label.casefold() not in source.casefold()):
                 continue
             field = DraftField(key=update.key, label=update.label, type=update.type,
                                weight=.85, description="Details not confirmed.")
-        if not _mentions(field, source) and field.key != expected:
-            # A title or description can be polished without repeating its label.
-            if field.key not in {"job_title", "role_description"}:
-                continue
+        # The model maps language to known fields; literal field labels are not
+        # required. Exact user quotes, explicit exclusions, types and quantities
+        # remain validated here. The guided parser still uses _mentions.
         if update.state == "not_required":
             if field.key in {"job_title", "role_description", "working_arrangement"}:
                 continue
@@ -211,7 +234,7 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
                     continue
                 if field.key == "job_title" and (not isinstance(target, str) or len(target) > 200):
                     continue
-                if field.key == "job_title" and target.casefold() not in source.casefold():
+                if field.key == "job_title" and not _title_supported(target, source):
                     continue
             # Reject invented quantities in polished descriptions/targets.
             proposed = f"{update.description} {target if isinstance(target, str) else ''}"

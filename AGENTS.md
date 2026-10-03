@@ -77,7 +77,10 @@ The primary experiment must support this sequence:
 - Keep all response generation behind `backend/app/services/ai.py`.
 - Use the deterministic mock until a ticket explicitly introduces a real API or
   local model.
-- Always pass only messages from the current chat as model context.
+- Pass the complete authorized chat as model context; never mix chats or silently
+  truncate individual messages/history. Oversized inputs use the bounded fallback.
+- Recruiter updates may recover unanswered fields from earlier user quotes.
+  Preserve later corrections and keep source quotes verbatim when polishing text.
 - Let AI interpret, clarify, and polish user statements into the shared criteria
   contract. The backend validates saved fields and owns weights, readiness, and
   every match score.

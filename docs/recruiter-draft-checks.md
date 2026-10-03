@@ -2,6 +2,33 @@
 
 Deployment remains paused. These are engineering checks, not user sign-off.
 
+## JT-066: complete history and repeated questions
+
+Actual Gemini / `gemini-3.5-flash-lite`, 2026-10-03: replaying the user's misspelled
+Durban graduate-electronics paragraph showed that the model already found the
+title, arrangement, degree/60% requirement and skills. The old validator rejected
+them because the wording did not literally match field labels or spelling.
+Recruiter updates were also restricted to quotes from the current message.
+
+The fix passes the entire authorized transcript, validates exact quotes while
+allowing natural mapping to known fields, accepts minor title/exclusion spelling
+errors, and permits old user evidence only for unanswered fields. Later saved
+corrections take precedence. Source quotes must be contiguous, not stitched from
+separate phrases; an initial recovery run exposed that issue and the prompt was
+corrected without relaxing the quote check.
+
+All 103 isolated backend tests passed. Real Gemini checks saved the initial
+paragraph, a later change to two years of experience, and recovered no-experience,
+qualifications and circuit knowledge in a reproduction of the older incomplete
+chat. Working hours was the next question. Availability and tools were not
+invented. These calls used disposable SQLite; existing user chats were untouched.
+
+To check the existing UI, refresh and continue the same draft with: "Use everything
+I already told you and ask only for missing details." Check the saved summary:
+Graduate Electronic Engineer, Durban, on-site, BSc/BEng with 60%+, experience not
+required, and circuit knowledge. Confirm only the genuinely unanswered fields
+remain. The original JT-058 checks below are retained as historical evidence.
+
 ## Implementation
 
 - Current-chat context includes saved template fields and states. Template

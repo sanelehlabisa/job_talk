@@ -4,9 +4,6 @@ from typing import NotRequired, TypedDict
 from .. import models
 
 
-MAX_CONTEXT_MESSAGES = 12
-
-
 class ContextMessage(TypedDict):
     role: str
     content: str
@@ -28,10 +25,10 @@ class ChatContext(TypedDict):
 
 
 def build_chat_context(
-    chat: models.Chat, message_limit: int = MAX_CONTEXT_MESSAGES
+    chat: models.Chat, message_limit: int | None = None
 ) -> ChatContext:
-    """Build the complete bounded context for one already-authorized chat."""
-    if message_limit < 1:
+    """Include the entire conversation for one already-authorized chat by default."""
+    if message_limit is not None and message_limit < 1:
         raise ValueError("message_limit must be positive")
     job = chat.target_job if chat.intent == "candidate" else chat.job_post
     return {
@@ -50,7 +47,7 @@ def build_chat_context(
            if job and job.draft and chat.intent == "employer" else {}),
         "messages": [
             {"role": message.sender, "content": message.content}
-            for message in chat.messages[-message_limit:]
+            for message in (chat.messages if message_limit is None else chat.messages[-message_limit:])
         ],
         "user_message_count": sum(
             message.sender == "user" for message in chat.messages

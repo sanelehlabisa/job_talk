@@ -137,8 +137,15 @@ Deployment resumes only after user acceptance and an explicit request to resume.
   assessment, and supporting evidence.
 - A deterministic guided fallback plus optional Gemini and OpenAI providers for recruiter
   answer classification and polished, measurable role criteria.
-- One bounded context assembler for response generation: selected job criteria,
-  the structured draft, and only the last 12 messages from the authorized chat.
+- One context assembler for response generation: selected job criteria,
+  the structured draft, and the complete authorized chat. Earlier messages are
+  neither cut to 800 characters nor dropped after 12 messages. An oversized
+  request falls back at 128,000 serialized characters instead of silently
+  discarding history; output and per-chat call caps still apply.
+- Recruiter answers can fill unanswered fields from earlier user messages.
+  Spelling repairs and natural wording can map to existing fields without
+  requiring literal labels. Exact source quotes, quantities, types and explicit
+  exclusions remain checked; older evidence cannot overwrite saved corrections.
 
 ## Stack
 
@@ -578,11 +585,17 @@ enabling it for invited users. The key is passed only to the backend container.
 
 OpenAI requests use the Responses API with strict JSON output validation and
 `store: false`. They contain the selected job, structured draft, current message,
-and at most the latest 12 messages from that authorized chat. Contact details and
+and the complete message history from that authorized chat. Submission contact details and
 other chats are excluded. For recruiter turns, the model returns a reply and
 categorized role updates with exact quotes from the latest message. The backend
 rejects updates without that support, assigns all weights, recalculates readiness,
 and saves accepted measurable descriptions for review before publication.
+
+Template-based recruiter updates can also quote earlier user messages to fill
+unanswered fields. If an older draft missed details, continue the same chat with
+"Use everything I already told you and ask only for missing details." JT-066
+verified this recovery with the misspelled Durban graduate-electronics example;
+hours, start availability and any tools still need answers if never specified.
 
 Each request has input, output, and timeout bounds, and each chat can make at most
 12 provider calls. Invalid, unavailable, limited, or over-budget provider responses

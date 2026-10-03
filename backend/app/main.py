@@ -589,7 +589,10 @@ def send_message(
             if updates is None:
                 guided_fallback = True
                 updates = fallback_draft_updates(job.draft, text)
-            job.draft = apply_draft_updates(job.draft, updates, text)
+            job.draft = apply_draft_updates(
+                job.draft, updates, text,
+                [m.content for m in chat.messages if m.sender == "user"],
+            )
             fields = {field["key"]: field for field in job.draft["fields"]}
             job.title = fields["job_title"]["target"] or "Untitled role"
             job.description = fields["role_description"]["target"] or ""

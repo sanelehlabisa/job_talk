@@ -117,13 +117,20 @@ nor metadata enter scoring. Private recruiter chat responses expose it as
 `job_draft`; public job responses do not include it. Existing no-template chats
 remain supported.
 
-Drafts start unanswered. The model proposes changed fields with exact source
-quotes from the current message, using the current chat and its saved draft.
+Drafts start unanswered. The model sees the complete authorized chat and saved
+draft. It proposes changed fields with exact source quotes from the current
+user message, or earlier user messages for unanswered fields. Older statements
+cannot overwrite saved corrections. Spelling repairs and natural wording can
+map to known fields without literal field labels; source quotes stay verbatim.
 The backend validates quotes, types, keys, explicit exclusions and quantities;
 owns weights and readiness; and rebuilds scoring criteria from confirmed fields.
 It asks the next unresolved question after saving, so rejected proposals cannot
 be announced as accepted. Polished descriptions still need recruiter review.
 Choosing a starter never confirms its title, criteria, or other suggestions.
+
+JT-066 removes the 12-message/800-character history truncation. The provider
+input has a 128,000-character ceiling; exceeding it triggers guided fallback
+instead of silently dropping earlier messages. Output and call caps remain.
 
 If the provider is unavailable, a small guided parser accepts explicit labelled
 answers and exclusions. This fallback is not a substitute for live LLM acceptance.

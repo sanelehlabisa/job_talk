@@ -2079,7 +2079,7 @@ def test_openai_provider_uses_guided_fallback_and_obeys_per_chat_limit(monkeypat
     assert len(calls) == 1
 
 
-def test_context_builder_is_bounded_and_never_mixes_guest_chats(monkeypatch):
+def test_context_builder_keeps_full_history_and_never_mixes_guest_chats(monkeypatch):
     captured = []
 
     def capture_context(context, intent, user_text, fallback):
@@ -2141,8 +2141,8 @@ def test_context_builder_is_bounded_and_never_mixes_guest_chats(monkeypatch):
         models.Message(sender="user", content=f"message {index}") for index in range(20)
     ]
     bounded_context = build_chat_context(bounded_chat)
-    assert len(bounded_context["messages"]) == 12
-    assert bounded_context["messages"][0]["content"] == "message 8"
+    assert len(bounded_context["messages"]) == 20
+    assert bounded_context["messages"][0]["content"] == "message 0"
     assert bounded_context["messages"][-1]["content"] == "message 19"
 
 
