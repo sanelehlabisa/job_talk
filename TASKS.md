@@ -23,7 +23,7 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-067**, let recruiters control the draft form directly.
+Current user priority: **JT-068**, simplify the recruiter form to labels and values.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -43,6 +43,25 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-068 - Simple label/value form and optional closing date
+
+- [x] Show one label and one directly editable value per field. Remove duplicate
+  descriptions/status badges and type/importance/unit controls from the editor.
+  Preserve stable criterion keys, types, units and weights behind the form.
+- [x] Keep Edit/Remove and add icons to Add/Edit/Remove/Save/Cancel/Done.
+- [x] Add optional closing date through chat or the form, saved in existing draft
+  JSON and excluded from scoring. No deadline is required to publish. After the
+  closing day (UTC), hide the vacancy and reject new applications server-side.
+- [x] Verify date capture, expiry, inline edits, saved semantics and mobile UI;
+  record actual Gemini checks separately from deterministic tests.
+
+**Status:** Implemented (2026-10-03). Deployment remains paused. No schema
+migration or scheduler. All 113 isolated backend tests passed, followed by 10
+focused final checks; the frontend production build passed. A real browser run
+verified Gemini date extraction/polishing, label/value inputs, direct edits,
+date-picker changes, CRUD, Done, reload and phone layout. Only a dedicated
+fictional draft was created and left unpublished. User sign-off remains pending.
 
 ### JT-067 - Recruiter controls the form; chat assists
 

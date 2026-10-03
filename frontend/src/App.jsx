@@ -223,6 +223,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
                   <span className="entry-job-copy">
                     <strong>{job.title}</strong>
                     <small>{job.description}</small>
+                    {job.closing_date && <small>Apply by {job.closing_date} (UTC)</small>}
                     <SourceNotice source={job.source} compact />
                     <span className="entry-job-action">Apply through chat</span>
                   </span>

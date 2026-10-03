@@ -7,7 +7,8 @@
     "experience": {"label": "Experience", "type": "text", "weight": 0.8, "description": "Relevant experience, which can include practical examples rather than years."},
     "education": {"label": "Qualifications", "type": "text", "weight": 0.45, "description": "Any required or preferred qualifications, or explicitly not required."},
     "working_hours": {"label": "Working hours", "type": "text", "weight": 0.5, "description": "Expected hours, shifts, or scheduling flexibility."},
-    "availability": {"label": "Start availability", "type": "text", "weight": 0.5, "description": "When the person needs to be available to start."}
+    "availability": {"label": "Start availability", "type": "text", "weight": 0.5, "description": "When the person needs to be available to start."},
+    "closing_date": {"label": "Closing date", "type": "text", "scope": "metadata", "description": "Optional last day to apply (YYYY-MM-DD)."}
   },
   "templates": [
     {

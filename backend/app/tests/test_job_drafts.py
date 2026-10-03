@@ -156,7 +156,7 @@ def test_template_provider_receives_saved_states_and_returns_strict_proposals(mo
     turn = generate_turn(context, "employer", "No degree needed", "Next question", Settings(_env_file=None, ai_provider="openai", openai_api_key="test"))
     assert turn.template_updates[0].state == "not_required"
     payload = json.loads(captured["input"])
-    assert len(payload["job_draft"]["fields"]) == 10
+    assert len(payload["job_draft"]["fields"]) == 11
     assert all("suggestion" not in f for f in payload["job_draft"]["fields"])
     schema = captured["text"]["format"]["schema"]
     assert schema["required"] == ["updates"]

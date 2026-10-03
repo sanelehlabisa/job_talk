@@ -3,6 +3,7 @@
 import json
 import math
 import re
+from datetime import datetime
 from difflib import get_close_matches
 from pathlib import Path
 from typing import Literal
@@ -64,9 +65,68 @@ ALIASES = {
     "availability": ("start", "available", "availability", "immediately", "notice"),
     "skills": ("skills", "skill"),
     "tools": ("tools", "tool", "equipment"),
+    "closing_date": ("closing date", "application deadline", "applications close", "deadline"),
 }
 
 ESSENTIAL_FIELDS = {"job_title", "role_description", "working_arrangement", "location"}
+
+
+def parse_closing_date(value: str) -> str | None:
+    """Explicit calendar dates only; never guess a year or an ambiguous slash date."""
+    value = re.sub(r"(\d)(?:st|nd|rd|th)\b", r"\1", value, flags=re.I)
+    patterns = ((r"\b\d{4}-\d{2}-\d{2}\b", ("%Y-%m-%d",)),
+                (r"\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b", ("%d %B %Y", "%d %b %Y")),
+                (r"\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b", ("%B %d %Y", "%b %d %Y")))
+    for pattern, formats in patterns:
+        match = re.search(pattern, value)
+        if match:
+            for fmt in formats:
+                try:
+                    return datetime.strptime(match.group().replace(",", ""), fmt).date().isoformat()
+                except ValueError:
+                    continue
+    return None
+
+
+def form_field_update(draft: dict, key: str, label: str, value: str) -> DraftUpdate:
+    """Keep types/weights behind a label/value form; preserve existing semantics."""
+    from .conversation import _importance
+    value = " ".join(value.split())
+    field = next((f for f in JobDraft.model_validate(draft).fields if f.key == key), None)
+    kind, target, unit = "text", value, None
+    importance = _importance(value) or (field.importance if field and field.importance != "unspecified" else "required")
+    state = "confirmed"
+    if re.fullmatch(r"(?:not required|not needed|none)[.! ]*", value, re.I):
+        state, target = "not_required", None
+        source = f"{label} is not required."
+    else:
+        year_match = re.search(r"(?<![\w.\-])(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\+?\s+years?\b", value, re.I)
+        years = (NUMBER_WORDS.get(year_match[1].lower()) if not year_match[1][0].isdigit()
+                 else float(year_match[1])) if year_match else None
+        if key == "closing_date":
+            target = parse_closing_date(value)
+            if not target:
+                raise ValueError("Enter a closing date with a year, such as 2026-11-30.")
+        elif (not field or field.scope != "metadata") and not informational_only(key, label, value, value) and (
+                (field and field.type == "number") or (years is not None and key not in ESSENTIAL_FIELDS | {"education", "availability", "working_hours"})):
+            kind = "number"
+            if years is not None:
+                target, unit = years, "years"
+            else:
+                match = re.fullmatch(r"(?:at least\s+)?(\d+(?:\.\d+)?)\s*(.*)", value, re.I)
+                if not match or (match[2] and match[2].casefold() != (field.unit or "").casefold()):
+                    raise ValueError("Enter an amount and its unit, such as 2 years, or clarify it in chat.")
+                target, unit = float(match[1]), field.unit
+                if unit and not match[2]:
+                    value += f" {unit}"
+        elif field and field.type == "skill":
+            kind, target = "skill", True
+        source = f"Form edit — {label}: {value}."
+    if key in {"job_title", "role_description", "closing_date"} or (field and field.scope == "metadata"):
+        importance = "unspecified"
+    return DraftUpdate(key=key, label=label, type=kind, target=target, unit=unit,
+                       importance=importance, state=state, description=value if len(value) >= 4 else f"{label}: {value}",
+                       source_quote=source)
 
 
 def informational_only(key: str, label: str, target, description: str) -> bool:
@@ -85,7 +145,7 @@ def remove_draft_field(draft: dict, key: str) -> dict:
     result = JobDraft.model_validate(draft)
     if key in ESSENTIAL_FIELDS:
         raise ValueError("Keep the role, description, work arrangement and location rules.")
-    if not any(field.key == key for field in result.fields):
+    if key != "closing_date" and not any(field.key == key for field in result.fields):
         raise ValueError("Field not found.")
     result.fields = [field for field in result.fields if field.key != key]
     result.removed_keys = list(dict.fromkeys([*result.removed_keys, key]))
@@ -97,6 +157,8 @@ def finish_draft(draft: dict) -> dict:
     for field in JobDraft.model_validate(draft).fields:
         if field.key not in ESSENTIAL_FIELDS and field.state == "unanswered" and field.target is None:
             draft = remove_draft_field(draft, field.key)
+    if not any(f["key"] == "closing_date" for f in draft["fields"]):
+        draft = remove_draft_field(draft, "closing_date")
     return draft
 
 
@@ -128,7 +190,8 @@ def _explicit_exclusion(field: DraftField, source: str, expected: str | None) ->
 
 def draft_gaps(draft: dict) -> list[DraftField]:
     fields = JobDraft.model_validate(draft).fields
-    gaps = [f for f in fields if f.state not in {"confirmed", "not_required"}]
+    gaps = [f for f in fields if f.state not in {"confirmed", "not_required"}
+            and not (f.key == "closing_date" and f.state == "unanswered")]
     arrangement = next((f.target for f in fields if f.key == "working_arrangement"), None)
     location = next(f for f in fields if f.key == "location")
     unrestricted_location = location.state == "not_required" or re.search(
@@ -182,6 +245,7 @@ def draft_question(draft: dict) -> str:
         "experience": "What relevant experience or practical example should applicants have, or is no experience required?",
         "working_hours": "What working hours or shifts apply, or are the hours unrestricted?",
         "availability": "When should they start, or is the start date flexible?",
+        "closing_date": "What is the closing date, including the year, or should we leave it out?",
     }
     return questions.get(field.key, f"For {field.label}, what should applicants demonstrate, and is it required, preferred, or not needed?")
 
@@ -240,10 +304,13 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
             continue  # Earlier wording may fill a gap, never restore superseded answers.
         if field is None:
             if (len(result.fields) >= 24 or not 2 <= len(update.label.strip()) <= 80
-                    or not _new_label_supported(update.label, source)):
+                    or (not _new_label_supported(update.label, source)
+                        and not (update.key == "closing_date" and re.search(r"\b(closing date|applications close|application deadline|deadline)\b", source, re.I)))):
                 continue
             field = DraftField(key=update.key, label=update.label, type=update.type,
                                weight=.85, description="Details not confirmed.")
+        if field.key == "closing_date":
+            field.scope, field.weight = "metadata", 0
         # The model maps language to known fields; literal field labels are not
         # required. Exact user quotes, explicit exclusions, types and quantities
         # remain validated here. The guided parser still uses _mentions.
@@ -294,12 +361,17 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                     continue
                 if field.key == "job_title" and not _title_supported(target, source):
                     continue
+            if field.key == "closing_date" and update.state == "confirmed":
+                parsed_date = parse_closing_date(str(target))
+                if not parsed_date or parsed_date != parse_closing_date(source):
+                    continue
+                target = parsed_date
             # Reject invented quantities in polished descriptions/targets.
             proposed = f"{update.description} {target if isinstance(target, str) else ''}"
             source_numbers = set(re.findall(r"\d+", supporting_source))
             source_numbers.update(str(value) for word, value in NUMBER_WORDS.items()
                                   if re.search(r"\b" + word + r"\b", supporting_source, re.I))
-            if not set(re.findall(r"\d+", proposed)).issubset(source_numbers):
+            if field.key != "closing_date" and not set(re.findall(r"\d+", proposed)).issubset(source_numbers):
                 continue
             if not 4 <= len(update.description.strip()) <= 500:
                 continue

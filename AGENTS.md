@@ -29,6 +29,11 @@ Candidate evidence and match results must reference that same criterion key.
 Update an existing criterion when the recruiter clarifies it; do not create a
 duplicate with different wording.
 
+Keep the recruiter form to a readable label and one editable value per field.
+Types, units, importance and descriptions remain in the backend contract; do not
+reintroduce separate controls or duplicate text. Closing date is optional job
+metadata, excluded from applicant scoring.
+
 ## Current usability priority (2026-10-03)
 
 Deployment is paused at the user's request. Follow the current P0 order in

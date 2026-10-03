@@ -80,14 +80,19 @@ Deployment resumes only after user acceptance and an explicit request to resume.
   practical skill targets do not need years. The backend only publishes once
   every remaining field is resolved, location rules are clear, and at least one meaningful
   assessment criterion is confirmed. Review the summary, then click **Publish**.
-- Recruiters can **Add a field**, **Edit**, or **Remove** in the right-hand form.
-  **Save & polish** asks AI to refine that field; if unavailable, the entered
-  value is saved with a notice. Red marks missing/unclear answers; green marks
-  confirmed/not-required fields. **Done** (or "ready for publication" in chat)
+- Recruiters see a label and one editable value per row, with icon buttons for
+  **Add a field**, **Edit**, **Remove**, **Save** and **Cancel**. **Save** asks AI
+  to refine wording; if unavailable, the entered value is saved with a notice.
+  Types, units and importance remain behind the form. Red borders mark gaps;
+  green marks resolved fields. **Done** (or "ready for publication" in chat)
   removes blank optional suggestions. Essential job details and partially answered
   requirements remain. Review the result and use the separate **Publish job** button.
   Personal characteristics such as age are informational only, excluded from
   candidate scores and filters. Published requirements keep their existing lock.
+- **Closing date** is optional. Set it in chat (include the year) or with the date
+  input; remove it to leave the draft open-ended. It is stored with the job, never
+  scored, and applications remain open through that day in UTC. The backend hides
+  expired jobs and rejects late applications without a scheduler or new database table.
 - When AI is unavailable, the chat explains guided mode once per conversation.
   Later replies go straight to the next question. Use explicit answers
   such as `Location: Cape Town`, `Working hours: weekdays`, or `No degree needed`.

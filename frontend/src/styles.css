@@ -360,10 +360,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .template-draft li[data-field-state="confirmed"], .template-draft li[data-field-state="not_required"] { border-color: #a7c6a3; }
 .draft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .draft-actions button, .template-draft > button { padding: 7px 12px; border-radius: 8px; font-size: 12px; }
+.draft-actions button, .template-draft > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .draft-actions button:not(.primary), .template-draft > button:not(.primary) { background: #f6f8f3; border: 1px solid #ccd6c8; color: var(--green); font-weight: 600; }
 .draft-field-form fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .draft-field-form legend { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
 .draft-field-form label { display: grid; gap: 5px; margin-bottom: 10px; font-size: 12px; }
+.draft-field-form > label { font-weight: 600; }
+.draft-field-form > input[name="label"] { font-weight: 600; margin-bottom: 10px; }
+.draft-field-form input[readonly] { background: #f6f8f3; }
+.template-draft li[data-field-key="closing_date"][data-field-state="unanswered"] { border-color: #e4e9e1; }
+.draft-new-field { margin-top: 12px; }
 .draft-field-form input, .draft-field-form select, .draft-field-form textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid #a6b5a9; border-radius: 6px; font: inherit; background: white; color: var(--green); }
 .template-draft .draft-error { color: #9b2828; }
 .draft-state.captured { background: #e8f2e5; color: #365b41; }

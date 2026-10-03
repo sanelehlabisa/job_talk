@@ -44,9 +44,9 @@ from .services.matching import is_recommended, match_profiles, rank_jobs, summar
 from .services.ai import generate_reply, generate_turn, guided_reply
 from .services.email import send_recruiter_login_code
 from .services.job_templates import (
-    JobDraft, DraftUpdate, new_job_draft, starter_templates, apply_draft_updates,
+    JobDraft, new_job_draft, starter_templates, apply_draft_updates,
     draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
-    finish_draft, remove_draft_field, ESSENTIAL_FIELDS,
+    finish_draft, remove_draft_field, form_field_update, ESSENTIAL_FIELDS,
 )
 from .settings import get_settings
 
@@ -99,6 +99,8 @@ def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
         output.job_draft = JobDraft.model_validate(chat.job_post.draft)
     if chat.intent == "candidate" and chat.target_job:
         output.application_fields = application_fields(chat.profile, chat.target_job.target_profile)
+        if chat.status != "submitted" and not chat.target_job.accepting_applications:
+            output.status = "closed"
     output.can_publish = bool(
         chat.intent == "employer"
         and chat.status == "draft"
@@ -133,11 +135,12 @@ def readiness(db: Session = Depends(get_db)):
 
 @app.get("/api/public/jobs", response_model=list[schemas.JobOut])
 def list_public_jobs(db: Session = Depends(get_db)):
-    return db.scalars(
+    jobs = db.scalars(
         select(models.JobPost)
         .where(models.JobPost.published.is_(True))
         .order_by(models.JobPost.created_at, models.JobPost.id)
     ).all()
+    return [job for job in jobs if job.accepting_applications]
 
 
 @app.get("/api/public/jobs/{job_id}", response_model=schemas.JobOut)
@@ -148,7 +151,7 @@ def get_public_job(job_id: int, db: Session = Depends(get_db)):
             models.JobPost.published.is_(True),
         )
     )
-    if not job:
+    if not job or not job.accepting_applications:
         raise HTTPException(status_code=404, detail="Published job not found")
     return job
 
@@ -184,7 +187,7 @@ def start_guest_session(
                 models.JobPost.published.is_(True),
             )
         )
-        if not job:
+        if not job or not job.accepting_applications:
             raise HTTPException(status_code=404, detail="Published job not found")
     guest_id = secrets.token_urlsafe(24)
     user = models.User(
@@ -243,7 +246,7 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
     if chat.status in {"submitted", "closed"}:
         raise HTTPException(status_code=409, detail="This conversation is no longer open")
     job = db.scalar(select(models.JobPost).where(models.JobPost.id == payload.job_id, models.JobPost.published.is_(True)))
-    if not job:
+    if not job or not job.accepting_applications:
         raise HTTPException(status_code=404, detail="Published job not found")
     # Bind exactly once, including concurrent selection requests from this guest.
     bound = db.execute(update(models.Chat).where(
@@ -566,26 +569,30 @@ def edit_draft_field(chat_id: int, payload: schemas.DraftFieldEdit,
     chat = editable_draft(db, chat_id, current_user)
     fields = {field["key"]: field for field in chat.job_post.draft["fields"]}
     key = payload.key or re.sub(r"[^a-z0-9]+", "_", payload.label.lower()).strip("_")[:60]
+    if not payload.key and key in {"deadline", "application_deadline", "applications_close"}:
+        key = "closing_date"
     if not re.fullmatch(r"[a-z][a-z0-9_]{0,59}", key):
         raise HTTPException(status_code=422, detail="Start the field label with a letter.")
-    if payload.key and key not in fields:
+    if payload.key and key not in fields and key != "closing_date":
         raise HTTPException(status_code=404, detail="Field not found.")
     if not payload.key and (key in fields or any(f["label"].casefold() == payload.label.casefold() for f in fields.values())):
         raise HTTPException(status_code=409, detail="That field already exists. Use Edit to change it.")
-    source = (f"Form edit — {payload.label}: {payload.target} {payload.unit or ''}. "
-              f"{payload.description} Importance: {payload.importance}.")
-    source = " ".join(source.split())
-    update = DraftUpdate(**payload.model_dump(exclude={"key"}), key=key,
-                         state="confirmed", source_quote=source)
+    try:
+        update = form_field_update(chat.job_post.draft, key, payload.label, payload.value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    source = update.source_quote
     draft = apply_draft_updates(chat.job_post.draft, [update], source)
     saved = next((f for f in draft["fields"] if f["key"] == key), None)
-    if not saved or not saved["source_quote"].endswith(source) or saved["state"] != "confirmed":
+    if not saved or not saved["source_quote"].endswith(source) or saved["state"] not in {"confirmed", "not_required"}:
         raise HTTPException(status_code=422, detail="Check the value, type and importance. Add a clear requirement before saving.")
     context = build_chat_context(chat)
     context["form_edit"] = update.model_dump()
-    turn = generate_turn(context, "employer", source, "Polish only this form edit without changing its meaning.")
+    # Dates and explicit exclusions need no model call or language polishing.
+    mechanical = key == "closing_date" or update.state == "not_required"
+    turn = None if mechanical else generate_turn(context, "employer", source, "Polish only this form edit without changing its meaning.")
     polished = False
-    for proposal in turn.template_updates or []:
+    for proposal in (turn.template_updates if turn else []) or []:
         if (proposal.key != key or proposal.type != update.type or proposal.state != "confirmed"
                 or proposal.importance != update.importance
                 or (update.type != "text" and (proposal.target != update.target or proposal.unit != update.unit))):
@@ -598,7 +605,9 @@ def edit_draft_field(chat_id: int, payload: schemas.DraftFieldEdit,
             polished = True
         break
     notice = "Saved and polished. Review the wording before publishing." if polished else "Saved as entered. AI polishing was unavailable; you can edit the wording yourself."
-    if saved["scope"] == "metadata" and key not in ESSENTIAL_FIELDS:
+    if mechanical:
+        notice = "Saved."
+    if saved["scope"] == "metadata" and key not in ESSENTIAL_FIELDS | {"closing_date"}:
         notice += " This is an informational note; it is not used to score or filter applicants."
     return save_draft_action(db, chat, draft, source, notice)
 
@@ -612,7 +621,8 @@ def delete_draft_field(chat_id: int, key: str, current_user: models.User = Depen
         draft = remove_draft_field(chat.job_post.draft, key)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return save_draft_action(db, chat, draft, f"Removed field: {field['label']}.", "Field removed. " + draft_question(draft))
+    label = field["label"] if field else "Closing date"
+    return save_draft_action(db, chat, draft, f"Removed field: {label}.", "Field removed. " + draft_question(draft))
 
 
 @app.post("/api/chats/{chat_id}/draft/done", response_model=schemas.DraftEditResponse)
@@ -635,7 +645,7 @@ def send_message(
         raise HTTPException(status_code=409, detail="This application has already been submitted")
     if chat.status == "closed":
         raise HTTPException(status_code=409, detail="This recruitment is closed")
-    if chat.intent == "candidate" and chat.target_job and not chat.target_job.published:
+    if chat.intent == "candidate" and chat.target_job and not chat.target_job.accepting_applications:
         raise HTTPException(status_code=409, detail="This recruitment is closed")
     if chat.intent == "employer" and chat.status == "published":
         raise HTTPException(
@@ -692,7 +702,7 @@ def send_message(
         reply = draft_question(job.draft)
         if wants_to_publish(text):
             reply = "Unanswered optional fields removed. " + reply
-        if any(f["scope"] == "metadata" and f["key"] not in ESSENTIAL_FIELDS for f in job.draft["fields"]):
+        if any(f["scope"] == "metadata" and f["key"] not in ESSENTIAL_FIELDS | {"closing_date"} for f in job.draft["fields"]):
             reply += " Personal characteristics are informational only and are not used to score or filter applicants."
         if guided_fallback:
             reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"], recruiter=True)
@@ -827,7 +837,7 @@ def send_message(
                 ),
             )
         ).all()
-        ranked_jobs = rank_jobs(chat.profile, jobs)
+        ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications])
         if chat.target_job_id is None:
             ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
         for job, result in ranked_jobs:
@@ -932,9 +942,10 @@ def close_job(
 def list_published_jobs(
     _: models.User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    return db.scalars(
+    jobs = db.scalars(
         select(models.JobPost).where(models.JobPost.published.is_(True)).order_by(models.JobPost.created_at.desc())
     ).all()
+    return [job for job in jobs if job.accepting_applications]
 
 
 @app.get("/api/chats/{chat_id}/recommendations", response_model=list[schemas.RecommendationOut])
@@ -956,7 +967,7 @@ def get_recommendations(
             ),
         )
     ).all()
-    ranked_jobs = rank_jobs(chat.profile, jobs)
+    ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications])
     if chat.target_job_id is None:
         ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
     return [
@@ -992,7 +1003,7 @@ def apply(
     )
     if not job:
         raise HTTPException(status_code=404, detail="Published job not found")
-    if not job.published:
+    if not job.accepting_applications:
         raise HTTPException(status_code=409, detail="This recruitment is closed")
     if not chat:
         raise HTTPException(status_code=404, detail="Candidate chat not found")

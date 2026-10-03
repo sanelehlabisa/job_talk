@@ -17,8 +17,7 @@ def ready_draft():
 
 
 def edit_payload(**changes):
-    return {"label": "Circuit simulation", "type": "text", "target": "Use circuit simluation tools",
-            "description": "Must be able to use circuit simluation tools", "importance": "required", **changes}
+    return {"label": "Circuit simulation", "value": "Use circuit simluation tools", **changes}
 
 
 def test_done_drops_only_blank_optional_fields_and_never_restores_from_history():
@@ -101,7 +100,7 @@ def test_form_save_polishes_one_field_and_syncs_profile_and_history(monkeypatch)
         loaded = client.get(f"/api/chats/{chat['id']}", headers=headers).json()
         assert loaded["job_draft"] == saved["job_draft"]
         # Editing the same target again remains possible; its stable key is unchanged.
-        response = client.put(path + "/field", headers=headers, json=edit_payload(key="circuit_simulation", target="Use circuit simulation tools"))
+        response = client.put(path + "/field", headers=headers, json=edit_payload(key="circuit_simulation", value="Use circuit simulation tools"))
         assert response.status_code == 200, response.text
         assert client.put(path + "/field", headers=headers, json=edit_payload()).status_code == 409
         assert client.delete(path + "/fields/circuit_simulation", headers=headers).status_code == 200
@@ -119,12 +118,11 @@ def test_form_auth_admin_done_publication_lock_and_numeric_validation(monkeypatc
         assert client.put(path + "/field", json=edit_payload()).status_code == 401
         for method, suffix, kwargs in (("put", "/field", {"json": edit_payload()}), ("delete", "/fields/git", {}), ("post", "/done", {})):
             assert getattr(client, method)(path + suffix, headers=other, **kwargs).status_code == 404
-        numeric = edit_payload(key="experience", label="Experience", type="number", target=2, unit="years")
-        numeric["description"] = "At least two years of relevant experience"
+        numeric = edit_payload(key="experience", label="Experience", value="At least two years of relevant experience")
         response = client.put(path + "/field", headers=admin, json=numeric)
         assert response.status_code == 200, response.text
         assert "Saved as entered" in response.json()["notice"]
-        for bad in (dict(numeric, target=-1), dict(numeric, target="several"), dict(numeric, weight=1)):
+        for bad in (dict(numeric, value="-1 years"), dict(numeric, value="several"), dict(numeric, weight=1)):
             assert client.put(path + "/field", headers=owner, json=bad).status_code == 422
         updates = [u for u in developer_updates() if u.key not in {"education", "working_hours", "availability", "git"}]
         monkeypatch.setattr("app.main.generate_turn", lambda *args: GeneratedTurn(reply="", template_updates=updates))
@@ -164,8 +162,7 @@ def test_form_polishing_cannot_change_an_explicit_numeric_target(monkeypatch):
     with TestClient(app) as client:
         chat = client.post("/api/chats", json={"template_id": "generic-role"}, headers=headers).json()
         response = client.put(f"/api/chats/{chat['id']}/draft/field", headers=headers,
-                              json=edit_payload(key="experience", label="Experience", type="number",
-                                                target=2, unit="years", description="At least two years of circuit design"))
+                              json=edit_payload(key="experience", label="Experience", value="At least two years of circuit design"))
         assert response.status_code == 200
         assert response.json()["chat"]["profile"]["experience"]["target"] == 2
         assert "Saved as entered" in response.json()["notice"]

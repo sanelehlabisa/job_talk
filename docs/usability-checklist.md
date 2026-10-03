@@ -15,13 +15,31 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Simple form and closing date (JT-068)
+
+1. Check **Working hours**: one label and one input, without duplicate text or
+   status/type/importance controls. Edit the value directly, save, then refresh.
+2. Add/edit/remove a field using the labelled icon buttons; check phone width.
+3. Say "Applications close on 30 November 2026" in chat. Change the captured date
+   using the form, save and refresh. It must never appear as an applicant criterion.
+4. Remove the date and use Done: publishing must still be available when the
+   required job details are complete. Publish remains a separate action.
+
+**Checks (2026-10-03):** 113 isolated backend tests, 10 final focused checks and
+the frontend build passed.
+The real browser verified actual Gemini chat date capture and value polishing,
+direct input edits, the date picker, CRUD, Done, reload and phone layout. The
+fictional job remains unpublished. Deterministic tests covered closing-day UTC
+boundaries and rejection of late applications across candidate endpoints.
+Your manual usability approval remains separate; deployment is paused.
+
 ### Recruiter form control (JT-067)
 
 1. Describe a role in one message. Check that red fields mean missing/unclear
    answers and green fields mean confirmed/not required.
 2. Ask chat to add a separate job-related requirement, such as soldering PCB
    components. Check the new label and description.
-3. Use **Add a field**, then **Save & polish** with a misspelled requirement.
+3. Use **Add a field**, then **Save** with a misspelled requirement.
    Edit it again; confirm its meaning is preserved. If AI is unavailable, the
    notice must say the original wording was saved.
 4. Remove a field. Click **Done** or say "ready for publication": blank optional

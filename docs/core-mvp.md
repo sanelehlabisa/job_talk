@@ -170,10 +170,24 @@ suggestions. It preserves title, duties, work arrangement, location rules and an
 partially answered requirement needing clarification. Removed keys stay in the
 draft JSON so historical quotes cannot reintroduce them; a new explicit request
 can restore them. An explicit chat request to remove a field also removes it.
-Unanswered/unclear fields show red labels; confirmed/not-required fields show green.
+Unanswered/unclear fields have red borders; confirmed/not-required fields have green borders.
 Age and other personal characteristics are informational notes only and are
 excluded from the candidate application structure, scores and matching filters.
 No new table, migration or template-management system is introduced.
+
+JT-068 simplifies the summary and editor to one label and one editable value.
+State badges, duplicate descriptions and type/importance/unit controls are hidden.
+The backend keeps the typed contract, including numeric units and preferred weights.
+Save still requests AI wording polish; a failed provider call keeps the entered value.
+Add/Edit/Remove/Save/Cancel/Done use labelled icons.
+
+Closing date is optional metadata in the existing draft JSON. Chat accepts an
+explicit calendar date with a year; the form offers a date input. An unanswered
+closing date neither triggers follow-ups nor blocks publishing. The date is never
+part of candidate criteria or scores. Public jobs expose it; requests after that
+day in UTC exclude the job from discovery and reject candidate starts, messages
+and submissions. Recruiters retain their job and submitted applicants. No scheduler
+or database migration is needed, and published requirements retain their lock.
 
 ## Candidate flow
 

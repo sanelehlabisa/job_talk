@@ -122,6 +122,15 @@ class JobPost(Base):
     def source(self) -> dict | None:
         return (self.draft or {}).get("source")
 
+    @property
+    def closing_date(self) -> str | None:
+        return next((field["target"] for field in (self.draft or {}).get("fields", [])
+                     if field["key"] == "closing_date" and field["state"] == "confirmed"), None)
+
+    @property
+    def accepting_applications(self) -> bool:
+        return bool(self.published and (not self.closing_date or self.closing_date >= utcnow().date().isoformat()))
+
 
 class Application(Base):
     __tablename__ = "applications"

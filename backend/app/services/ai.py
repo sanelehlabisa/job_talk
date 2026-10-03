@@ -67,6 +67,11 @@ from stated duties. Use text for location, working_hours, availability, educatio
 tools and working_arrangement. Arrangement is remote, hybrid or on-site. Remote
 does not imply worldwide: capture explicit location restrictions or unrestricted
 location. Flexible start dates and hours are valid text answers.
+Closing date is optional job metadata, using key closing_date and a text target
+in YYYY-MM-DD format. It is the last day to apply, not the candidate's start date.
+Quote the explicit date including its year. Never guess an omitted year or an
+ambiguous date: use needs_clarification with a null target. If no deadline is
+required, use not_required. Do not ask for a closing date unless it was unclear.
 Keep descriptions concise and assessable, preserving what was actually said;
 never invent duties, credentials or evidence. When the recruiter adds a new
 requirement, create a concise readable label and stable snake_case key even when
