@@ -72,7 +72,7 @@ def test_template_chat_applies_multiple_fields_corrects_and_publishes(monkeypatc
             assert job.draft == changed["job_draft"]
             assert build_chat_context(job.chat)["job_draft"] == job.draft
         assert client.post(f"/api/jobs/{job_id}/publish", headers=headers).status_code == 200
-        assert client.post(path, json={"content": "Change the role"}, headers=headers).status_code == 409
+        assert client.post(path, json={"content": "Change the role"}, headers=headers).status_code == 200
         public = next(j for j in client.get("/api/public/jobs").json() if j["id"] == job_id)
         assert public["target_profile"] == changed["job_post"]["target_profile"]
         assert "draft" not in public

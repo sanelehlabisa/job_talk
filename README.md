@@ -88,7 +88,7 @@ Deployment resumes only after user acceptance and an explicit request to resume.
   removes blank optional suggestions. Essential job details and partially answered
   requirements remain. Review the result and use the separate **Publish job** button.
   Personal characteristics such as age are informational only, excluded from
-  candidate scores and filters. Published requirements keep their existing lock.
+  candidate scores and filters. Published jobs keep the same editable chat and form.
 - **Closing date** is optional. Set it in chat (include the year) or with the date
   input; remove it to leave the draft open-ended. It is stored with the job, never
   scored, and applications remain open through that day in UTC. The backend hides
@@ -105,8 +105,9 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - Three realistic demo jobs, public links and a job picker, and a guest
   conversation anchored to the selected role.
 - Seeker entry labels its two cards **Available jobs**. **Find a different job**
-  opens a discovery chat that searches all published open jobs and returns at most
-  two roles above the useful-match threshold, or a clear no-match state. **Apply
+  opens a discovery chat with guidance and up to two real available-job examples
+  immediately. As context arrives it searches all published open jobs and shows
+  useful matches; otherwise examples remain labelled as examples. **Apply
   to this job** binds the guest conversation to that role and reuses earlier answers.
 - **Your application** shows the employer's criteria, captured answers, questions
   still needing clarification, and reported gaps. Corrections replace the same
@@ -119,8 +120,12 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - A structured role summary before publishing. Recruiters can paste a description
   or correct an attribute in ordinary chat. Completion phrases prepare the role
   for review; only the visible `Publish job` button makes it public.
-- Published role criteria are locked so every applicant is scored against the
-  same reviewed requirements; closing the recruitment stops new applications.
+- Recruiters can keep editing a published job in its chat or form. **Publish
+  changes** updates the live post; until then candidates see the previous version.
+  Submitted applications keep their original requirements, evidence and scores.
+  Cards labelled **Earlier requirements** remain reviewable but are excluded from
+  the current comparison plot/ranking. Closing recruitment stops applications
+  while keeping the recruiter chat available.
 - One canonical job-criterion shape with a stable key, type, measurable target,
   optional unit, backend-owned weight, and description. The pre-publish review
   shows the target and weight, and clarifications update the existing key.
@@ -284,7 +289,7 @@ recruiter. **All hiring conversations** lists every recruiter's job chats, with
 their email below the job title. Open any draft to continue its conversation,
 edit requirements and publish; open a published job to compare applicants or
 close recruitment. The original recruiter keeps ownership and sees the same
-saved changes. Published criteria follow the existing lock for both roles.
+saved changes. Both can edit published jobs and explicitly **Publish changes**.
 
 There is no separate admin dashboard. Ordinary recruiters see only their own
 chats; candidate conversations remain scoped to their guest session.
@@ -487,9 +492,14 @@ screenshots without sending AI messages.
 
 Use `-RecruiterDraftOnly` to check a labelled role description, an experience
 correction, an ambiguous acknowledgement, saved summary, phone layout, explicit
-publication, and locked criteria. It uses the configured provider and may fall
+publication, and continued editing. It uses the configured provider and may fall
 back; it does not certify live AI quality. See the recorded
 [recruiter draft checks](docs/recruiter-draft-checks.md).
+
+Use `-LiveEditingOnly` to check post-publication chat edits, **Publish changes**,
+refresh, immediate seeker examples and changing suggestions at desktop and phone
+widths. Use a dedicated approved test recruiter. It creates and then closes its
+own fictional job and deletes its test guest; it never resets the database.
 
 The backend flow suite also includes the fixed plumber pilot scenario: a strong
 plumber, a partial handyman with an explicit geyser gap, and an unrelated software

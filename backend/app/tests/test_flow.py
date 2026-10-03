@@ -569,8 +569,8 @@ def test_recruiter_refines_then_publishes_with_explicit_action():
             json={"content": "Change Python to five years of required experience."},
             headers=recruiter_headers,
         )
-        assert edit_published.status_code == 409
-        assert "criteria are locked" in edit_published.json()["detail"]
+        assert edit_published.status_code == 200
+        assert edit_published.json()["chat"]["job_draft"]
         assert client.get(f"/api/public/jobs/{job_id}").json()["target_profile"] == locked_profile
 
         guest = client.post("/api/auth/guest", json={"job_id": job_id})
@@ -1002,7 +1002,7 @@ def test_recruiter_compares_candidates_and_closes_recruitment():
             f"/api/chats/{recruiter_chat['id']}/messages",
             json={"content": "Change the closed role"},
             headers=recruiter_headers,
-        ).status_code == 409
+        ).status_code == 200
         assert client.post(f"/api/jobs/{job_id}/publish", headers=recruiter_headers).status_code == 409
 
         preserved = client.get(
@@ -1085,7 +1085,9 @@ def test_seeker_can_start_general_chat_and_choose_from_two_ranked_jobs():
         initial = client.get(
             f"/api/chats/{chat['id']}/recommendations", headers=headers
         ).json()
-        assert initial == []  # Available entry cards are separate from personalized suggestions.
+        assert len(initial) == 2
+        assert all(item["available_example"] and not item["recommended"] for item in initial)
+        assert all(item["job"]["id"] in job_ids for item in initial)
 
         response = client.post(
             f"/api/chats/{chat['id']}/messages",

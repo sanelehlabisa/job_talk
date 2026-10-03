@@ -100,6 +100,7 @@ class JobOut(ORMModel):
     published: bool
     source: VacancySourcePublic | None = None
     closing_date: str | None = None
+    criteria_version: str
 
     _normalize_target_profile = field_validator("target_profile", mode="before")(
         normalize_target_profile
@@ -125,6 +126,7 @@ class RecommendationOut(BaseModel):
     recommended: bool
     explanation: str
     criteria: dict[str, CriterionScoreOut]
+    available_example: bool = False
 
 
 class ChatSummary(ORMModel):
@@ -143,6 +145,7 @@ class ChatOut(ChatSummary):
     job_post: JobOut | None = None
     target_job: JobOut | None = None
     can_publish: bool = False
+    has_unpublished_changes: bool = False
     job_draft: JobDraft | None = None
     application_fields: list[dict] = Field(default_factory=list)
 
@@ -164,6 +167,7 @@ class ApplyRequest(BaseModel):
     candidate_location: str = Field(min_length=2, max_length=100)
     preferred_contact: str = Field(min_length=3, max_length=320)
     consent_to_share: Literal[True]
+    criteria_version: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
     _clean_candidate_fields = field_validator(
         "candidate_name", "candidate_location", "preferred_contact"
@@ -178,6 +182,7 @@ class ApplicationOut(ORMModel):
     match_result: dict
     submitted: bool
     created_at: datetime
+    earlier_requirements: bool = False
 
 
 class FeedbackCreate(BaseModel):

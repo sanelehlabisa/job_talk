@@ -37,6 +37,7 @@ class JobDraft(BaseModel):
     fields: list[DraftField]
     source: VacancySource | None = None
     removed_keys: list[str] = Field(default_factory=list)
+    published_closing_date: str | None = None
 
 
 class DraftUpdate(BaseModel):
@@ -512,3 +513,32 @@ def new_job_draft(template_id: str) -> dict:
         if template.template_id == template_id:
             return template.model_dump()
     raise ValueError("Job template not found")
+
+
+def draft_from_published_job(job) -> dict:
+    """Make existing seeded/legacy jobs editable without changing the live post."""
+    from .criteria import normalize_target_profile
+    draft = new_job_draft("generic-role")
+    fields = {field["key"]: field for field in draft["fields"]}
+    for field in fields.values():
+        field["state"] = "unanswered" if field["key"] in ESSENTIAL_FIELDS else "not_required"
+    for key, value in (("job_title", job.title), ("role_description", job.description)):
+        fields[key].update(target=value, state="confirmed", description=value, source_quote=value)
+    for key, requirement in normalize_target_profile(job.target_profile).items():
+        fields[key] = DraftField(**{**{k: v for k, v in requirement.items() if k in DraftField.model_fields},
+                                    "state": "confirmed", "importance": "preferred" if requirement.get("optional") else "required"}).model_dump()
+    draft["fields"] = list(fields.values())
+    draft["published_closing_date"] = job.closing_date
+    return draft
+
+
+def draft_changes_live_job(job) -> bool:
+    if not job.draft:
+        return False
+    from .criteria import normalize_target_profile
+    fields = {field["key"]: field for field in job.draft["fields"]}
+    closing = fields.get("closing_date", {})
+    return (fields["job_title"]["target"] != job.title
+            or fields["role_description"]["target"] != job.description
+            or normalize_target_profile(draft_profile(job.draft)) != normalize_target_profile(job.target_profile)
+            or (closing.get("target") if closing.get("state") == "confirmed" else None) != job.closing_date)

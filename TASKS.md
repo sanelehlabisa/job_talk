@@ -23,7 +23,8 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-068**, simplify the recruiter form to labels and values.
+Current user priority: **JT-069**, keep published jobs editable and show seeker
+job examples immediately.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -50,6 +51,37 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-069 - Edit published jobs and show immediate discovery guidance
+
+- [x] Keep the recruiter chat and label/value form available after publication.
+  Save edits in the existing draft and explicitly **Publish changes** to the same
+  job. Closed recruitment remains closed; recruiter chat remains available.
+- [x] Preserve applicants' submitted criteria, evidence and scores. Label older
+  requirements and exclude those scores from the current plot/ranking. Ask a
+  candidate to review again if requirements changed before submission.
+- [x] Immediately show guidance and up to two real, open **Available jobs** in
+  discovery, without claiming personalised matches. Update suggestions as
+  context arrives; search all open jobs and never invent listings.
+  Match confirmed text targets and work arrangement instead of generic starter
+  descriptions; related evidence must not become an invented direct answer.
+- [x] Verify ownership, republishing, saved snapshots, expiry, discovery,
+  frontend build, and desktop/phone UI. Keep deployment paused.
+
+**Status:** Implemented (2026-10-03). Reuses draft/application JSON; no new tables or services.
+This supersedes earlier published-lock requirements. JT-060 manual usability
+approval remains pending.
+
+**Checks:** All 118 backend tests passed in disposable SQLite; frontend production
+build passed. Browser checks passed published chat correction, explicit republish,
+public visibility, refresh, immediate examples, context-based suggestions and
+phone layout. The first discovery run exposed matching against generic template
+descriptions; confirmed-target regression and the repeated browser run now pass.
+The browser used the configured Gemini provider without mocked responses and
+captured circuit/PCB evidence; this focused check is separate from full JT-060
+LLM acceptance. Its fictional published jobs were closed after testing; no user
+chats or applications were edited and the development database was not reset.
+Deployment stays paused. Feature work awaits user approval to merge into master.
 
 ### JT-068 - Simple label/value form and optional closing date
 

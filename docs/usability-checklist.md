@@ -15,6 +15,30 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Published edits and immediate discovery (JT-069)
+
+1. Publish a role. Keep typing in its chat or edit a form value. Confirm the public
+   listing changes only after **Publish changes**, and the same chat stays open.
+2. Submit an application, then change a scored requirement and publish it. Check
+   that the old application keeps its evidence and original score, is labelled
+   **Earlier requirements**, and is excluded from the current comparison plot.
+3. Choose **Find a different job**. Before sending anything, see guidance and up
+   to two real **Available job** examples. Describe your background and check
+   suggestions update. Try phone width too.
+4. Close a role. The recruiter chat remains editable, while new applications are
+   stopped. Reload and confirm the saved form is still present.
+
+Automate the UI check with `scripts/local-signoff.ps1 -LiveEditingOnly` and
+`-RecruiterEmail <approved-test-email>`. It closes its own fictional job and
+deletes its test guest. Backend regressions use disposable SQLite only.
+
+**Engineering checks (2026-10-03):** 118 isolated backend tests and frontend build
+passed. The browser used configured Gemini without mocking and passed published
+chat correction/republish/reload, initial examples, circuit/PCB discovery and
+phone layout. Confirmed-target matching was corrected after the first discovery
+check failed. These checks do not replace your usability approval; deployment
+remains paused.
+
 ### Simple form and closing date (JT-068)
 
 1. Check **Working hours**: one label and one input, without duplicate text or
@@ -45,7 +69,8 @@ Your manual usability approval remains separate; deployment is paused.
 4. Remove a field. Click **Done** or say "ready for publication": blank optional
    suggestions disappear; required job details and unclear answers remain.
 5. Refresh and check the saved form. Only **Publish job** makes it public; the
-   published criteria then remain locked. Try this at phone width too.
+   published jobs remain editable, with a separate **Publish changes** action.
+   Try this at phone width too.
 
 **Engineering checks, 2026-10-03:** The full 108-test backend suite passed, followed
 by 20 final draft/history checks covering removal and numeric guards. The frontend

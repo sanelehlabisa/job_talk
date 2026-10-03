@@ -350,8 +350,8 @@ function Recommendation({ item, onApply, onSelect, applied, selected, busy }) {
     <article className="job-card">
       <div className="job-card-top">
         <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>{item.recommended ? "Strong match" : selected ? "Selected role · below recommendation threshold" : "Possible role · add details to improve the match"}</span></div>
-        <div className="score"><strong>{score}%</strong><span>match</span></div>
+        <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : item.recommended ? "Strong match" : selected ? "Selected role · below recommendation threshold" : "Possible role · add details to improve the match"}</span></div>
+        {!item.available_example && <div className="score"><strong>{score}%</strong><span>match</span></div>}
       </div>
       <p>{item.explanation}</p>
       <SourceNotice source={item.job.source} compact />
@@ -598,7 +598,9 @@ function formatCriterionValue(value, unit) {
 }
 
 function CandidateComparison({ applications, status, targetProfile, jobId, onCloseJob }) {
-  const visible = status === "closed" ? applications.slice(0, 5) : applications;
+  const current = applications.filter((item) => !item.earlier_requirements);
+  const earlier = applications.filter((item) => item.earlier_requirements);
+  const visible = [...(status === "closed" ? current.slice(0, 5) : current), ...earlier];
   let previousScore = null;
   let previousRank = 0;
 
@@ -612,7 +614,8 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
         {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
       </div>
       <p className="decision-support">Scores organize unverified candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
-      <CandidateScorePlot applications={applications} targetProfile={targetProfile} />
+      {!!earlier.length && <p className="decision-support">Applications marked Earlier requirements keep their original scores and are excluded from the current comparison plot and ranking.</p>}
+      <CandidateScorePlot applications={current} targetProfile={targetProfile} />
       {!visible.length && <div className="candidate-empty">No submitted applications yet. Candidates will appear here in one comparable format.</div>}
       {!!visible.length && <div className="comparison-grid">
         {visible.map((application, index) => {
@@ -627,10 +630,11 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
           return (
             <article className="candidate-card" key={application.id}>
               <div className="candidate-card-head">
-                <div className="candidate-rank">{status === "closed" ? `#${previousRank}` : <UserRound size={17} />}</div>
+                <div className="candidate-rank">{status === "closed" && !application.earlier_requirements ? `#${previousRank}` : <UserRound size={17} />}</div>
                 <div><h3>{details.name || "Candidate"}</h3><a href={contactHref}>{contact}</a></div>
-                <div className="score"><strong>{score}%</strong><span>match</span></div>
+                <div className="score"><strong>{score}%</strong><span>{application.earlier_requirements ? "original match" : "match"}</span></div>
               </div>
+              {application.earlier_requirements && <p className="earlier-requirements">Earlier requirements · Submitted before the job criteria changed.</p>}
               <p className="candidate-summary"><strong>Quick summary</strong>{candidateCardSummary(criteria, details.location)}</p>
               <div className="criterion-list">
                 <strong>Evidence by criterion</strong>
@@ -658,7 +662,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
         })}
       </div>}
       {!!visible.length && jobId && <FeedbackPrompt kind="recruiter" contextId={jobId} />}
-      {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates ranked by the saved weighted scores; equal scores share a rank.</p>}
+      {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates for the current requirements; equal scores share a rank. Earlier applications remain available for review.</p>}
     </section>
   );
 }
@@ -701,7 +705,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
   }
 
   async function apply(candidateName, candidateLocation, preferredContact) {
-    await onApply(reviewing.job.id, candidateName, candidateLocation, preferredContact);
+    await onApply(reviewing.job.id, candidateName, candidateLocation, preferredContact, reviewing.job.criteria_version);
     setApplied((value) => ({ ...value, [reviewing.job.id]: true }));
     setReviewing(null);
     await onReload();
@@ -727,7 +731,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
         <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? (chat.job_post?.title || "Build your role") : chat.intent === "candidate" ? (chat.target_job?.title || "Find your next role") : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
         <div className="status-pill"><span /> {statusLabel}</div>
       </header>
-      <div className={(chat.status === "draft" && chat.job_draft) || chat.target_job ? "chat-workspace with-draft" : "chat-workspace"}>
+      <div className={chat.job_draft || chat.intent === "candidate" ? "chat-workspace with-draft" : "chat-workspace"}>
       <div className="messages">
         <div className="conversation-inner">
           <SourceNotice source={(chat.job_post || chat.target_job)?.source} owner={chat.intent === "employer"} />
@@ -754,9 +758,8 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
           {!chat.job_draft && !chat.target_job && <ProfileChips profile={chat.profile} />}
           {chat.intent === "employer" && chat.job_post && !chat.job_draft && <JobReadiness job={chat.job_post} />}
-          {chat.job_draft && chat.status !== "draft" && <JobDraftSummary draft={chat.job_draft} locked />}
-          {chat.intent === "employer" && chat.job_post && !(chat.status === "draft" && chat.job_draft) && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
-          {!!recommendations.length && (
+          {chat.intent === "employer" && chat.job_post && chat.status !== "draft" && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
+          {!!recommendations.length && chat.target_job_id && !submitted && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>{chat.target_job_id ? "YOUR APPLICATION" : "RECOMMENDED JOBS"}</span><small>{chat.target_job_id ? "Selected role" : "Top two from your conversation"}</small></div>
               <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
@@ -764,16 +767,21 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
               {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} fields={chat.application_fields} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}
-          {chat.intent === "candidate" && !chat.target_job_id && !recommendations.length && <section className="discovery-empty" role="status"><strong>{chat.messages.some((message) => message.sender === "user") ? "No useful match yet" : "Find a different job"}</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs. A suitable role may not be available yet.</p></section>}
           {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
           <div ref={bottomRef} />
         </div>
       </div>
-      {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
+      {chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
       {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
+      {chat.intent === "candidate" && !chat.target_job_id && <aside className="draft-sidebar discovery-sidebar" aria-label="Job suggestions">
+        <section className="discovery-empty" role="status"><strong>{!recommendations.length ? "No open jobs right now" : recommendations.some((item) => !item.available_example) ? "Matching jobs" : Object.keys(chat.profile || {}).length ? "No useful match yet" : "Available jobs"}</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs as you chat.</p>{recommendations.some((item) => item.available_example) && <p>These are available-job examples. Keep chatting to narrow your search, or choose one to apply.</p>}</section>
+        {recommendations.map((item) => <Recommendation key={item.job.id} item={item} busy={selecting || sending} selected={false} onSelect={() => selectJob(item.job.id)} />)}
+      </aside>}
       </div>
-      {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" disabled={sending || editingDraft} onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
-      {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>{chat.target_job?.source ? "Your interest is saved with Job Talk. It has not been sent to the advertised employer." : "Your approved snapshot is now frozen for the recruiter."}</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
+      {chat.can_publish && <div className="publish-bar"><div><strong>{chat.job_post?.published ? "Your edits are ready" : "Your role is ready for final review"}</strong><span>{chat.job_post?.published ? "Publish changes to update the live post." : "Check the criteria above, then publish it explicitly."}</span></div><button className="primary" disabled={sending || editingDraft} onClick={onPublish}>{chat.job_post?.published ? "Publish changes" : "Publish job"} <ArrowRight size={17} /></button></div>}
+      {chat.intent === "employer" && chat.status === "closed" && <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>You can keep editing here. Recruitment remains closed.</span></div>}
+      {chat.intent === "employer" && chat.status === "published" && !chat.can_publish && <div className="submitted-bar"><Check size={17} /><span><strong>{chat.has_unpublished_changes ? "Changes saved for review" : "Your job is live"}</strong>{chat.has_unpublished_changes ? "Complete the missing details, then publish your changes." : "Keep chatting or edit the form to update your post."}</span></div>}
+      {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>{chat.target_job?.source ? "Your interest is saved with Job Talk. It has not been sent to the advertised employer." : "Your approved snapshot is now frozen for the recruiter."}</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
           <textarea aria-label="Conversation message" rows="1" maxLength="5000" disabled={sending || editingDraft} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending || editingDraft}><Send size={18} /></button>
@@ -931,8 +939,8 @@ function JobTalkApp() {
     try { await api.closeJob(chat.job_post.id); await loadChat(chat.id); await loadChats(false); } catch (err) { setError(err.message); }
   }
 
-  async function apply(jobId, candidateName, candidateLocation, preferredContact) {
-    try { await api.apply(jobId, chat.id, candidateName, candidateLocation, preferredContact); } catch (err) { setError(err.message); throw err; }
+  async function apply(jobId, candidateName, candidateLocation, preferredContact, criteriaVersion) {
+    try { await api.apply(jobId, chat.id, candidateName, candidateLocation, preferredContact, criteriaVersion); } catch (err) { setError(err.message); throw err; }
   }
 
   async function selectJob(jobId) {

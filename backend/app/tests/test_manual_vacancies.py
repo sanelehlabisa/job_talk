@@ -68,7 +68,7 @@ def test_curated_draft_review_source_visibility_duplicate_and_publication(monkey
             "template_id": "plumber", "source": vacancy(url="https://EXAMPLE.com/jobs/welder?utm_source=test#top")})
         assert duplicate.status_code == 409
         assert len(client.get("/api/chats", headers=headers).json()) == 1
-        assert client.post(f"/api/chats/{chat['id']}/messages", headers=headers, json={"content": "Change the source"}).status_code == 409
+        assert client.post(f"/api/chats/{chat['id']}/messages", headers=headers, json={"content": "Change the source"}).status_code == 200
 
 
 def test_only_admin_can_add_sources_and_validation_precedes_storage(monkeypatch):

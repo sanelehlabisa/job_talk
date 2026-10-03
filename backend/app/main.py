@@ -47,6 +47,7 @@ from .services.job_templates import (
     JobDraft, new_job_draft, starter_templates, apply_draft_updates,
     draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
     finish_draft, remove_draft_field, form_field_update, ESSENTIAL_FIELDS,
+    draft_from_published_job, draft_changes_live_job,
 )
 from .settings import get_settings
 
@@ -95,19 +96,21 @@ def get_chat_or_404(db: Session, chat_id: int, user: models.User) -> models.Chat
 
 def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     output = schemas.ChatOut.model_validate(chat)
-    if chat.intent == "employer" and chat.job_post and chat.job_post.draft:
-        output.job_draft = JobDraft.model_validate(chat.job_post.draft)
+    if chat.intent == "employer" and chat.job_post:
+        if chat.job_post.draft or chat.status in {"published", "closed"}:
+            output.job_draft = JobDraft.model_validate(chat.job_post.draft or draft_from_published_job(chat.job_post))
+        output.has_unpublished_changes = bool(chat.job_post.published and draft_changes_live_job(chat.job_post))
     if chat.intent == "candidate" and chat.target_job:
         output.application_fields = application_fields(chat.profile, chat.target_job.target_profile)
         if chat.status != "submitted" and not chat.target_job.accepting_applications:
             output.status = "closed"
     output.can_publish = bool(
         chat.intent == "employer"
-        and chat.status == "draft"
+        and chat.status in {"draft", "published"}
         and chat.job_post
         and (draft_can_publish(chat.job_post.draft) if chat.job_post.draft
              else can_publish(chat.job_post.target_profile, chat.job_post.title))
-        and not chat.job_post.published
+        and (not chat.job_post.published or output.has_unpublished_changes)
     )
     return output
 
@@ -532,30 +535,49 @@ def get_chat(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return serialize_chat(get_chat_or_404(db, chat_id, current_user))
+    chat = get_chat_or_404(db, chat_id, current_user)
+    output = serialize_chat(chat)
+    if chat.intent == "candidate" and chat.status == "submitted":
+        submitted = db.scalar(select(models.Application).where(models.Application.candidate_chat_id == chat.id))
+        if submitted and submitted.match_result.get("requirements"):
+            output.application_fields = application_fields(submitted.candidate_profile, submitted.match_result["requirements"])
+    return output
+
+
+def ensure_editable_job(chat: models.Chat):
+    job = chat.job_post
+    if not job.draft:
+        job.draft = draft_from_published_job(job)
+    elif job.published and "published_closing_date" not in job.draft:
+        job.draft = {**job.draft, "published_closing_date": job.closing_date}
 
 
 def sync_job_draft(chat: models.Chat, draft: dict):
     job = chat.job_post
     job.draft = draft
+    chat.profile = draft_profile(draft)
+    if chat.status in {"published", "closed"}:
+        return  # Keep the public post intact until Publish changes.
     fields = {field["key"]: field for field in draft["fields"]}
     job.title = fields["job_title"]["target"] or "Untitled role"
     job.description = fields["role_description"]["target"] or ""
     job.target_profile = draft_profile(draft)
-    chat.profile = job.target_profile
 
 
 def editable_draft(db: Session, chat_id: int, user: models.User) -> models.Chat:
     chat = get_chat_or_404(db, chat_id, user)
-    if user.role != "recruiter" or chat.intent != "employer" or not chat.job_post or not chat.job_post.draft:
+    if user.role != "recruiter" or chat.intent != "employer" or not chat.job_post:
         raise HTTPException(status_code=403, detail="Only recruiters can edit a job draft.")
-    if chat.status != "draft" or chat.job_post.published:
-        raise HTTPException(status_code=409, detail="Published or closed job requirements are locked.")
+    ensure_editable_job(chat)
     return chat
 
 
 def save_draft_action(db: Session, chat: models.Chat, draft: dict, action: str, notice: str):
     sync_job_draft(chat, draft)
+    if chat.job_post.published:
+        notice += " Use Publish changes to update the live post."
+    elif chat.status == "closed":
+        notice += " Recruitment remains closed."
     db.add(models.Message(chat_id=chat.id, sender="user", content=action))
     db.add(models.Message(chat_id=chat.id, sender="assistant", content=notice))
     db.commit()
@@ -643,15 +665,12 @@ def send_message(
     chat = get_chat_or_404(db, chat_id, current_user)
     if chat.status == "submitted":
         raise HTTPException(status_code=409, detail="This application has already been submitted")
-    if chat.status == "closed":
+    if chat.status == "closed" and chat.intent != "employer":
         raise HTTPException(status_code=409, detail="This recruitment is closed")
     if chat.intent == "candidate" and chat.target_job and not chat.target_job.accepting_applications:
         raise HTTPException(status_code=409, detail="This recruitment is closed")
-    if chat.intent == "employer" and chat.status == "published":
-        raise HTTPException(
-            status_code=409,
-            detail="Published job criteria are locked. Close this recruitment before creating a revised role.",
-        )
+    if chat.intent == "employer" and chat.job_post and chat.status in {"published", "closed"}:
+        ensure_editable_job(chat)
     text = payload.content.strip()
     if not text:
         raise HTTPException(status_code=422, detail="Message cannot be empty")
@@ -700,6 +719,11 @@ def send_message(
             )
             sync_job_draft(chat, job.draft)
         reply = draft_question(job.draft)
+        if chat.status == "published":
+            reply = reply.replace("Publish job", "Publish changes")
+            reply += " Your live post stays unchanged until you publish these edits."
+        elif chat.status == "closed":
+            reply = reply.replace("then use Publish job when it is right", "recruitment remains closed")
         if wants_to_publish(text):
             reply = "Unanswered optional fields removed. " + reply
         if any(f["scope"] == "metadata" and f["key"] not in ESSENTIAL_FIELDS | {"closing_date"} for f in job.draft["fields"]):
@@ -825,31 +849,7 @@ def send_message(
     db.refresh(assistant_message)
     chat = get_chat_or_404(db, chat_id, current_user)
 
-    recommendations = []
-    if chat.intent == "candidate":
-        jobs = db.scalars(
-            select(models.JobPost).where(
-                models.JobPost.published.is_(True),
-                *(
-                    (models.JobPost.id == chat.target_job_id,)
-                    if chat.target_job_id is not None
-                    else ()
-                ),
-            )
-        ).all()
-        ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications])
-        if chat.target_job_id is None:
-            ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
-        for job, result in ranked_jobs:
-            recommendations.append(
-                schemas.RecommendationOut(
-                    job=schemas.JobOut.model_validate(job),
-                    match_score=result["overall_score"],
-                    recommended=is_recommended(result),
-                    explanation=summarize_match(result),
-                    criteria=result["criteria"],
-                )
-            )
+    recommendations = recommendations_for_chat(chat, db) if chat.intent == "candidate" else []
     return schemas.MessageResponse(
         chat=serialize_chat(chat), assistant_message=assistant_message, recommendations=recommendations
     )
@@ -871,22 +871,39 @@ def publish_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.chat.status == "closed":
         raise HTTPException(status_code=409, detail="Closed recruitment cannot be republished")
-    if job.published:
+    if job.published and not draft_changes_live_job(job):
         return job
     if not (draft_can_publish(job.draft) if job.draft else can_publish(job.target_profile, job.title)):
         raise HTTPException(
             status_code=400,
             detail="Complete the guided role questions before publishing",
         )
+    previous_version = job.criteria_version
+    previous_requirements = deepcopy(normalize_target_profile(job.target_profile))
+    was_published = job.published
+    if job.draft:
+        fields = {field["key"]: field for field in job.draft["fields"]}
+        job.title = fields["job_title"]["target"]
+        job.description = fields["role_description"]["target"]
+        job.target_profile = draft_profile(job.draft)
+        closing = fields.get("closing_date", {})
+        job.draft = {**job.draft, "published_closing_date": closing.get("target") if closing.get("state") == "confirmed" else None}
     job.target_profile = normalize_target_profile(job.target_profile)
-    job.chat.profile = normalize_target_profile(job.chat.profile)
+    if was_published and previous_version != job.criteria_version:
+        # Tag older records once; their submitted evidence and scores stay intact.
+        for application in db.scalars(select(models.Application).where(models.Application.job_post_id == job.id)):
+            if "criteria_version" not in application.match_result:
+                application.match_result = {**application.match_result, "criteria_version": previous_version,
+                                            "requirements": previous_requirements}
+    job.chat.profile = deepcopy(job.target_profile)
     job.published = True
     job.chat.status = "published"
     db.add(
         models.Message(
             chat_id=job.chat_id,
             sender="assistant",
-            content=f"{job.title} is now published and visible to candidates.",
+            content=(f"Changes to {job.title} are now live. Earlier applications keep their submitted scores."
+                     if was_published else f"{job.title} is now published and visible to candidates. You can continue editing here."),
         )
     )
     db.commit()
@@ -948,13 +965,7 @@ def list_published_jobs(
     return [job for job in jobs if job.accepting_applications]
 
 
-@app.get("/api/chats/{chat_id}/recommendations", response_model=list[schemas.RecommendationOut])
-def get_recommendations(
-    chat_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    chat = get_chat_or_404(db, chat_id, current_user)
+def recommendations_for_chat(chat: models.Chat, db: Session):
     if chat.intent != "candidate":
         return []
     jobs = db.scalars(
@@ -965,21 +976,32 @@ def get_recommendations(
                 if chat.target_job_id is not None
                 else ()
             ),
-        )
+        ).order_by(models.JobPost.created_at, models.JobPost.id)
     ).all()
     ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications])
+    examples = False
     if chat.target_job_id is None:
-        ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
+        has_context = any(isinstance(item, dict) and (item.get("evidence") or item.get("value") is not None)
+                          for item in chat.profile.values())
+        matches = [item for item in ranked_jobs if has_context and is_recommended(item[1])][:2]
+        examples = not bool(matches)
+        ranked_jobs = matches or ranked_jobs[:2]
     return [
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
             match_score=result["overall_score"],
-            recommended=is_recommended(result),
-            explanation=summarize_match(result),
-            criteria=result["criteria"],
+            recommended=not examples and is_recommended(result),
+            explanation=job.description if examples else summarize_match(result),
+            criteria={} if examples else result["criteria"],
+            available_example=examples,
         )
         for job, result in ranked_jobs
     ]
+
+
+@app.get("/api/chats/{chat_id}/recommendations", response_model=list[schemas.RecommendationOut])
+def get_recommendations(chat_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return recommendations_for_chat(get_chat_or_404(db, chat_id, current_user), db)
 
 
 @app.post("/api/jobs/{job_id}/apply", response_model=schemas.ApplicationOut, status_code=status.HTTP_201_CREATED)
@@ -1005,6 +1027,8 @@ def apply(
         raise HTTPException(status_code=404, detail="Published job not found")
     if not job.accepting_applications:
         raise HTTPException(status_code=409, detail="This recruitment is closed")
+    if payload.criteria_version and payload.criteria_version != job.criteria_version:
+        raise HTTPException(status_code=409, detail="The job requirements changed. Reload the conversation and review your application again before submitting.")
     if not chat:
         raise HTTPException(status_code=404, detail="Candidate chat not found")
     if chat.intent != "candidate":
@@ -1040,6 +1064,8 @@ def apply(
         }} if "location" not in chat.profile else {}),
     }
     result = match_profiles(candidate_profile, job.target_profile)
+    result["criteria_version"] = job.criteria_version
+    result["requirements"] = deepcopy(normalize_target_profile(job.target_profile))
     profile_snapshot = {
         **candidate_profile,
         "candidate_details": {
@@ -1121,9 +1147,13 @@ def list_applications(
             return []
         query = query.where(models.Application.candidate_user_id == current_user.id)
     applications = list(db.scalars(query).all())
+    outputs = [schemas.ApplicationOut.model_validate(application) for application in applications]
     if job_id is not None:
-        applications.sort(
+        for item in outputs:
+            item.earlier_requirements = item.match_result.get("criteria_version", job.criteria_version) != job.criteria_version
+        outputs.sort(
             key=lambda item: (
+                item.earlier_requirements,
                 -float(item.match_result.get("overall_score", 0)),
                 item.created_at,
                 item.id,
@@ -1140,7 +1170,7 @@ def list_applications(
             db.commit()
         except IntegrityError:
             db.rollback()
-    return applications
+    return outputs
 
 
 @app.post("/api/experiment/feedback", response_model=schemas.MessageResponseStatus)

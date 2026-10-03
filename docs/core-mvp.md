@@ -97,8 +97,10 @@ A match result remains inspectable:
 4. A live **Who you're looking for** summary shows the saved labels, values, and
    unresolved fields beside the chat (stacked on phone). The recruiter can correct
    it in conversation, review the final requirements, and explicitly publish.
-5. Published criteria remain locked for comparable applications. Closing the role
-   stops new applications and unfinished drafts; submitted snapshots remain.
+5. Chat and form remain editable after publishing. Save changes in the same draft
+   and use **Publish changes** to update the live job. Closing the role stops new
+   applications and unfinished candidate drafts; recruiter chat remains available.
+   Submitted applications preserve their requirements, evidence and scores.
 
 ### Template and field rules
 
@@ -187,7 +189,18 @@ closing date neither triggers follow-ups nor blocks publishing. The date is neve
 part of candidate criteria or scores. Public jobs expose it; requests after that
 day in UTC exclude the job from discovery and reject candidate starts, messages
 and submissions. Recruiters retain their job and submitted applicants. No scheduler
-or database migration is needed, and published requirements retain their lock.
+or database migration is needed. Deadline edits go live with **Publish changes**.
+
+### Published changes (JT-069)
+
+The existing job draft is the editable version; the job title, description and
+target profile stay live until explicit publication. Store the live closing date
+in draft JSON separately from the edited field. No new job or chat is created.
+Submitted match-result JSON includes a requirements snapshot and criteria
+fingerprint. Earlier applications retain their original scores and have an
+**Earlier requirements** label, excluded from the current plot and ranking.
+The candidate UI submits the fingerprint it reviewed; a changed role requires
+refresh and review before submission. Closed jobs cannot be republished.
 
 ## Candidate flow
 
@@ -195,8 +208,13 @@ or database migration is needed, and published requirements retain their lock.
    jobs**, or use **Find a different job** to describe their background. The two
    initial cards are not personalized matches.
 2. Discovery compares their evidence with every published, open job in the
-   database, including jobs absent from the two cards. It shows actual listings
-   and an honest no-match state; the AI never invents vacancies.
+   database, including jobs absent from the two cards. Its guidance and up to two
+   available-job examples appear immediately, without scores or personalised
+   claims. Suggestions change as evidence arrives. When no useful match exists,
+   keep examples labelled clearly; when no jobs are open, say so. Never invent vacancies.
+   Matching uses confirmed text targets and the selected work arrangement, not
+   generic starter descriptions. Related discovery evidence can support a
+   suggestion without creating a direct answer to that job's criterion.
 3. On explicit job selection, the application binds to its confirmed criteria.
    Carry forward only evidence from that guest's own discovery chat. Keep opaque,
    expiring tokens and one application per scope; do not expose other chats.
@@ -303,8 +321,8 @@ candidate guest sessions retain access only to their own conversations.
 
 The separate All jobs dashboard and its list endpoint are removed. The existing
 `GET /api/applications?job_id=...` still checks ownership or admin identity, and
-curated-job interest counts appear in the shared chat. Backend scores, published
-criteria locks and login approval follow the same flow as ordinary recruiters.
+curated-job interest counts appear in the shared chat. Backend scores, explicit
+publication of edits and login approval follow the same flow as ordinary recruiters.
 No new account type, storage, or permission-management system is introduced.
 
 ## Usability acceptance

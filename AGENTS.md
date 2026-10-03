@@ -34,6 +34,12 @@ Types, units, importance and descriptions remain in the backend contract; do not
 reintroduce separate controls or duplicate text. Closing date is optional job
 metadata, excluded from applicant scoring.
 
+Published recruiter chats and forms remain editable. Save changes in the existing
+draft JSON and require explicit Publish changes before updating the live job.
+Preserve submitted evidence, requirements and scores; distinguish applications
+made against earlier criteria from the current comparison. Closing recruitment
+still stops applications and does not hide the recruiter's chat.
+
 ## Current usability priority (2026-10-03)
 
 Deployment is paused at the user's request. Follow the current P0 order in

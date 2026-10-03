@@ -141,7 +141,8 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
             return score, f"The candidate reports {candidate_years} years against a {required_years}-year requirement."
     if key == "working_arrangement" and evidence:
         arrangements = ("remote", "hybrid", "on-site")
-        required = next((item for item in arrangements if item in requirement_text.lower()), None)
+        target = str(requirement.get("target") or "").lower()
+        required = target if target in arrangements else next((item for item in arrangements if item in requirement_text.lower()), None)
         candidate = next((item for item in arrangements if item in evidence.lower()), None)
         if required and candidate:
             return (0.95, f"The candidate is open to the role's {required} arrangement.") if required == candidate else (0.4, f"The candidate prefers {candidate}, while this role is {required}.")
@@ -167,7 +168,11 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
         for item in candidate_profile.values()
         if item.get("assessment") != "gap"
     )
-    required_tokens = _tokens(f"{key} {requirement_text}") - GENERIC_REQUIREMENT_TOKENS
+    # A template description may only say "the practical skills needed"; use
+    # the employer's confirmed text target when searching related evidence.
+    target = requirement.get("target")
+    required_text = target if requirement.get("type") == "text" and isinstance(target, str) else f"{key} {requirement_text}"
+    required_tokens = _tokens(required_text) - GENERIC_REQUIREMENT_TOKENS
     candidate_tokens = _tokens(candidate_text)
     overlap = len(required_tokens & candidate_tokens) / max(len(required_tokens), 1)
     score = min(0.75, overlap * 1.5)

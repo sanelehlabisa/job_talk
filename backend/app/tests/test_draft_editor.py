@@ -107,7 +107,7 @@ def test_form_save_polishes_one_field_and_syncs_profile_and_history(monkeypatch)
         assert client.delete(path + "/fields/job_title", headers=headers).status_code == 422
 
 
-def test_form_auth_admin_done_publication_lock_and_numeric_validation(monkeypatch):
+def test_form_auth_admin_done_published_edits_and_numeric_validation(monkeypatch):
     monkeypatch.setattr(app_settings, "admin_email", "admin@example.com")
     _, owner = authenticate("owner@example.com", "recruiter")
     _, other = authenticate("other@example.com", "recruiter")
@@ -131,8 +131,10 @@ def test_form_auth_admin_done_publication_lock_and_numeric_validation(monkeypatc
         assert done["can_publish"] and not done["job_post"]["published"]
         assert "git" not in {f["key"] for f in done["job_draft"]["fields"]}
         assert client.post(f"/api/jobs/{chat['job_post']['id']}/publish", headers=owner).status_code == 200
+        public_before = client.get(f"/api/public/jobs/{chat['job_post']['id']}").json()
         for method, suffix, kwargs in (("put", "/field", {"json": edit_payload()}), ("delete", "/fields/experience", {}), ("post", "/done", {})):
-            assert getattr(client, method)(path + suffix, headers=admin, **kwargs).status_code == 409
+            assert getattr(client, method)(path + suffix, headers=admin, **kwargs).status_code == 200
+        assert client.get(f"/api/public/jobs/{chat['job_post']['id']}").json() == public_before
 
 
 def test_ready_in_chat_matches_done_without_calling_ai_or_publishing(monkeypatch):

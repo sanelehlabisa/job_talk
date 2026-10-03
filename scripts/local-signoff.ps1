@@ -5,7 +5,8 @@ param(
     [switch]$RecruiterDraftOnly,
     [switch]$AdminOnly,
     [switch]$VacancyOnly,
-    [switch]$DraftEditorOnly
+    [switch]$DraftEditorOnly,
+    [switch]$LiveEditingOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -157,6 +158,10 @@ try {
         . "$PSScriptRoot/draft-editor-check.ps1"
         return
     }
+    if ($LiveEditingOnly) {
+        . "$PSScriptRoot/live-editing-check.ps1"
+        return
+    }
 
     $chatCount = Invoke-JavaScript "document.querySelectorAll('.chat-row').length"
     Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
@@ -230,10 +235,9 @@ try {
     if (-not $jobId) { throw "Created recruiter job was not found" }
     Invoke-JavaScript "document.querySelector('.publish-bar button').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.status-pill').textContent.includes('Published')" "published role"
-    Wait-JavaScript "document.querySelector('.submitted-bar')?.textContent.includes('criteria locked')" "locked published criteria"
-    if (Invoke-JavaScript "document.querySelector('.composer') !== null") { throw "Published recruiter chat still offers criteria editing" }
+    Wait-JavaScript "document.querySelector('.composer') !== null && document.querySelector('.template-draft') !== null" "editable published job"
     if ($RecruiterDraftOnly) {
-        Write-Output "Recruiter draft browser check passed: captured fields, correction, explicit exclusion, refresh, phone summary, Publish, and published lock. Provider quality is verified separately."
+        Write-Output "Recruiter draft browser check passed: captured fields, correction, explicit exclusion, refresh, phone summary, Publish, and continued editing. Provider quality is verified separately."
         Write-Output "Screenshots: $OutputDirectory"
         return
     }

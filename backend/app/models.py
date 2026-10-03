@@ -124,12 +124,23 @@ class JobPost(Base):
 
     @property
     def closing_date(self) -> str | None:
+        if self.published and "published_closing_date" in (self.draft or {}):
+            return self.draft["published_closing_date"]
         return next((field["target"] for field in (self.draft or {}).get("fields", [])
                      if field["key"] == "closing_date" and field["state"] == "confirmed"), None)
 
     @property
     def accepting_applications(self) -> bool:
         return bool(self.published and (not self.closing_date or self.closing_date >= utcnow().date().isoformat()))
+
+    @property
+    def criteria_version(self) -> str:
+        import hashlib
+        import json
+        from .services.criteria import normalize_target_profile
+        criteria = {key: {k: field.get(k) for k in ("label", "type", "target", "unit", "weight", "description", "optional")}
+                    for key, field in normalize_target_profile(self.target_profile).items()}
+        return hashlib.sha256(json.dumps(criteria, sort_keys=True).encode()).hexdigest()
 
 
 class Application(Base):

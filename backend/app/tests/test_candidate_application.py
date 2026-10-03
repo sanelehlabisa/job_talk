@@ -39,9 +39,13 @@ def test_discovery_finds_third_job_then_collects_corrects_and_submits(monkeypatc
         assert job_id not in [job["id"] for job in client.get("/api/public/jobs").json()[:2]]
         chat, headers = guest(client)
         path = f"/api/chats/{chat['id']}"
-        assert client.get(path + "/recommendations", headers=headers).json() == []
+        examples = client.get(path + "/recommendations", headers=headers).json()
+        assert len(examples) == 2
+        assert all(item["available_example"] and not item["recommended"] for item in examples)
+        assert job_id not in [item["job"]["id"] for item in examples]
         discovered = client.post(path + "/messages", headers=headers, json={"content": "I have four years of Python experience in Cape Town. I built Python APIs."}).json()
         assert [item["job"]["id"] for item in discovered["recommendations"]] == [job_id]
+        assert not discovered["recommendations"][0]["available_example"]
         selected = client.post(path + "/select-job", json={"job_id": job_id}, headers=headers)
         assert selected.status_code == 200
         body = selected.json()
