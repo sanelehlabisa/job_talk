@@ -24,10 +24,9 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-Current user priority: **JT-071**, record `https://jobtalk.roventics.com`, group
-environment settings and verify deployment/access status. JT-069 (`988cc7d`)
-and JT-070 (`097a0f1`) are committed and pushed on feature branches; master merge
-awaits explicit approval.
+The user approved merging the completed history through JT-071 (`fae157a`)
+into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
+The next priority is a simpler editable seeker application form.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -71,7 +70,8 @@ local environment assignments were preserved exactly; secrets stay ignored.
 The 22 focused auth/ownership/admin/guest tests passed in disposable SQLite.
 Production `.env.production` is not present locally. Domain choice is
 confirmed; DNS, VM secrets, SMTP, real TLS/renewal, backups and the live hiring
-flow remain unverified. This ticket does not deploy or approve a master merge.
+flow remain unverified. The user subsequently approved the master merge; deployment
+and JT-060 usability acceptance remain pending.
 
 ### JT-070 - Production Compose name and HTTPS entry point
 
@@ -96,7 +96,7 @@ rechecked. Shell syntax checks passed. Tests used a disposable local certificate
 and mock AI; no CA, email or paid model calls were made. Test containers/volumes
 were removed; development config, services and data were left intact.
 Real DNS, trusted certificate issuance and renewal dry-run remain in JT-010/011.
-No VM deployment was performed. Master merge and JT-060 user acceptance remain pending.
+No VM deployment was performed. Master merge is approved; JT-060 user acceptance remains pending.
 
 ### JT-069 - Edit published jobs and show immediate discovery guidance
 
@@ -127,7 +127,7 @@ The browser used the configured Gemini provider without mocked responses and
 captured circuit/PCB evidence; this focused check is separate from full JT-060
 LLM acceptance. Its fictional published jobs were closed after testing; no user
 chats or applications were edited and the development database was not reset.
-Deployment stays paused. Feature work awaits user approval to merge into master.
+Deployment stays paused. The user approved merging this completed work into master.
 
 ### JT-068 - Simple label/value form and optional closing date
 

@@ -91,9 +91,9 @@ verified for a public launch**. Before inviting candidates:
   A local `.env.production` has not been created in this workspace.
 - Issue the real certificate, run the renewal dry-run, verify backups and test
   email-code login plus create/apply/compare on the live domain.
-- Complete the [manual usability check](docs/usability-checklist.md). The latest
-  completed work is on `feat/production-https-compose`; merge into `master` still
-  needs explicit approval.
+- Complete the [manual usability check](docs/usability-checklist.md). The user
+  approved merging the completed work through JT-071 into `master`; the next
+  usability improvement is a simpler editable seeker application form.
 
 The [production guide](docs/production-operations.md) contains the commands.
 
