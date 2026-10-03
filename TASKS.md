@@ -39,6 +39,13 @@ the user's hands-on sign-off are still open.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
+**Merge approval (2026-10-03):** The user requested committing and pushing the
+completed work to `master`. This approves the feature history through `cea8ea8`,
+including JT-067/JT-068 form controls and closing dates, recruiter chat context,
+the shared admin workspace, Gemini, chat feedback and manual vacancy work.
+Implementation checks are recorded with each ticket. Deployment remains paused;
+this merge does not replace the remaining JT-060 usability sign-off.
+
 **Merge approval (2026-10-03):** The user approved merging candidate work
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
