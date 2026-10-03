@@ -54,7 +54,7 @@ Record the result in this table when executing JT-060:
 
 | Evidence | Result |
 | --- | --- |
-| Revision tested | JT-058: `0b04303`; JT-059 feature branch, see test record |
+| Revision tested | JT-058: `0b04303`; JT-059: `a39f333`; JT-061: `b45309c`; approved for master on 2026-10-03 |
 | Deterministic/fallback scenarios | See [recruiter](recruiter-draft-checks.md) and [candidate](candidate-application-checks.md) engineering checks |
 | Actual LLM: provider/model, date, scenarios, outcomes | OpenAI / `gpt-4o-mini`, 2026-10-03; recruiter and candidate attempts blocked by API credit |
 | Live cases that fell back or failed | Both used guided fallback after HTTP 429 `credit_balance_exhausted` |

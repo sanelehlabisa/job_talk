@@ -34,6 +34,11 @@ entry is the next independent implementation ticket.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
+**Merge approval (2026-10-03):** The user approved merging candidate work
+(`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
+checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
+JT-060 usability sign-off remain open; deployment stays paused.
+
 ### JT-057 - Add simple job templates
 
 - [x] Add one shared JSON structure and three small starter templates: Junior
