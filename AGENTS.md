@@ -29,6 +29,28 @@ Candidate evidence and match results must reference that same criterion key.
 Update an existing criterion when the recruiter clarifies it; do not create a
 duplicate with different wording.
 
+## Current usability priority (2026-10-03)
+
+Deployment is paused at the user's request. Follow the current P0 order in
+`TASKS.md` (JT-057 through JT-062). Completed scripted demos are engineering
+evidence; only the user's manual acceptance in JT-060 establishes usability.
+Resume deployment only when the user explicitly asks after accepting the flow.
+
+The next implementation uses three fixed templates and the existing database,
+AI boundary, authentication, discovery chat, and comparison views. Templates are
+suggestions, never assumed requirements. Track unanswered, unclear, confirmed,
+and not-required fields; only confirmed assessment criteria are scored.
+Distinguish an employer's not-required field from a candidate's reported gap.
+Keep initial seeker cards labelled available jobs and search all published open
+jobs before the seeker selects the job-specific application.
+
+Owner access and manual vacancy entry are planned in JT-061/JT-062. Use an
+optional backend-only `ADMIN_EMAIL` with approved email-code login and existing
+expiring session tokens; never authorize requests with a reusable login code.
+Ordinary recruiters retain ownership limits. Operator-curated vacancies must
+identify their source and who receives applications. Reuse existing storage and
+views rather than adding administration or import infrastructure.
+
 ## Demo contract
 
 The primary experiment must support this sequence:
@@ -58,6 +80,8 @@ The primary experiment must support this sequence:
 - Ask only about an important missing or unclear criterion. Use previously saved
   answers and do not repeat a resolved question.
 - Keep mock replies deterministic so local and automated tests are repeatable.
+- Record actual LLM verification separately from deterministic fallback tests;
+  do not claim language understanding is complete based only on mock responses.
 - Never place API keys in source code, Compose files, logs, or frontend builds.
 
 ## Engineering boundaries

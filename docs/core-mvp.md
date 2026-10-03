@@ -10,6 +10,15 @@ Build and validate one hiring loop:
 The release question is: **can one recruiter create a job, can one candidate
 apply through chat, and can the recruiter compare candidates clearly?**
 
+## Current usability target (2026-10-03)
+
+The conversation fills a shared structure; it does not remove that structure.
+The user has not accepted the current app as usable. Deployment is paused while
+the planned tickets JT-057 through JT-062 in [TASKS.md](../TASKS.md) improve the
+existing flow. Passing prior scripted tests does not replace manual acceptance.
+The behavior below describes the target; templates, field states, owner access,
+and source-aware manual job entry are not implemented by this documentation.
+
 ## One shared criteria contract
 
 The same stable criterion keys must be used from job creation through candidate
@@ -27,7 +36,7 @@ stored shape and calculates scores.
       "type": "number",
       "target": 3,
       "unit": "years",
-      "weight": 5,
+      "weight": 0.9,
       "description": "At least three years of practical plumbing work"
     },
     {
@@ -35,7 +44,7 @@ stored shape and calculates scores.
       "label": "Geyser installation",
       "type": "skill",
       "target": true,
-      "weight": 4,
+      "weight": 0.8,
       "description": "Can install and replace domestic geysers"
     }
   ]
@@ -60,7 +69,7 @@ A match result remains inspectable:
   "candidate_value": 4,
   "target_value": 3,
   "score": 1,
-  "weight": 5,
+  "weight": 0.9,
   "evidence": "Four years doing residential plumbing repairs",
   "reason": "Meets the three-year target"
 }
@@ -69,18 +78,68 @@ A match result remains inspectable:
 ## Recruiter flow
 
 1. A manually approved recruiter signs in using an emailed code.
-2. They describe a job in natural language.
-3. JobTalk extracts measurable criteria, updates clarifications without
-   duplicates, and asks only about important missing information.
-4. The recruiter reviews each target, weight, and description, then publishes.
+2. They start a separate draft using Junior Software Developer, Plumber, or
+   Generic Role, then describe the role or paste a description.
+3. JobTalk fills every field supported by the message, even when that field's
+   question has not yet been asked. It updates existing keys for corrections and
+   asks only about missing or unclear fields.
+4. A live **Who you're looking for** summary shows the saved labels, values, and
+   unresolved fields beside the chat (stacked on phone). The recruiter can correct
+   it in conversation, review the final requirements, and explicitly publish.
+5. Published criteria remain locked for comparable applications. Closing the role
+   stops new applications and unfinished drafts; submitted snapshots remain.
+
+### Template and field rules
+
+Use one small shared JSON structure with three fixed starter templates. Include
+title, short description, work arrangement/location, skills, tools, experience,
+qualifications, working hours, and start availability. Keep the existing database
+model and JSON fields where practical; each job owns a separate draft. No template
+editor or generalized form engine is needed.
+
+Template suggestions are kept separate from confirmed answers. Existing criterion
+keys and types are reused, including `education` for qualifications. Years are a
+numeric target only when requested; skills and text requirements also remain
+valid targets. Draft fields use these states:
+
+| State | Meaning | Follow-up and scoring |
+| --- | --- | --- |
+| `unanswered` | No supported answer yet; may display a suggestion | Ask; exclude from scoring |
+| `needs_clarification` | Ambiguous or conflicting answer | Clarify; exclude from scoring |
+| `confirmed` | Supported and validated requirement | Do not repeat; score only assessment criteria |
+| `not_required` | Employer explicitly says it does not apply | Do not repeat; exclude from scoring and plot |
+
+"No degree needed" resolves qualifications as not required. "That's fine" alone
+cannot remove an unclear requirement. Preferred requirements remain confirmed
+criteria with backend-owned importance, distinct from not-required fields.
+Title, description, and source metadata do not become scoring criteria.
+
+Publication requires a clear title and role description, arrangement/location
+rules (including any remote location restriction or explicit lack of one), at
+least one meaningful confirmed assessment criterion, and all other template
+fields confirmed or explicitly not required. The **Publish** action stays final.
 
 ## Candidate flow
 
-1. A candidate opens a published job without creating an account.
-2. They provide name, email or phone, location, skills, and experience.
-3. JobTalk maps each answer to the published criteria and asks only for material
-   missing evidence.
-4. The candidate reviews the structured application, gives consent, and submits.
+1. Accountless seekers can open a direct job link, choose one of two **available
+   jobs**, or use **Find a different job** to describe their background. The two
+   initial cards are not personalized matches.
+2. Discovery compares their evidence with every published, open job in the
+   database, including jobs absent from the two cards. It shows actual listings
+   and an honest no-match state; the AI never invents vacancies.
+3. On explicit job selection, the application binds to its confirmed criteria.
+   Carry forward only evidence from that guest's own discovery chat. Keep opaque,
+   expiring tokens and one application per scope; do not expose other chats.
+4. AI proposes grounded values and readable evidence for all relevant fields in
+   an answer; the backend validates and saves them under the job's stable keys.
+   A live **Your application** summary shows answers and remaining gaps. Ask only
+   focused questions about missing or unclear evidence.
+5. A reported lack of a skill is a resolved gap. It remains visible and can lower
+   the match score without changing the job or blocking an honest application.
+   Corrections replace the affected value, and polishing never adds a credential,
+   tool, skill, duration, or accomplishment that the candidate did not state.
+6. The candidate reviews the structured application, adds name, location, and
+   email or phone, gives clear consent, and explicitly submits a frozen snapshot.
 
 ## Matching and comparison
 
@@ -91,6 +150,57 @@ A match result remains inspectable:
   evidence, and gaps.
 - The parallel-axis view plots the ideal profile and those candidates using the
   same criteria. Evidence cards remain the readable explanation.
+- Not-required and unresolved job fields never contribute to the weighted mean
+  or plot. Missing candidate evidence remains missing; reported gaps remain gaps.
+- Initial available-job cards and below-threshold roles are not recommendations.
+  Candidate-card summaries must reflect the saved evidence without overstating
+  strengths or hiding gaps.
+
+## Persistence and manual vacancy entry
+
+Jobs already live in PostgreSQL `job_posts` with title, description, owner,
+publication state, and a JSON criteria profile. Chats, messages, and submitted
+application snapshots are also persisted, using the existing local named volume.
+No additional storage service is needed.
+
+JT-062 adds an owner workflow to paste a manually checked vacancy into the same
+draft/review/publish flow. Keep source URL, employer name, date checked, and source
+text with the job. The owner resolves unclear fields before publication and can
+close stale or filled listings. Verify persistence across a normal local restart.
+No scraping or automatic job feeds are planned.
+
+Clearly label jobs curated by Job Talk and identify who receives a submission.
+An external advert does not establish that its employer is participating. The
+owner can use non-identifying match summaries/counts to demonstrate interest to
+prospective recruiters. Sharing contact details with them requires candidate
+authorization; automated outreach, exports, and job transfers remain deferred.
+
+## Owner and recruiter access
+
+JT-061 plans one optional, backend-only `ADMIN_EMAIL`, set by the owner in ignored
+`.env`. No address is assumed. The configured owner still needs approval and
+the existing emailed-code login. After verifying the single-use code, protected
+API requests use the existing unguessable, expiring bearer session token.
+
+The backend derives privileges from that verified identity on every request.
+The owner may inspect jobs and submitted applications across recruiters using
+the existing views. Ordinary recruiters see only applicants to their jobs;
+guest candidates see only their scoped data. This exception does not expose full
+chats, grant edit access to another recruiter's job, or trust a client-supplied
+role/email. Candidate consent explains operator access.
+
+## Usability acceptance
+
+JT-060 tests messy descriptions, multiple answers in one message, short replies,
+corrections, unrelated answers, explicit gaps, and persisted state on desktop and
+phone. Record actual LLM behavior separately from mocked/fallback tests, including
+when live calls were not run or silently fell back. Use fictional test data.
+The existing provider and guided fallback stay within `services/ai.py`; the backend
+owns validation, weights, publication readiness, and deterministic scores.
+
+The [manual checklist](usability-checklist.md) is the user's acceptance gate.
+Automated success does not mark the app usable or resume deployment. Deployment
+waits for user acceptance and an explicit request to resume it.
 
 ## Included scope
 
@@ -98,5 +208,8 @@ Recruiter login and manual approval; conversational job creation; structured
 criteria; publishing; accountless job applications; contact details;
 conversational evidence collection; explainable criterion scoring; top job
 recommendations; top candidate comparison; parallel-axis comparison.
+
+The current requested additions are the three fixed templates, live structured
+summaries, one configured owner view, and manually entered source-labelled jobs.
 
 Everything else waits for evidence from real use.

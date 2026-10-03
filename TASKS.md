@@ -5,22 +5,233 @@
 > Help people explain what they can do and help small employers describe what
 > they need, then turn both conversations into transparent job matches.
 
-The current priority is a deployed, free experiment with manually approved
-recruiters and accountless candidate applications. The product hypothesis is:
+The current priority is a usable local hiring loop with manually approved
+recruiters and accountless candidate applications. The experiment stays free.
+The product hypothesis is:
 
 > Recruiters will find conversational applications and structured candidate
 > comparison useful enough to try again or request continued access.
 
-Deployment follows in stages: private staging, a small public candidate flow,
-then an evidence-based decision about further investment.
+Deployment is paused by the user (2026-10-03). Passing a scripted scenario is
+engineering evidence, not the user's usability approval. The new tickets below
+are planned only; none of their acceptance checks have passed yet.
 
-## Core MVP v1 - current ordered work
+## P0 - Current ordered usability work
+
+The conversation fills a shared structure on both sides. Improve the existing
+criteria, two-job entry, discovery chat, and comparison components. Do not rebuild
+the app or add infrastructure, accounts for candidates, uploads, billing,
+scrapers, template management, or deployment work.
+
+Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
+The final usability ticket covers the whole experience, including owner access
+and manually entered jobs. Begin with JT-057 when implementation is requested.
+See [core context](docs/core-mvp.md) and the
+[manual checklist](docs/usability-checklist.md).
+
+### JT-057 - Add simple job templates
+
+- [ ] Add one shared JSON structure and three small starter templates: Junior
+  Software Developer, Plumber, and Generic Role. Each selection creates its own
+  editable database draft, independent of the template and other jobs.
+- [ ] Include title, short description, remote/hybrid/on-site arrangement and
+  relevant location, skills, tools, experience, qualifications, working hours,
+  and start availability. Reuse stable criterion keys, labels, types, targets,
+  optional units, descriptions, and backend-owned weights.
+- [ ] Treat template values as suggestions. Track fields as `unanswered`,
+  `needs_clarification`, `confirmed`, or `not_required`; a suggestion is never
+  silently confirmed or counted as a job requirement.
+- [ ] Support numeric, skill, and text targets. Require years only when the
+  recruiter actually wants a years target; use the existing `education` key for
+  qualifications and add keys only for genuinely new requirements.
+- [ ] Save draft progress in the existing database/JSON model and restore it on
+  refresh. Metadata such as the title and source URL must not become score axes.
+
+**Done when:** creating each template yields a separate draft, and neither
+template hints nor unanswered fields appear as confirmed assessment criteria.
+
+**Status:** Planned. Supersedes the template deferral in JT-034 (2026-10-03).
+
+### JT-058 - Make recruiter chat fill the template
+
+**Depends on:** JT-057.
+
+- [ ] Interpret a whole description or pasted job advert into every relevant
+  field, including answers to questions that have not yet been asked.
+- [ ] Extend the existing LLM service to propose categorized, concise updates
+  grounded in the authorized chat and saved draft. Validate types, supported
+  facts, state changes, and stable keys before saving; keep weights, readiness,
+  and scores backend-owned. Preserve the guided fallback.
+- [ ] Show a live **Who you're looking for** summary beside the chat on desktop
+  and in a readable stacked layout on phone, using labels, values, and field
+  states. Allow corrections through the same conversation.
+- [ ] Ask only about missing or unclear fields. Distinguish required, preferred,
+  and not required: "No degree needed" resolves `education` as `not_required`,
+  stops qualification follow-ups, and excludes it from scoring. "That's fine"
+  must not remove or resolve an unclear requirement without a clear referent.
+- [ ] Apply a correction to the existing criterion key and replace superseded
+  evidence; retain unrelated confirmed fields and keep each job draft separate.
+- [ ] Require a clear title/description, work arrangement and relevant location
+  rules, at least one meaningful confirmed assessment criterion, and every
+  other template field either confirmed or explicitly not required to publish.
+  Remote location restrictions must be stated or explicitly unrestricted.
+- [ ] Keep explicit **Publish**, the final review, and the published-criteria
+  lock. Only confirmed assessment criteria enter scoring and the comparison plot;
+  optional/preferred criteria remain distinct from requirements that do not apply.
+
+**Done when:** a messy junior-developer paragraph fills all supported fields,
+a later experience correction updates one criterion, and "No degree needed"
+removes that requirement from questions and score calculations without inventing
+requirements from the template.
+
+**Status:** Planned (2026-10-03).
+
+### JT-059 - Make seeker chat fill the matching application
+
+**Depends on:** JT-057 and JT-058.
+
+- [ ] Keep accountless entry and at most two **available jobs** cards. Add a
+  prominent **Find a different job** chat action using the existing discovery
+  path. Initial cards and weak matches must not be labelled personalized
+  recommendations.
+- [ ] Compare the seeker's background with all published, open database jobs,
+  including those absent from the initial two cards. Return real job IDs, titles,
+  and links; never invent a vacancy. Apply the existing useful-match threshold
+  and show a clear no-match state when none qualifies.
+- [ ] Make choosing a job explicit before job-specific follow-ups. Bind the
+  application to that job's confirmed criteria and carry forward supported
+  evidence from this guest's discovery chat. Preserve expiring tokens, one
+  application per scope, and isolation from other candidates and recruiters.
+- [ ] Use the existing AI boundary to propose candidate field updates, mapping
+  one answer to multiple criteria and reusing earlier answers. Preserve supporting
+  source statements, validate values, and polish wording without inventing facts.
+- [ ] Show a live **Your application** summary with captured answers, unclear
+  fields, missing evidence, and reported gaps. Corrections update the same keys.
+  Ask focused follow-ups without repeating resolved answers.
+- [ ] Treat "I don't have that skill" as a resolved reported gap. Preserve the
+  employer's requirement and allow an honest application with gaps; never convert
+  missing information into evidence or treat every skill as a years target.
+- [ ] Keep contact review, clear consent, explicit **Submit**, frozen snapshots,
+  deterministic backend scores, concise candidate summaries, the top-five
+  comparison, and the parallel-line plot on the same confirmed criterion keys.
+
+**Done when:** a seeker ignores the initial cards, finds a real relevant job
+outside those cards, selects it, answers several criteria in one turn, corrects
+one answer, and submits with an honest gap visible to the recruiter.
+
+**Status:** Planned. Extends JT-055 and JT-056 (2026-10-03).
+
+### JT-061 - Configure owner access using existing login tokens
+
+- [ ] Add an optional backend-only `ADMIN_EMAIL` setting, documented with an empty
+  placeholder in `.env.example`. The owner sets their real address in ignored
+  `.env`; no actual address is assumed or committed. Empty means no admin access.
+- [ ] Reuse manual recruiter approval and email-code verification for that
+  address. Derive admin capability on the backend from the verified session's
+  approved recruiter and exact normalized configured email. Request bodies,
+  browser flags, and unverified email strings cannot grant privileges.
+- [ ] Let the owner list jobs across recruiters and inspect their submitted
+  application snapshots in the existing job/comparison views. Ordinary recruiters
+  see only their own jobs' applicants; candidates see only their own application.
+  Owner visibility does not grant other recruiters access or expose full chats.
+- [ ] Reuse the existing expiring bearer tokens on every protected route. A login
+  code is single-use and only exchanges for a session; never reuse it as an API
+  key. Keep public job browsing and guest entry available without recruiter login.
+- [ ] Check all affected list/detail/mutation routes server-side. Test two
+  recruiters, two isolated guests, owner access, unset/changed admin email,
+  spoofed roles, revoked approval, invalid/expired sessions, and direct requests
+  to another recruiter's application. Broad read access must not silently grant
+  permission to edit other recruiters' jobs.
+- [ ] Update candidate-facing privacy/consent wording to explain Job Talk operator
+  access to submitted applications. Use existing views, with no general admin or
+  permissions framework.
+
+**Done when:** the configured, approved owner signs in normally and can inspect
+submitted applications across jobs, while every other identity retains its
+existing ownership boundary and anonymous private-data requests are rejected.
+
+**Status:** Planned. Session protection already exists; this ticket extends
+authorized visibility rather than introducing a second login system (2026-10-03).
+
+### JT-062 - Manually enter real jobs and review candidate interest
+
+**Depends on:** JT-058, JT-059, and JT-061.
+
+- [ ] Let the owner paste a manually checked public vacancy into the existing job
+  creation flow, using a template or Generic Role. Keep source URL, employer name,
+  date checked, and original source text alongside the reviewed draft. No scraper,
+  URL fetcher, external feed, or new database service is needed.
+- [ ] Persist the job, confirmed criteria, owner, publication state, and linked
+  applications in the existing PostgreSQL database. Verify drafts and published
+  listings survive a normal local Compose restart with the existing volume.
+- [ ] Review extracted fields and unresolved requirements before explicit
+  publication. Keep owner-curated listings distinct from jobs posted by an
+  onboarded recruiter; do not imply that an external employer uses Job Talk or
+  has received an application. Show source and who receives the submission.
+- [ ] Use the existing job list and close action so the owner can stop stale or
+  filled listings. Check for an already entered source URL to avoid accidental
+  duplicate listings; preserve submitted snapshots when closing a job.
+- [ ] Let the owner inspect candidates for each curated role and manually show
+  prospective recruiters a non-identifying match summary/count to demonstrate
+  interest. No automatic recruiter outreach, applicant export, or bulk sharing.
+- [ ] Make submission consent explicit that the Job Talk owner receives interest
+  for a curated job. Require candidate authorization before passing identifying
+  details to a prospective recruiter; ordinary recruiter access stays limited
+  to owned jobs. Automated job transfer/invitations remain deferred.
+
+**Done when:** the owner pastes one current vacancy, reviews and publishes it,
+receives a consented candidate application, reloads it after a local restart,
+and can demonstrate matching interest without exposing the candidate to an
+unapproved external recruiter.
+
+**Status:** Planned. Job and application persistence already exists; manual
+source metadata and the owner workflow are the additions (2026-10-03).
+
+### JT-060 - Test usability beyond the existing demo
+
+**Depends on:** JT-057, JT-058, JT-059, JT-061, and JT-062.
+
+- [ ] Test a messy junior-developer paragraph, a later experience correction,
+  and "No degree needed"; confirm required/preferred/not-required states and
+  stable keys in both the visible summary and saved draft.
+- [ ] Create a Plumber role, then a different Generic Role; verify template
+  suggestions and data do not carry over between jobs or silently become facts.
+- [ ] Start seeker discovery with at least three distinct open jobs. Ignore the
+  first two cards, find and select the third, and answer several criteria in one
+  message. Confirm that closed jobs cannot be suggested or applied to.
+- [ ] Try short replies, explicit corrections, unrelated statements, and reported
+  skill gaps. Confirm correct updates, no repeated resolved questions, no invented
+  evidence, and contact review/consent before submission.
+- [ ] Compare strong, partial, and unrelated applicants. Trace visible summaries,
+  stored candidate values, weights, scores, exclusions, and plot axes back to the
+  exact same confirmed criteria. Retain the locked published job contract.
+- [ ] Exercise owner-curated job persistence and owner/recruiter/guest access
+  boundaries from JT-061 and JT-062, including direct API requests.
+- [ ] Record deterministic fallback tests separately from actual LLM runs. For
+  live runs use fictional data and record provider/model, date, scenarios,
+  outcomes, and whether fallback was used; omit secrets and personal data. Mark
+  live LLM checks **not run** if unavailable. Mock success alone cannot establish
+  natural-language understanding.
+- [ ] Run relevant backend regressions, the frontend production build, and the
+  revised browser scenarios on desktop and phone. Fix observed usability blockers
+  and provide the [short manual checklist](docs/usability-checklist.md).
+- [ ] Obtain the user's manual usability sign-off. Record outstanding issues and
+  keep deployment paused until the user accepts the result and asks to resume it.
+
+**Done when:** test evidence distinguishes real LLM behavior from fallback, and
+the user can create a role, submit an honest application, and explain the
+candidate comparison without coaching. Passing scripted tests alone is not done.
+
+**Status:** Planned; manual approval pending. No new LLM or usability tests have
+been run for this plan (2026-10-03).
+
+## Previous core MVP implementation evidence
 
 The revised MVP has one contract and one loop: **Define -> Apply -> Score ->
-Compare.** Complete these tickets in order before VM deployment. Existing work
-is the foundation, but acceptance now depends on the same typed criterion keys
-being visible and traceable through every step. The canonical product context is
-in [`docs/core-mvp.md`](docs/core-mvp.md).
+Compare.** The completed tickets below are historical implementation and
+scripted-test evidence. They do not supersede the current usability work or imply
+user sign-off. The canonical product context is in
+[`docs/core-mvp.md`](docs/core-mvp.md).
 
 ### JT-046 - Normalize one shared job criteria contract
 
@@ -122,7 +333,7 @@ and gaps. The deterministic plumber test covers strong, partial, and unrelated
 candidates. Browser automation now reports JavaScript details and safely waits
 through controlled-input and phone reload updates (2026-10-02).
 
-## Local usability and reliability - current priority
+## Previous local usability and reliability fixes
 
 Production work is paused until the user resumes it. Fix only behavior that can
 stop or confuse a recruiter or candidate in the local Core MVP flow.
@@ -239,11 +450,13 @@ profile evidence was removed. Focused matching tests, the frontend production
 build, and the complete desktop and phone browser workflow pass; the rendered
 phone comparison card was visually inspected (2026-10-02).
 
-## Deployment after local reliability sign-off
+## Deployment paused pending user usability approval
 
-`JT-046` through `JT-050` now pass. Resume `JT-044`; production packaging already
-builds, and the remaining work is the real VM, DNS, SMTP, TLS, backup, rollback,
-and public-boundary verification.
+The user paused deployment on 2026-10-03. JT-010, JT-011, and JT-044 must remain
+paused while the current P0 sequence and JT-060 manual sign-off are pending.
+Existing production packaging is retained as prior work. Resume VM, DNS, SMTP,
+TLS, backup, rollback, and public-boundary work only after user acceptance and an
+explicit request to resume deployment.
 
 ## Previous MVP foundation
 
@@ -253,10 +466,10 @@ The pilot answers one question: can one recruiter create a job, can one candidat
 apply through chat, and can the recruiter compare candidates clearly? Finish the
 local release sequence below before returning to VM and subdomain work.
 
-The earlier create, apply, and compare scenario passes repeatedly. AI role
-interpretation (`JT-045`) and the local desktop and phone sign-off (`JT-043`) are
-complete. The revised core contract in `JT-046` through `JT-050` now comes before
-deployment through the existing `JT-010` and `JT-011` package (`JT-044`).
+The earlier scripted create, apply, and compare scenarios pass. The user has
+reported that the app is still not usable. JT-057 through JT-062 now define the
+remaining local work and the required manual acceptance gate; earlier sign-off
+tickets are evidence of those earlier scenarios only.
 
 The deterministic mock remains the safe default. A personal ChatGPT subscription
 may support manual development and evaluation, but it is not an application
@@ -309,8 +522,9 @@ idempotent so a repeated click cannot duplicate the public role (2026-10-02).
 - [ ] Revisit only if a real recruiter cannot start a blank hiring conversation.
 - [ ] If needed, hardcode a few editable examples; do not build template management.
 
-**Status:** Deferred. Seeded jobs already support the demo and templates are not
-required to test the core product question.
+**Status:** Superseded by JT-057 following the user's usability feedback
+(2026-10-03). The three fixed templates are now requested; track their acceptance
+there and keep template management deferred.
 
 ### JT-035 - Keep candidate entry accountless
 
@@ -454,8 +668,10 @@ as a 95% location match. The backend suite and frontend production build pass
 - [ ] Verify DNS, firewall, TLS renewal, backup, reboot, logs, rollback, and that
   only ports 80 and 443 are public.
 
-**Status:** In progress. The production configuration resolves without exposing
-secrets, and all three application images build successfully. Production now uses
+**Status:** Paused by the user (2026-10-03), pending JT-060 acceptance and an
+explicit request to resume deployment. Previously, the configuration resolved
+without exposing secrets, and all three application images built successfully.
+Production now uses
 the tested 1,000-token structured AI response bound. The preflight also requires
 the immutable image tag to equal the checked-out Git commit. The remaining checks
 require the real VM, subdomain, SMTP settings, and production secrets (2026-10-02).
@@ -489,7 +705,7 @@ require the real VM, subdomain, SMTP settings, and production secrets (2026-10-0
 - [x] Show a distinct person icon for user messages.
 - [x] Keep the company credit small so Job Talk remains the product identity.
 
-## P0-A - Make deployment safe and repeatable
+## Previous deployment and security foundation - remaining deployment paused
 
 ### JT-005 - Real authentication and resource ownership
 
@@ -590,7 +806,8 @@ published-port checks; operating commands are documented (2026-10-01).
   application boundary and `JT-012` safety controls pass.
 - [ ] Automate certificate issue and renewal, then test renewal without downtime.
 
-**Status:** Nginx now bootstraps ACME over HTTP, requires a staging password on
+**Status:** Remaining deployment checks paused by the user (2026-10-03).
+Nginx now bootstraps ACME over HTTP, requires a staging password on
 HTTPS, rate limits API bursts, forwards trusted headers, and isolates the browser
 frontend from the backend network. Pinned Certbot issue and renewal automation is
 in place, and a local certificate replacement reloaded Nginx with 60/60 readiness
@@ -598,6 +815,9 @@ requests succeeding. The checkbox remains open until `renew --dry-run` passes fo
 the real subdomain on the VM (updated 2026-10-01).
 
 ### JT-011 - VM and subdomain deployment
+
+**Status:** Paused by the user (2026-10-03). Resume only after the current
+usability plan and JT-060 manual acceptance, with an explicit deployment request.
 
 - [ ] Choose the final subdomain and create its DNS record.
 - [x] Add a production preflight that checks required values without printing

@@ -27,7 +27,35 @@ candidate evidence and match explanations reference those same stable keys. The
 contract and intentionally narrow scope are in
 [`docs/core-mvp.md`](docs/core-mvp.md).
 
-## What works
+## Current priority: local usability
+
+**Deployment is paused (2026-10-03).** The existing automated demos pass, but the
+user has not signed off the app as usable. The conversation should fill a shared
+structure that both the recruiter and candidate can read and correct.
+
+The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) are planned,
+not implemented by this update:
+
+- JT-057/JT-058: three fixed job templates, grounded updates to every relevant
+  field, explicit not-required states, and a live **Who you're looking for**
+  summary before final publication.
+- JT-059: two available-job cards, **Find a different job** across all open
+  listings, explicit job selection, and a live **Your application** summary that
+  accepts honest gaps without inventing evidence.
+- JT-061/JT-062: owner access through a backend `ADMIN_EMAIL` setting and existing
+  email-code sessions, plus manual entry of source-labelled vacancies through
+  the existing draft/review/publish flow. Recruiters keep access only to their
+  own jobs' applications.
+- JT-060: broader conversations, separately recorded actual LLM and fallback
+  results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
+
+Jobs, criteria, chats, and submitted applications already persist in PostgreSQL
+in the development stack. Protected endpoints already use expiring bearer
+sessions issued after sign-in; the single-use login code is not an API token.
+The owner setting and manual source-entry workflow above are still planned.
+Deployment resumes only after user acceptance and an explicit request to resume.
+
+## Existing implementation
 
 - Passwordless entry: job seekers start a private guest conversation immediately,
   while approved recruiters sign in with a short-lived email code.
@@ -237,6 +265,9 @@ new sign-in codes use the updated SMTP credentials.
 
 ## Production Compose
 
+Deployment and further production work are paused pending the usability plan and
+user approval. The package below is retained for later use.
+
 [`production.docker-compose.yaml`](production.docker-compose.yaml) builds backend
 and frontend images under one Git commit tag. PostgreSQL, FastAPI, and the
 frontend have no host port bindings. The public Nginx proxy is the only service
@@ -277,8 +308,9 @@ The script submits a fresh guest application to seeded job 2, signs in through
 the Mailpit code, verifies the recruiter comparison, and writes candidate and
 recruiter desktop and phone screenshots under `%TEMP%\jobtalk-browser-smoke`.
 
-For the complete local release sign-off, first approve a dedicated recruiter and
-then run the full create, publish, apply, compare, close, and delete workflow:
+For the existing automated local regression walkthrough, first approve a
+dedicated recruiter and then run the full create, publish, apply, compare,
+close, and delete workflow:
 
 ```powershell
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve local-signoff@example.com
@@ -291,6 +323,10 @@ published or opened publicly, verifies candidate deletion invalidates the guest
 token, and writes desktop and phone screenshots under
 `%TEMP%\jobtalk-local-signoff`. Wait for the configured login-code cooldown before
 reusing the same recruiter address.
+
+This scripted walkthrough does not establish usability or actual LLM quality.
+JT-060 adds varied conversations and separate live-provider evidence, followed
+by the user's [manual usability check](docs/usability-checklist.md).
 
 The backend flow suite also includes the fixed plumber pilot scenario: a strong
 plumber, a partial handyman with an explicit geyser gap, and an unrelated software
@@ -385,14 +421,16 @@ that owns the relevant job. The brief proposes WhatsApp and voice notes, verifie
 employers, anonymous top five candidate previews, privacy controls, and
 subscription plus placement fees; those are not implemented yet.
 
-The local core loop now passes with the shared typed criteria contract from job
-definition through candidate comparison. New discovery, dashboard, integration,
-and branding features remain deferred.
+The scripted local core loop passes with shared typed criteria, but usability
+remains unapproved. The current tickets improve the existing creation,
+application, and comparison flows. Advanced discovery, dashboards, integrations,
+and branding remain deferred.
 
-## Deployment goal
+## Deployment goal - paused
 
-The next milestone is deployment to a user-owned VM under a subdomain. Staging
-remains private while the production
+The next milestone is the user's local usability acceptance. Deployment to a
+user-owned VM under a subdomain waits for that acceptance and an explicit request
+to resume. When deployment resumes, staging remains private while the production
 package and guest application boundary are verified. The experiment then exposes
 published job pages and scoped guest applications while recruiter data stays
 behind authenticated ownership checks.
