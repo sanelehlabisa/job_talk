@@ -25,7 +25,9 @@ scrapers, template management, or deployment work.
 
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
 The final usability ticket covers the whole experience, including owner access
-and manually entered jobs. JT-057 is implemented; next is JT-058.
+and manually entered jobs. JT-057 is complete. JT-058 is implemented with
+deterministic checks; its live LLM acceptance remains open because API credit is
+exhausted. JT-059 is the next implementation ticket after that acceptance.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
@@ -69,24 +71,24 @@ conversations were **not run**; usability sign-off and deployment remain paused.
 
 - [ ] Interpret a whole description or pasted job advert into every relevant
   field, including answers to questions that have not yet been asked.
-- [ ] Extend the existing LLM service to propose categorized, concise updates
+- [x] Extend the existing LLM service to propose categorized, concise updates
   grounded in the authorized chat and saved draft. Validate types, supported
   facts, state changes, and stable keys before saving; keep weights, readiness,
   and scores backend-owned. Preserve the guided fallback.
-- [ ] Show a live **Who you're looking for** summary beside the chat on desktop
+- [x] Show a live **Who you're looking for** summary beside the chat on desktop
   and in a readable stacked layout on phone, using labels, values, and field
   states. Allow corrections through the same conversation.
-- [ ] Ask only about missing or unclear fields. Distinguish required, preferred,
+- [x] Ask only about missing or unclear fields. Distinguish required, preferred,
   and not required: "No degree needed" resolves `education` as `not_required`,
   stops qualification follow-ups, and excludes it from scoring. "That's fine"
   must not remove or resolve an unclear requirement without a clear referent.
-- [ ] Apply a correction to the existing criterion key and replace superseded
+- [x] Apply a correction to the existing criterion key and replace superseded
   evidence; retain unrelated confirmed fields and keep each job draft separate.
-- [ ] Require a clear title/description, work arrangement and relevant location
+- [x] Require a clear title/description, work arrangement and relevant location
   rules, at least one meaningful confirmed assessment criterion, and every
   other template field either confirmed or explicitly not required to publish.
   Remote location restrictions must be stated or explicitly unrestricted.
-- [ ] Keep explicit **Publish**, the final review, and the published-criteria
+- [x] Keep explicit **Publish**, the final review, and the published-criteria
   lock. Only confirmed assessment criteria enter scoring and the comparison plot;
   optional/preferred criteria remain distinct from requirements that do not apply.
 
@@ -95,7 +97,22 @@ a later experience correction updates one criterion, and "No degree needed"
 removes that requirement from questions and score calculations without inventing
 requirements from the template.
 
-**Status:** Planned (2026-10-03).
+**Status:** Implementation and deterministic/browser checks passed; live
+interpretation acceptance remains open (2026-10-03). The real provider attempt
+returned HTTP 429 `credit_balance_exhausted`, so it produced no model updates.
+The first checkbox stays open until the messy paragraph and follow-ups are
+verified with the actual LLM. Do not describe natural-language understanding as
+complete based on the mocked update tests or guided browser flow.
+
+**Evidence:** 66 backend regressions passed; after final correction handling,
+seven focused draft tests passed (including two added cases). Frontend production
+build and the desktop/phone recruiter browser check passed. The latter verified
+labelled answers, a changed experience target, an unchanged ambiguous reply,
+explicit degree exclusion, refresh persistence, Publish and the published lock.
+See [test record and manual checklist](docs/recruiter-draft-checks.md). No new
+infrastructure or deployment changes; existing non-template jobs retain their
+flow. Existing `.env` response limits may need increasing to the new development
+default of 3000 before retrying a full live template conversation.
 
 ### JT-059 - Make seeker chat fill the matching application
 
@@ -233,9 +250,10 @@ source metadata and the owner workflow are the additions (2026-10-03).
 the user can create a role, submit an honest application, and explain the
 candidate comparison without coaching. Passing scripted tests alone is not done.
 
-**Status:** Planned; manual approval pending. JT-057 has template-only browser
-and backend checks. The complete conversations above and actual LLM usability
-checks have not been run for this plan (2026-10-03).
+**Status:** Planned; manual approval pending. JT-057/JT-058 have template and
+recruiter browser/backend checks. The actual LLM attempt for JT-058 was blocked
+by exhausted API credit. The complete conversations above have not passed with
+the actual LLM (2026-10-03).
 
 ## Previous core MVP implementation evidence
 

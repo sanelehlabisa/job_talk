@@ -1,7 +1,8 @@
 param(
     [string]$RecruiterEmail = "recruiter@example.com",
     [string]$OutputDirectory = "$env:TEMP/jobtalk-local-signoff",
-    [switch]$TemplatesOnly
+    [switch]$TemplatesOnly,
+    [switch]$RecruiterDraftOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -179,13 +180,25 @@ try {
         Write-Output "Screenshots: $OutputDirectory"
         return
     }
-    $roleText = "Job title is Browser Signoff Welder. Welding is required with two years of experience. The role is based in Cape Town. The candidate should be available immediately."
+    $roleText = "Job title: Browser Signoff Welder; Role description: The person will repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $roleText
     Wait-JavaScript "document.querySelector('.publish-bar') !== null" "publish-ready role" 45
     if (Invoke-JavaScript "document.querySelector('.error-notice') !== null") { throw "Role creation displayed an error" }
     Save-Screenshot "01-role-ready-desktop.png"
+    if ($RecruiterDraftOnly) {
+        Set-InputAndSubmit "textarea[aria-label='Conversation message']" "Experience: three years of welding experience"
+        Wait-JavaScript "document.querySelector('[data-field-key=experience]')?.textContent.includes('3 years') && !document.querySelector('.typing')" "corrected experience"
+        Set-InputAndSubmit "textarea[aria-label='Conversation message']" "That's fine"
+        Wait-JavaScript "[...document.querySelectorAll('.message-wrap.user')].at(-1)?.textContent.includes('fine') && !document.querySelector('.typing')" "ambiguous acknowledgement"
+        if (-not (Invoke-JavaScript "document.querySelector('[data-field-key=experience]')?.textContent.includes('3 years') && document.querySelector('[data-field-key=education]')?.dataset.fieldState === 'not_required'")) { throw "Draft changed after an ambiguous reply" }
+        Invoke-JavaScript "window.__jobTalkReloadPending = true; true" | Out-Null
+        Invoke-Cdp "Page.reload" | Out-Null
+        Wait-JavaScript "!window.__jobTalkReloadPending && document.querySelector('[data-field-key=experience]')?.textContent.includes('3 years')" "persisted corrected summary"
+        Save-Screenshot "01-role-corrected-desktop.png"
+    }
     Set-Viewport 390 760 $true
     Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed recruiter phone sidebar" 10
+    Invoke-JavaScript "document.querySelector('.template-draft').scrollIntoView({ block: 'start', behavior: 'instant' }); true" | Out-Null
     Save-Screenshot "02-role-ready-phone.png"
     Set-Viewport 1200 800 $false
 
@@ -203,6 +216,11 @@ try {
     Wait-JavaScript "document.querySelector('.status-pill').textContent.includes('Published')" "published role"
     Wait-JavaScript "document.querySelector('.submitted-bar')?.textContent.includes('criteria locked')" "locked published criteria"
     if (Invoke-JavaScript "document.querySelector('.composer') !== null") { throw "Published recruiter chat still offers criteria editing" }
+    if ($RecruiterDraftOnly) {
+        Write-Output "Recruiter draft browser check passed: captured fields, correction, explicit exclusion, refresh, phone summary, Publish, and published lock. Provider quality is verified separately."
+        Write-Output "Screenshots: $OutputDirectory"
+        return
+    }
     $recruiterSession = Invoke-JavaScript "sessionStorage.getItem('job-talk-session')"
 
     Invoke-JavaScript "sessionStorage.removeItem('job-talk-session'); location.href='/?job=$jobId'; true" | Out-Null

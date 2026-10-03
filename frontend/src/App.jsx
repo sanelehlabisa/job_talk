@@ -694,6 +694,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
         <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? (chat.job_post?.title || "Build your role") : chat.intent === "candidate" ? (chat.target_job?.title || "Find your next role") : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
         <div className="status-pill"><span /> {statusLabel}</div>
       </header>
+      <div className={chat.status === "draft" && chat.job_draft ? "chat-workspace with-draft" : "chat-workspace"}>
       <div className="messages">
         <div className="conversation-inner">
           <div className="date-rule"><span>Today</span></div>
@@ -712,10 +713,10 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
             </div>
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
-          <ProfileChips profile={chat.profile} />
-          {chat.status === "draft" && chat.job_draft && <JobDraftSummary draft={chat.job_draft} />}
-          {chat.intent === "employer" && chat.job_post && <JobReadiness job={chat.job_post} />}
-          {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
+          {!chat.job_draft && <ProfileChips profile={chat.profile} />}
+          {chat.intent === "employer" && chat.job_post && !chat.job_draft && <JobReadiness job={chat.job_post} />}
+          {chat.job_draft && chat.status !== "draft" && <JobDraftSummary draft={chat.job_draft} locked />}
+          {chat.intent === "employer" && chat.job_post && !(chat.status === "draft" && chat.job_draft) && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
             <div className="recommendations">
               <div className="recommendation-heading"><span>{chat.target_job_id ? "YOUR APPLICATION" : "RECOMMENDED JOBS"}</span><small>{chat.target_job_id ? "Selected role" : "Top two from your conversation"}</small></div>
@@ -727,6 +728,8 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
           {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
           <div ref={bottomRef} />
         </div>
+      </div>
+      {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} /></aside>}
       </div>
       {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>Your approved snapshot is now frozen for the recruiter.</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>

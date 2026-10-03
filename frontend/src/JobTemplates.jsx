@@ -29,17 +29,18 @@ export function JobTemplatePicker({ templates, busy, onSelect, onCancel }) {
   );
 }
 
-export function JobDraftSummary({ draft }) {
+export function JobDraftSummary({ draft, locked = false }) {
   return (
     <details className="template-draft" open>
-      <summary>{draft.label} · starter fields</summary>
-      <p>Describe or correct these fields in the chat. Suggestions are examples, not confirmed requirements.</p>
+      <summary>Who you're looking for</summary>
+      <p>{draft.fields.filter((field) => ["confirmed", "not_required"].includes(field.state)).length}/{draft.fields.length} fields answered · {draft.label}</p>
+      <p>{locked ? "These published requirements are locked so applications stay comparable." : "Describe or correct these fields in the chat. Suggestions are examples, not confirmed requirements."}</p>
       <ul>
         {draft.fields.map((field) => (
           <li key={field.key} data-field-key={field.key} data-field-state={field.state}>
             <div><strong>{field.label}</strong><span className={`draft-state ${field.state}`}>{stateLabels[field.state]}</span></div>
             {field.state === "not_required" ? <p>Excluded from assessment.</p> : field.target !== null && field.target !== undefined ? (
-              <p>{displayValue(field.target, field.unit)}</p>
+              <><p>{displayValue(field.target, field.unit)}</p>{field.scope === "criterion" && <p>{field.importance === "preferred" ? "Preferred" : field.importance === "required" ? "Required" : ""}{field.importance !== "unspecified" ? " · " : ""}{field.description}</p>}</>
             ) : field.suggestion !== null && field.suggestion !== undefined ? (
               <p className="draft-suggestion">Suggestion: {displayValue(field.suggestion, field.unit)}</p>
             ) : <p>{field.description}</p>}

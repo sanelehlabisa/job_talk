@@ -38,7 +38,10 @@ from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn
 from .services.email import send_recruiter_login_code
-from .services.job_templates import JobDraft, new_job_draft, starter_templates, sync_job_draft
+from .services.job_templates import (
+    JobDraft, new_job_draft, starter_templates, apply_draft_updates,
+    draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
+)
 from .settings import get_settings
 
 
@@ -88,7 +91,8 @@ def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
         chat.intent == "employer"
         and chat.status == "draft"
         and chat.job_post
-        and can_publish(chat.job_post.target_profile, chat.job_post.title)
+        and (draft_can_publish(chat.job_post.draft) if chat.job_post.draft
+             else can_publish(chat.job_post.target_profile, chat.job_post.title))
         and not chat.job_post.published
     )
     return output
@@ -476,7 +480,25 @@ def send_message(
     if chat.intent and chat.intent != expected_intent:
         raise HTTPException(status_code=403, detail="This conversation belongs to another account type")
 
-    if not chat.intent:
+    template_turn = chat.intent == "employer" and chat.job_post and chat.job_post.draft
+    if template_turn:
+        job = chat.job_post
+        context = build_chat_context(chat)
+        guided_fallback = False
+        if not wants_to_publish(text):
+            turn = generate_turn(context, chat.intent, text, draft_question(job.draft))
+            updates = turn.template_updates
+            if updates is None:
+                guided_fallback = True
+                updates = fallback_draft_updates(job.draft, text)
+            job.draft = apply_draft_updates(job.draft, updates, text)
+            fields = {field["key"]: field for field in job.draft["fields"]}
+            job.title = fields["job_title"]["target"] or "Untitled role"
+            job.description = fields["role_description"]["target"] or ""
+            job.target_profile = draft_profile(job.draft)
+            chat.profile = job.target_profile
+        reply = ("I'm using guided questions for now. You can answer with a field label, such as Location: Cape Town. " if guided_fallback else "") + draft_question(job.draft)
+    elif not chat.intent:
         chat.intent = expected_intent
         if chat.intent == "employer":
             interpret_employer_answer = True
@@ -554,7 +576,9 @@ def send_message(
         reply = candidate_reply(
             context["draft"], target_profile, candidate_answer_status
         )
-    if interpret_employer_answer:
+    if template_turn:
+        pass  # The question reflects validated saved fields, never unaccepted AI claims.
+    elif interpret_employer_answer:
         turn = generate_turn(context, chat.intent, text, reply)
         reply = turn.reply
         if turn.role_updates is not None:
@@ -570,8 +594,6 @@ def send_message(
             job.title = details.get("title") or "Untitled role"
     else:
         reply = generate_reply(context, chat.intent, text, reply)
-    if chat.intent == "employer" and job and job.draft:
-        job.draft = sync_job_draft(job.draft, job.title, job.description, job.target_profile)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()
@@ -629,7 +651,7 @@ def publish_job(
         raise HTTPException(status_code=409, detail="Closed recruitment cannot be republished")
     if job.published:
         return job
-    if not can_publish(job.target_profile, job.title):
+    if not (draft_can_publish(job.draft) if job.draft else can_publish(job.target_profile, job.title)):
         raise HTTPException(
             status_code=400,
             detail="Complete the guided role questions before publishing",

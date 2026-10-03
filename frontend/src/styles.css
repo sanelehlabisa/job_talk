@@ -336,11 +336,19 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .template-draft li strong { font-size: 12px; color: var(--green); }
 .template-draft li p { font-size: 12px; color: #596961; line-height: 1.5; margin: 8px 0 0; overflow-wrap: anywhere; }
 .template-draft .draft-suggestion { color: #6b766f; font-style: italic; }
+.chat-workspace { display: flex; flex: 1; min-height: 0; }
+.chat-workspace .messages { min-width: 0; }
+.draft-sidebar { width: clamp(280px, 34%, 400px); flex-shrink: 0; overflow-y: auto; border-left: 1px solid #dce3da; padding: 12px; }
+.draft-sidebar .template-draft { margin: 0; }
+.draft-sidebar .template-draft ul { grid-template-columns: 1fr; }
 .draft-state { background: #f0f2ed; border-radius: 99px; font-size: 10px; padding: 3px 7px; color: #596961; }
 .draft-state.confirmed { background: #e8f2e5; color: #365b41; }
 .draft-state.needs_clarification { background: #fff0df; color: #88521d; }
 
 @media (max-width: 800px) {
+  .chat-workspace.with-draft { flex-direction: column; overflow-y: auto; }
+  .with-draft .messages { flex: none; overflow: visible; }
+  .draft-sidebar { width: 100%; overflow: visible; border-left: 0; padding: 0 13px 16px; }
   .login-grid { grid-template-columns: 1fr; gap: 35px; padding: 60px 0; }
   .hero-copy h1 { font-size: 54px; }.hero-copy > p { font-size: 16px; }.trust-row { display: none; }
   .login-card { max-width: 500px; width: 100%; }.login-page footer { display: none; }

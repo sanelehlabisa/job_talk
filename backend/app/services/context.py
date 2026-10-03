@@ -24,6 +24,7 @@ class ChatContext(TypedDict):
     draft: dict
     messages: list[ContextMessage]
     user_message_count: NotRequired[int]
+    job_draft: NotRequired[dict | None]
 
 
 def build_chat_context(
@@ -45,6 +46,8 @@ def build_chat_context(
             else None
         ),
         "draft": deepcopy(chat.profile or {}),
+        **({"job_draft": deepcopy(job.draft)}
+           if job and job.draft and chat.intent == "employer" else {}),
         "messages": [
             {"role": message.sender, "content": message.content}
             for message in chat.messages[-message_limit:]

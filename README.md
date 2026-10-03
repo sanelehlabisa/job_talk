@@ -35,9 +35,10 @@ structure that both the recruiter and candidate can read and correct.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
-- JT-057 adds three fixed templates and separate saved drafts. JT-058 is next:
-  grounded updates to every relevant field, explicit not-required answers, and
-  a live **Who you're looking for** summary before final publication.
+- JT-057 adds three fixed templates and separate saved drafts. JT-058 implements
+  validated field updates, explicit not-required answers, and a live **Who you're
+  looking for** summary. Live language verification is pending: the configured
+  provider returned `credit_balance_exhausted` on 2026-10-03.
 - JT-059: two available-job cards, **Find a different job** across all open
   listings, explicit job selection, and a live **Your application** summary that
   accepts honest gaps without inventing evidence.
@@ -59,6 +60,14 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - **New hiring conversation** offers Junior Software Developer, Plumber, and
   Generic Role starters. Suggestions are labelled separately from saved answers;
   choosing a template creates no confirmed requirements or public job.
+- Template conversations can fill multiple fields in one answer and correct an
+  existing field. Qualifications can be explicitly not required; text and
+  practical skill targets do not need years. The backend only publishes once
+  every field is resolved, location rules are clear, and at least one meaningful
+  assessment criterion is confirmed. Review the summary, then click **Publish**.
+- When AI is unavailable, the chat identifies guided mode. Use explicit answers
+  such as `Location: Cape Town`, `Working hours: weekdays`, or `No degree needed`.
+  This fallback is limited; it does not establish natural-language understanding.
 - Passwordless entry: job seekers start a private guest conversation immediately,
   while approved recruiters sign in with a short-lived email code.
 - Three realistic demo jobs, public links and a job picker, and a guest
@@ -241,8 +250,11 @@ database storage. Keep it out of frontend build arguments and browser code.
 
 Production Compose also requires `SUPPORT_EMAIL`. Set it to the monitored address
 shown on the privacy and safety page before building the frontend.
-`AI_MAX_OUTPUT_TOKENS` defaults to 1000 so recruiter responses can contain the
-strict reply and several categorized role updates without truncating the JSON.
+The backend and development example now default `AI_MAX_OUTPUT_TOKENS` to 3000
+to allow a whole template's structured updates in one response. Existing `.env`
+overrides are retained; raise an older 1000-token value to 3000 and recreate the
+backend with `docker compose -f dev.docker-compose.yaml up -d backend` before
+testing long descriptions. Invalid or truncated responses use the guided fallback.
 
 The public `/privacy` page explains collection, sharing, acceptable use,
 retention, reporting, and deletion. Candidates can delete a submitted guest
@@ -339,6 +351,12 @@ To check only template selection and saved drafts, append `-TemplatesOnly` to
 the `scripts/local-signoff.ps1` command. It opens all three templates, checks
 refresh persistence and unconfirmed fields, and captures desktop and phone
 screenshots without sending AI messages.
+
+Use `-RecruiterDraftOnly` to check a labelled role description, an experience
+correction, an ambiguous acknowledgement, saved summary, phone layout, explicit
+publication, and locked criteria. It uses the configured provider and may fall
+back; it does not certify live AI quality. See the recorded
+[recruiter draft checks](docs/recruiter-draft-checks.md).
 
 The backend flow suite also includes the fixed plumber pilot scenario: a strong
 plumber, a partial handyman with an explicit geyser gap, and an unrelated software

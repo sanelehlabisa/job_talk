@@ -17,9 +17,11 @@ The user has not accepted the current app as usable. Deployment is paused while
 the planned tickets JT-057 through JT-062 in [TASKS.md](../TASKS.md) improve the
 existing flow. Passing prior scripted tests does not replace manual acceptance.
 The behavior below describes the target. JT-057 supplies the template picker and
-persisted draft structure. Full field interpretation and not-required handling
-(JT-058), improved candidate conversations, owner access, and source-aware manual
-job entry remain pending.
+persisted draft structure. JT-058 implements validated template updates,
+not-required handling, the live summary and publication gate; actual LLM
+acceptance is still pending (provider credit exhausted in the local check).
+Improved candidate conversations, owner access, and source-aware manual job entry
+remain pending.
 
 ## One shared criteria contract
 
@@ -108,10 +110,17 @@ nor metadata enter scoring. Private recruiter chat responses expose it as
 `job_draft`; public job responses do not include it. Existing no-template chats
 remain supported.
 
-Drafts start unanswered and show saved requirements from the existing parser as
-confirmed or needing clarification. The structure supports explicit not-required
-states; interpreting those answers and filling every template field is JT-058.
+Drafts start unanswered. The model proposes changed fields with exact source
+quotes from the current message, using the current chat and its saved draft.
+The backend validates quotes, types, keys, explicit exclusions and quantities;
+owns weights and readiness; and rebuilds scoring criteria from confirmed fields.
+It asks the next unresolved question after saving, so rejected proposals cannot
+be announced as accepted. Polished descriptions still need recruiter review.
 Choosing a starter never confirms its title, criteria, or other suggestions.
+
+If the provider is unavailable, a small guided parser accepts explicit labelled
+answers and exclusions. This fallback is not a substitute for live LLM acceptance.
+Older no-template jobs keep their existing flow and publication checks.
 
 Template suggestions are kept separate from confirmed answers. Existing criterion
 keys and types are reused, including `education` for qualifications. Years are a
