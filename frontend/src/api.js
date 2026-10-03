@@ -33,7 +33,7 @@ async function request(path, options = {}) {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    if (response.status === 401 && !path.startsWith("/auth/")) {
+    if (response.status === 401 && (!path.startsWith("/auth/") || path === "/auth/me")) {
       sessionStorage.removeItem(SESSION_KEY);
       window.dispatchEvent(new Event("job-talk:unauthorized"));
     }
@@ -59,6 +59,7 @@ export const api = {
       body: JSON.stringify({ email, code }),
     }),
   me: () => request("/auth/me"),
+  adminJobs: () => request("/admin/jobs"),
   logout: () => request("/auth/logout", { method: "POST" }),
   deleteAccount: () => request("/account", { method: "DELETE" }),
   listChats: () => request("/chats"),

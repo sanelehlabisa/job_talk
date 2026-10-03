@@ -29,7 +29,8 @@ and manually entered jobs. JT-057 is complete. JT-058 is implemented with
 deterministic checks; its live LLM acceptance remains open because API credit is
 exhausted. The user approved merging that work and proceeding with JT-059;
 candidate implementation checks are recorded below, with live acceptance also
-pending. JT-061 is the next independent implementation ticket.
+pending. JT-061 owner access is implemented and checked. JT-062 manual vacancy
+entry is the next independent implementation ticket.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
@@ -166,26 +167,26 @@ asserts that experience remains intact. See [candidate test record](docs/candida
 
 ### JT-061 - Configure owner access using existing login tokens
 
-- [ ] Add an optional backend-only `ADMIN_EMAIL` setting, documented with an empty
+- [x] Add an optional backend-only `ADMIN_EMAIL` setting, documented with an empty
   placeholder in `.env.example`. The owner sets their real address in ignored
   `.env`; no actual address is assumed or committed. Empty means no admin access.
-- [ ] Reuse manual recruiter approval and email-code verification for that
+- [x] Reuse manual recruiter approval and email-code verification for that
   address. Derive admin capability on the backend from the verified session's
   approved recruiter and exact normalized configured email. Request bodies,
   browser flags, and unverified email strings cannot grant privileges.
-- [ ] Let the owner list jobs across recruiters and inspect their submitted
+- [x] Let the owner list jobs across recruiters and inspect their submitted
   application snapshots in the existing job/comparison views. Ordinary recruiters
   see only their own jobs' applicants; candidates see only their own application.
   Owner visibility does not grant other recruiters access or expose full chats.
-- [ ] Reuse the existing expiring bearer tokens on every protected route. A login
+- [x] Reuse the existing expiring bearer tokens on every protected route. A login
   code is single-use and only exchanges for a session; never reuse it as an API
   key. Keep public job browsing and guest entry available without recruiter login.
-- [ ] Check all affected list/detail/mutation routes server-side. Test two
+- [x] Check all affected list/detail/mutation routes server-side. Test two
   recruiters, two isolated guests, owner access, unset/changed admin email,
   spoofed roles, revoked approval, invalid/expired sessions, and direct requests
   to another recruiter's application. Broad read access must not silently grant
   permission to edit other recruiters' jobs.
-- [ ] Update candidate-facing privacy/consent wording to explain Job Talk operator
+- [x] Update candidate-facing privacy/consent wording to explain Job Talk operator
   access to submitted applications. Use existing views, with no general admin or
   permissions framework.
 
@@ -193,8 +194,26 @@ asserts that experience remains intact. See [candidate test record](docs/candida
 submitted applications across jobs, while every other identity retains its
 existing ownership boundary and anonymous private-data requests are rejected.
 
-**Status:** Planned. Session protection already exists; this ticket extends
-authorized visibility rather than introducing a second login system (2026-10-03).
+**Status:** Implemented (2026-10-03). The supplied owner address is configured
+only in ignored local `.env` and approved in the local database. Existing
+email-code login opens **All jobs**, with draft/open/closed jobs and the existing
+submitted-candidate comparison. Other recruiters' chats and job mutations stay
+private. No new infrastructure, migrations or authentication system.
+
+**Checks:** 78 backend tests passed, including five focused admin tests covering
+configuration changes, approval revocation, two recruiters and two guests,
+unsubmitted-record exclusion, spoofed roles, expired/invalid sessions, code
+single-use and ownership. Frontend production build passed. The local
+`-AdminOnly` browser check passed with real Mailpit delivery, another recruiter's
+submitted application, desktop/phone layouts, navigation and refresh. Reviewed
+screenshots; the fictional application was removed afterward. No LLM calls were
+needed for this ticket. Deployment and user usability sign-off remain paused.
+
+**Manual check:** Sign in with the configured owner email using Mailpit, choose
+another recruiter's job in **All jobs**, and check the candidate cards/plot.
+Sign in as an ordinary recruiter and confirm **All jobs** is absent and only
+their own applicants are available. Creating and managing the owner's own jobs
+continues through the normal hiring conversations.
 
 ### JT-062 - Manually enter real jobs and review candidate interest
 

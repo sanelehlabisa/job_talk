@@ -4,6 +4,18 @@ The public `/privacy` page is the user-facing summary. The operator must replace
 `SUPPORT_EMAIL` with a monitored address before building the production frontend.
 Use that inbox for privacy, abuse, access, and deletion reports.
 
+## Operator application review
+
+The approved recruiter whose email matches backend `ADMIN_EMAIL` can use
+**All jobs** to review submitted application snapshots across recruiters. This
+includes approved contact details, evidence and scores. Ordinary recruiters
+retain access only to their own jobs' applicants; these views expose no full
+candidate or recruiter chats. Job editing remains restricted to the job owner.
+Submission consent and the public privacy page explain operator access. New
+snapshots record `operator_access_disclosed`; earlier snapshots are not rewritten.
+Keep the actual admin address in ignored `.env`, never in source or frontend
+settings. See the README for approval, local login and disabling this access.
+
 ## Data retention
 
 The candidate guest-data retention period is at most 30 days. Run the cleanup at

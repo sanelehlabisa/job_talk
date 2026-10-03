@@ -2,7 +2,8 @@
 
 Status: **Pending user acceptance and remaining tickets (2026-10-03).** This is
 the acceptance checklist for JT-057 through JT-062. JT-057/JT-058/JT-059 have
-implementation checks recorded in the recruiter and candidate test notes. Live
+implementation checks recorded in the recruiter and candidate test notes.
+JT-061 owner access passed backend and local browser checks (see TASKS.md). Live
 OpenAI attempts returned `credit_balance_exhausted`; language quality remains
 unverified. Deployment stays paused.
 
@@ -37,7 +38,12 @@ API succeeds.
   candidates. Read the short cards and explain the score differences. Check the
   values, evidence, weights, top-five comparison, and parallel plot against the
   exact confirmed job criteria; qualifications marked not required must be absent.
-- [ ] **Use the owner view and manual vacancy.** With the approved owner email
+- [ ] **Review owner access.** Sign in with the configured, approved owner email
+  and a code from Mailpit. In All jobs, select another recruiter's listing and
+  inspect its submitted candidates and plot. Refresh and repeat on phone size.
+  Sign in as an ordinary recruiter and confirm All jobs is absent and only their
+  own applicants are available. Neither view should expose full candidate chats.
+- [ ] **Use a manual vacancy (JT-062 pending).** With the approved owner email
   configured, paste one manually checked vacancy with its source, review and
   publish it, then submit a test application. Confirm who receives it is clear.
   Restart the local stack normally (preserving volumes) and confirm it remains.
@@ -53,7 +59,7 @@ Record the result in this table when executing JT-060:
 | Actual LLM: provider/model, date, scenarios, outcomes | OpenAI / `gpt-4o-mini`, 2026-10-03; recruiter and candidate attempts blocked by API credit |
 | Live cases that fell back or failed | Both used guided fallback after HTTP 429 `credit_balance_exhausted` |
 | Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
-| Owner/recruiter/guest access checks | Pending |
+| Owner/recruiter/guest access checks | JT-061: 78 backend tests and focused owner browser check passed; user acceptance pending |
 | User decision: usable / needs fixes | Pending |
 
 Do not put API keys, login codes, tokens, or real candidate details in this

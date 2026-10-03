@@ -58,6 +58,7 @@ class UserOut(ORMModel):
     id: int
     email: str
     role: Literal["candidate", "recruiter"]
+    is_admin: bool = False
 
 
 class AuthResponse(BaseModel):
@@ -90,6 +91,12 @@ class JobOut(ORMModel):
     _normalize_target_profile = field_validator("target_profile", mode="before")(
         normalize_target_profile
     )
+
+
+class AdminJobOut(JobOut):
+    status: Literal["draft", "published", "closed"]
+    recruiter_email: str
+    submitted_count: int
 
 
 class CriterionScoreOut(BaseModel):

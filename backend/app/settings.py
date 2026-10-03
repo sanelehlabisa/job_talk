@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import EmailStr, Field, SecretStr, model_validator
+from pydantic import EmailStr, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     recruiter_code_request_max_per_hour: int = Field(default=5, ge=1, le=20)
     demo_data_retention_days: int = Field(default=30, ge=7, le=30)
     demo_recruiter_email: EmailStr | None = None
+    admin_email: EmailStr | None = None
     seed_demo_jobs: bool = False
 
     database_url: str = "sqlite:///./job_talk.db"
@@ -64,6 +65,13 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = Field(default=20, ge=1, le=60)
     ai_max_output_tokens: int = Field(default=3000, ge=64, le=6000)
     ai_max_calls_per_chat: int = Field(default=12, ge=1, le=50)
+
+    @field_validator("admin_email", mode="before")
+    @classmethod
+    def normalize_admin_email(cls, value):
+        if isinstance(value, str):
+            return value.strip().lower() or None
+        return value
 
     @property
     def allowed_host_list(self) -> list[str]:

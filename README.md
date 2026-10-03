@@ -43,17 +43,18 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   open listings, explicit job selection, and a live **Your application** summary.
   Deterministic/browser checks cover corrections and honest gaps; live language
   verification is pending the same API-credit issue.
-- JT-061/JT-062: owner access through a backend `ADMIN_EMAIL` setting and existing
-  email-code sessions, plus manual entry of source-labelled vacancies through
-  the existing draft/review/publish flow. Recruiters keep access only to their
-  own jobs' applications.
+- JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
+  email-code sessions. **All jobs** shows drafts, open and closed jobs, and
+  submitted applications across recruiters. Ordinary recruiters keep access
+  only to their own jobs' applications. JT-062 is next: manual entry of
+  source-labelled vacancies through the existing draft/review/publish flow.
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
 
 Jobs, criteria, chats, and submitted applications already persist in PostgreSQL
 in the development stack. Protected endpoints already use expiring bearer
 sessions issued after sign-in; the single-use login code is not an API token.
-The owner setting and manual source-entry workflow above are still planned.
+Manual source-entry metadata remains planned in JT-062.
 Deployment resumes only after user acceptance and an explicit request to resume.
 
 ## Existing implementation
@@ -230,6 +231,40 @@ approve another recruiter request:
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters list
 docker compose -f dev.docker-compose.yaml exec backend python -m app.recruiters approve recruiter@company.com
 ```
+
+### Owner access
+
+Set `ADMIN_EMAIL` to your email in ignored `.env`, approve that same address
+using the command above, then reload the backend configuration:
+
+```bash
+docker compose -f dev.docker-compose.yaml up -d --no-deps backend
+```
+
+Sign in through **I'm hiring** with that email and the code in
+[local Mailpit](http://localhost:8025). **All jobs** opens automatically and
+remains available in the sidebar. Choose a job to read its requirements,
+submitted candidate cards and comparison plot. Manage your own roles through
+their hiring conversations. Reviewing other recruiters' jobs grants no access
+to their private chats or job editing actions.
+
+`ADMIN_EMAIL` is optional and backend-only; empty disables owner access. It
+does not approve the email automatically. The backend checks the configured
+address and current recruiter approval on every request using the existing
+expiring bearer session. Changing this setting takes effect after recreating
+the backend; refresh the browser to update the navigation.
+
+To repeat the focused browser check with a configured, approved local owner:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -RecruiterEmail owner@example.com -AdminOnly
+```
+
+Replace the example address with your configured owner email. The check needs
+one published local job, uses Mailpit, creates and removes one fictional
+application, and checks desktop/phone views. It makes no LLM requests.
+
+### Email-code limits
 
 Code requests always return the same response, whether the address is approved,
 pending, rejected, or unknown. For an approved recruiter, the backend sends at
@@ -456,8 +491,10 @@ provider error code without logging the API key or response data.
 
 The app uses text only, a small rule based vocabulary, and heuristic scores. It
 does not verify candidate skills or automate employer identity checks.
-Application data is visible to the candidate guest session and the recruiter
-that owns the relevant job. The brief proposes WhatsApp and voice notes, verified
+Submitted application data is visible to the candidate guest session, the recruiter
+that owns the relevant job, and the configured approved Job Talk operator, as
+explained during submission and on the privacy page. These recruiter/operator
+views do not expose full chats. The brief proposes WhatsApp and voice notes, verified
 employers, anonymous top five candidate previews, privacy controls, and
 subscription plus placement fees; those are not implemented yet.
 

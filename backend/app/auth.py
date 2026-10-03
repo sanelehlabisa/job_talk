@@ -17,6 +17,19 @@ bearer_scheme = HTTPBearer(auto_error=False)
 settings = get_settings()
 
 
+def is_admin(user: models.User) -> bool:
+    return bool(
+        settings.admin_email
+        and user.role == "recruiter"
+        and user.approval_status == "approved"
+        and user.email.strip().lower() == str(settings.admin_email).strip().lower()
+    )
+
+
+def serialize_user(user: models.User) -> schemas.UserOut:
+    return schemas.UserOut.model_validate(user).model_copy(update={"is_admin": is_admin(user)})
+
+
 def token_digest(token: str) -> str:
     return hmac.new(
         settings.session_token_pepper.encode("utf-8"),
@@ -51,7 +64,7 @@ def issue_session(db: Session, user: models.User) -> schemas.AuthResponse:
         )
     )
     db.commit()
-    return schemas.AuthResponse(access_token=token, expires_at=expires_at, user=user)
+    return schemas.AuthResponse(access_token=token, expires_at=expires_at, user=serialize_user(user))
 
 
 def _unauthorized() -> HTTPException:
@@ -89,3 +102,9 @@ def get_current_user(session: models.AuthSession = Depends(get_current_session))
     if session.user.role == "recruiter" and session.user.approval_status != "approved":
         raise _unauthorized()
     return session.user
+
+
+def get_admin_user(user: models.User = Depends(get_current_user)) -> models.User:
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user

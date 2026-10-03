@@ -42,7 +42,7 @@ function PrivacyPage() {
         <p>We store the conversation, its structured skills and experience, the selected job, and the match explanation. A candidate's name and contact details are collected only during final review and submission. Recruiter email addresses, hashed sign-in codes, and hashed session tokens are also stored.</p>
         <p>To measure this experiment, the browser creates a random identifier. The backend stores only its keyed hash with event names, dates, numeric job or application references, and optional yes-or-no feedback. Analytics do not contain names, contact details, chat text, skills, evidence, IP addresses, or user-agent strings, and are removed on the same 30-day demo schedule.</p>
         <h2>Who can see it</h2>
-        <p>The recruiter for the selected role sees only a submitted application snapshot, contact details, evidence, and match breakdown. The full chat is not shown to the recruiter. Job Talk does not sell personal data.</p>
+        <p>The recruiter for the selected role and the Job Talk operator can review your submitted application snapshot, contact details, evidence, and match breakdown. Recruiters see applications only for their own jobs; the operator can review applications across jobs to run and support this experiment. These views do not expose your full chat. Job Talk does not sell personal data.</p>
         <p>The deterministic local response generator is the default. If the hosted AI option is enabled, only the selected job, structured draft, and a bounded window from the current chat are sent to that provider.</p>
         <h2>Retention and deletion</h2>
         <p>The demo retention period for candidate records is 30 days, and the operator runs the documented cleanup command regularly. While the private guest session is open, a submitted candidate can use <strong>Delete my application data</strong>. After leaving, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the application reference. Recruiters can use the same address to request account or hiring-record deletion.</p>
@@ -50,7 +50,7 @@ function PrivacyPage() {
         <p>Use Job Talk only for genuine job applications and hiring. Do not submit another person's private information, secrets, harmful content, automated traffic, or discriminatory job requirements. Candidate claims are unverified, and match scores are review aids rather than hiring decisions.</p>
         <h2>Questions or reports</h2>
         <p>Report privacy, safety, access, or removal concerns to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Include only the minimum information needed to find the record.</p>
-        <p className="policy-updated">Last updated: 1 October 2026</p>
+        <p className="policy-updated">Last updated: 3 October 2026</p>
       </div>
     </main>
   );
@@ -263,12 +263,13 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
   );
 }
 
-function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onLogout, open, onClose }) {
+function Sidebar({ user, chats, activeId, onSelect, onNew, onBrowseJobs, onAllJobs, showingAllJobs, onLogout, open, onClose }) {
   const statusLabel = (status) => ({ active: "In progress", draft: "Draft", published: "Published", closed: "Closed", submitted: "Submitted" }[status] || status);
   return (
     <aside className={`sidebar ${open ? "open" : ""}`} aria-label="Conversation navigation">
       <div className="side-head"><Brand /><button className="mobile-close" type="button" aria-label="Close conversation menu" onClick={onClose}>×</button></div>
       {user.role === "recruiter" && <button className="new-chat" type="button" onClick={onNew}><Plus size={18} /> New hiring conversation</button>}
+      {user.is_admin && <button className="new-chat admin-nav" type="button" aria-current={showingAllJobs ? "page" : undefined} onClick={onAllJobs}><BriefcaseBusiness size={18} /> All jobs</button>}
       {user.role === "candidate" && <button className="new-chat" type="button" onClick={onBrowseJobs}><Plus size={18} /> Browse other jobs</button>}
       <div className="chat-list-label">YOUR CONVERSATIONS</div>
       <div className="chat-list">
@@ -427,7 +428,7 @@ function ApplicationReview({ item, profile, fields, onSubmit, onCancel }) {
       <input id="candidate-contact" value={preferredContact} onChange={(event) => setPreferredContact(event.target.value)} minLength="3" maxLength="320" autoComplete="email" required />
       <label className="consent-check">
         <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />
-        <span>I agree to share this application and my contact details with the recruiter for this role.</span>
+        <span>I agree to share this application and my contact details with the recruiter for this role and the Job Talk operator who runs and supports this experiment.</span>
       </label>
       <p className="review-policy">Read how Job Talk uses and deletes data in <a href="/privacy" target="_blank" rel="noreferrer">Privacy &amp; safety</a>.</p>
       <button className="primary full" disabled={!consent || submitting}>{submitting ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button>
@@ -590,7 +591,7 @@ function formatCriterionValue(value, unit) {
   return `${String(value)}${unit ? ` ${unit}` : ""}`;
 }
 
-function CandidateComparison({ applications, status, targetProfile, jobId, onCloseJob }) {
+function CandidateComparison({ applications, status, targetProfile, jobId, onCloseJob, readOnly = false }) {
   const visible = status === "closed" ? applications.slice(0, 5) : applications;
   let previousScore = null;
   let previousRank = 0;
@@ -602,7 +603,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
           <span>SUBMITTED CANDIDATES</span>
           <h2>{applications.length} application{applications.length === 1 ? "" : "s"}</h2>
         </div>
-        {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
+        {!readOnly && status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
       </div>
       <p className="decision-support">Scores organize unverified candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
       <CandidateScorePlot applications={applications} targetProfile={targetProfile} />
@@ -650,7 +651,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
           );
         })}
       </div>}
-      {!!visible.length && jobId && <FeedbackPrompt kind="recruiter" contextId={jobId} />}
+      {!readOnly && !!visible.length && jobId && <FeedbackPrompt kind="recruiter" contextId={jobId} />}
       {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates ranked by the saved weighted scores; equal scores share a rank.</p>}
     </section>
   );
@@ -752,6 +753,68 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
   );
 }
 
+function AdminJobs({ onMenu }) {
+  const [jobs, setJobs] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [snapshot, setSnapshot] = useState(null);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const selected = jobs?.find((job) => job.id === selectedId);
+
+  useEffect(() => {
+    let cancelled = false;
+    setJobs(null);
+    setSnapshot(null);
+    setError("");
+    api.adminJobs().then((items) => {
+      if (cancelled) return;
+      setJobs(items);
+      setSelectedId((id) => items.some((job) => job.id === id) ? id : items[0]?.id ?? null);
+    }).catch((err) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!selected) return undefined;
+    let cancelled = false;
+    setSnapshot(null);
+    setError("");
+    api.applications(selected.id).then((items) => {
+      if (!cancelled) setSnapshot({ jobId: selected.id, items });
+    }).catch((err) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [selected]);
+
+  return <section className="chat-shell">
+    <header className="chat-header">
+      <button className="menu-button" type="button" aria-label="Open conversation menu" onClick={onMenu}>☰</button>
+      <strong>All jobs</strong><button className="ghost" type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh</button>
+    </header>
+    <div className="admin-jobs">
+      <p className="decision-support">Owner view: review jobs and submitted applications across recruiters. To manage your own jobs, open their hiring conversation.</p>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!jobs && !error && <p role="status">Loading jobs…</p>}
+      {jobs?.length === 0 && <p>No jobs yet. Start a new hiring conversation to create one.</p>}
+      {!!jobs?.length && <>
+        <label htmlFor="admin-job">Choose a job ({jobs.length})</label>
+        <select id="admin-job" value={selectedId ?? ""} onChange={(event) => setSelectedId(Number(event.target.value))}>
+          {jobs.map((job) => <option key={job.id} value={job.id}>{job.title} · {job.status} · {job.submitted_count} applications · {job.recruiter_email}</option>)}
+        </select>
+      </>}
+      {selected && <>
+        <article className="admin-job-details">
+          <h1>{selected.title}</h1><p>{selected.description || "The role description is still being drafted."}</p>
+          <p><strong>{selected.status === "published" ? "Open" : selected.status === "closed" ? "Closed" : "Draft"}</strong> · {selected.recruiter_email}</p>
+          <details><summary>Role criteria</summary><ul>{Object.entries(selected.target_profile).map(([key, item]) => <li key={key}><strong>{item.label || key.replaceAll("_", " ")}</strong>: {formatCriterionValue(item.target, item.unit)}<p>{item.description}</p></li>)}</ul>
+            {!Object.keys(selected.target_profile).length && <p>No confirmed criteria yet.</p>}
+          </details>
+        </article>
+        {snapshot?.jobId === selected.id ? <CandidateComparison applications={snapshot.items} status={selected.status} targetProfile={selected.target_profile} jobId={selected.id} readOnly /> : !error && <p role="status">Loading applications…</p>}
+      </>}
+    </div>
+  </section>;
+}
+
 function JobTalkApp() {
   const [session, setSession] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -766,11 +829,13 @@ function JobTalkApp() {
   const [showJobsOnEntry, setShowJobsOnEntry] = useState(false);
   const [templateChoices, setTemplateChoices] = useState(null);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [showAdminJobs, setShowAdminJobs] = useState(false);
   const user = session?.user;
 
   useEffect(() => { api.visit().catch(() => {}); }, []);
 
   async function loadChat(id) {
+    setShowAdminJobs(false);
     setTemplateChoices(null);
     setError("");
     try {
@@ -803,12 +868,25 @@ function JobTalkApp() {
       setApplications([]);
       setShowJobsOnEntry(false);
       setTemplateChoices(null);
+      setShowAdminJobs(false);
     };
     window.addEventListener("job-talk:unauthorized", clearExpiredSession);
     return () => window.removeEventListener("job-talk:unauthorized", clearExpiredSession);
   }, []);
 
-  useEffect(() => { if (user) loadChats().catch((err) => setError(err.message)); }, [user?.id]);
+  useEffect(() => {
+    if (!user) return undefined;
+    let cancelled = false;
+    async function restore() {
+      const verified = await api.me();
+      if (cancelled) return;
+      setSession((current) => current ? { ...current, user: verified } : null);
+      setShowAdminJobs(verified.is_admin);
+      await loadChats(!verified.is_admin);
+    }
+    restore().catch((err) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   function authenticate(nextSession) {
     localStorage.removeItem("job-talk-user");
@@ -822,6 +900,7 @@ function JobTalkApp() {
     setError("");
     try {
       setTemplateChoices(await api.jobTemplates());
+      setShowAdminJobs(false);
       setSidebarOpen(false);
     } catch (err) { setError(err.message); }
   }
@@ -895,6 +974,7 @@ function JobTalkApp() {
     setRecommendations([]);
     setApplications([]);
     setTemplateChoices(null);
+    setShowAdminJobs(false);
   }
 
   async function recoverView() {
@@ -906,10 +986,10 @@ function JobTalkApp() {
   if (!user) return <Entry onAuthenticated={authenticate} showJobsOnOpen={showJobsOnEntry} />;
   return (
     <main className="app-layout">
-      <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
+      <Sidebar user={user} chats={chats} activeId={showAdminJobs ? null : chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} onAllJobs={() => { setShowAdminJobs(true); setTemplateChoices(null); setSidebarOpen(false); setError(""); }} showingAllJobs={showAdminJobs} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <button className="backdrop" type="button" aria-label="Close conversation menu" onClick={() => setSidebarOpen(false)} />}
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
-      {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} onCancel={() => setTemplateChoices(null)} /> : chat ? (
+      {showAdminJobs && user.is_admin ? <AdminJobs onMenu={() => setSidebarOpen(true)} /> : templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} onCancel={() => { setTemplateChoices(null); if (user.is_admin) setShowAdminJobs(true); }} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
           <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>

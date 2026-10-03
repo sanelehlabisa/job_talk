@@ -15,8 +15,11 @@ from .auth import (
     generate_recruiter_code,
     get_current_session,
     get_current_user,
+    get_admin_user,
+    is_admin,
     issue_session,
     recruiter_code_digest,
+    serialize_user,
 )
 from .database import get_db
 from .data_retention import delete_candidate_data
@@ -358,7 +361,36 @@ def verify_recruiter_code(
 
 @app.get("/api/auth/me", response_model=schemas.UserOut)
 def current_account(current_user: models.User = Depends(get_current_user)):
-    return current_user
+    return serialize_user(current_user)
+
+
+@app.get("/api/admin/jobs", response_model=list[schemas.AdminJobOut])
+def list_admin_jobs(
+    current_user: models.User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    submitted_count = (
+        select(func.count(models.Application.id))
+        .where(
+            models.Application.job_post_id == models.JobPost.id,
+            models.Application.submitted.is_(True),
+        ).scalar_subquery()
+    )
+    rows = db.execute(
+        select(models.JobPost, models.User.email, models.Chat.status, submitted_count)
+        .join(models.User, models.User.id == models.JobPost.user_id)
+        .join(models.Chat, models.Chat.id == models.JobPost.chat_id)
+        .order_by(models.JobPost.created_at.desc(), models.JobPost.id.desc())
+    ).all()
+    return [
+        schemas.AdminJobOut(
+            **schemas.JobOut.model_validate(job).model_dump(),
+            recruiter_email=email,
+            status="closed" if chat_status == "closed" else "published" if job.published else "draft",
+            submitted_count=count,
+        )
+        for job, email, chat_status, count in rows
+    ]
 
 
 @app.post("/api/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -878,6 +910,7 @@ def apply(
         },
         "consent": {
             "share_with_recruiter": True,
+            "operator_access_disclosed": True,
             "captured_at": submitted_at.isoformat(),
         },
     }
@@ -926,15 +959,16 @@ def list_applications(
     ),
     db: Session = Depends(get_db),
 ):
-    query = select(models.Application).order_by(models.Application.created_at.desc())
+    query = select(models.Application).where(
+        models.Application.submitted.is_(True)
+    ).order_by(models.Application.created_at.desc())
     if job_id is not None:
         if current_user.role != "recruiter":
             raise HTTPException(status_code=403, detail="Recruiter access required")
-        job = db.scalar(
-            select(models.JobPost).where(
-                models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
-            )
-        )
+        job_query = select(models.JobPost).where(models.JobPost.id == job_id)
+        if not is_admin(current_user):
+            job_query = job_query.where(models.JobPost.user_id == current_user.id)
+        job = db.scalar(job_query)
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         query = query.where(models.Application.job_post_id == job_id)

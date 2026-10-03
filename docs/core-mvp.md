@@ -22,7 +22,8 @@ not-required handling, the live summary and publication gate; actual LLM
 acceptance is still pending (provider credit exhausted in the local check).
 JT-059 adds explicit candidate selection, structured updates and a live application
 summary; live candidate interpretation is also unverified because of exhausted
-API credit. Owner access and source-aware manual job entry remain pending.
+API credit. JT-061 implements owner access; source-aware manual job entry remains
+pending in JT-062.
 
 ## One shared criteria contract
 
@@ -222,7 +223,7 @@ authorization; automated outreach, exports, and job transfers remain deferred.
 
 ## Owner and recruiter access
 
-JT-061 plans one optional, backend-only `ADMIN_EMAIL`, set by the owner in ignored
+JT-061 implements one optional, backend-only `ADMIN_EMAIL`, set by the owner in ignored
 `.env`. No address is assumed. The configured owner still needs approval and
 the existing emailed-code login. After verifying the single-use code, protected
 API requests use the existing unguessable, expiring bearer session token.
@@ -233,6 +234,14 @@ the existing views. Ordinary recruiters see only applicants to their jobs;
 guest candidates see only their scoped data. This exception does not expose full
 chats, grant edit access to another recruiter's job, or trust a client-supplied
 role/email. Candidate consent explains operator access.
+
+The owner lands on **All jobs**, also available in the sidebar. The protected
+`GET /api/admin/jobs` supplies job criteria, recruiter email, state and submitted
+application counts, without chats or private draft history. The existing
+`GET /api/applications?job_id=...` supplies submitted snapshots after checking
+ownership or the configured admin identity. The same comparison component and
+backend scores are used. Publish, close and chat mutations still require job
+ownership. No database migration or separate admin account type is needed.
 
 ## Usability acceptance
 
