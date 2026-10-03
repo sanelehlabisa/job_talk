@@ -317,6 +317,29 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .chat-error p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 18px; max-width: 430px; }
 .backdrop { display: none; }
 
+.template-picker { flex: 1; overflow-y: auto; padding: 50px max(24px, calc((100% - 720px)/2)); }
+.template-picker h1 { font-family: "DM Serif Display", Georgia, serif; font-size: 30px; font-weight: 400; }
+.template-picker > p { color: var(--muted); max-width: 600px; line-height: 1.6; font-size: 14px; }
+.template-options { display: grid; gap: 12px; margin: 24px 0; }
+.template-choice { border: 1px solid #cad8ca; border-radius: 12px; background: white; text-align: left; padding: 18px; color: var(--green); }
+.template-choice:hover { background: #f1f7ef; border-color: var(--green); }
+.template-choice strong, .template-choice span { display: block; }
+.template-choice strong { font-size: 16px; }
+.template-choice span { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.template-choice:disabled { opacity: .6; cursor: wait; }
+.template-draft { margin: 18px 0; background: white; border: 1px solid #dce3da; border-radius: 14px; padding: 16px; }
+.template-draft summary { cursor: pointer; color: var(--green); font-size: 14px; font-weight: 700; }
+.template-draft > p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.template-draft ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 10px; }
+.template-draft li { min-width: 0; border: 1px solid #e4e9e1; border-radius: 9px; padding: 10px; }
+.template-draft li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px; align-items: center; }
+.template-draft li strong { font-size: 12px; color: var(--green); }
+.template-draft li p { font-size: 12px; color: #596961; line-height: 1.5; margin: 8px 0 0; overflow-wrap: anywhere; }
+.template-draft .draft-suggestion { color: #6b766f; font-style: italic; }
+.draft-state { background: #f0f2ed; border-radius: 99px; font-size: 10px; padding: 3px 7px; color: #596961; }
+.draft-state.confirmed { background: #e8f2e5; color: #365b41; }
+.draft-state.needs_clarification { background: #fff0df; color: #88521d; }
+
 @media (max-width: 800px) {
   .login-grid { grid-template-columns: 1fr; gap: 35px; padding: 60px 0; }
   .hero-copy h1 { font-size: 54px; }.hero-copy > p { font-size: 16px; }.trust-row { display: none; }

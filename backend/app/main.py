@@ -38,6 +38,7 @@ from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn
 from .services.email import send_recruiter_login_code
+from .services.job_templates import JobDraft, new_job_draft, starter_templates, sync_job_draft
 from .settings import get_settings
 
 
@@ -81,6 +82,8 @@ def get_chat_or_404(db: Session, chat_id: int, user_id: int) -> models.Chat:
 
 def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     output = schemas.ChatOut.model_validate(chat)
+    if chat.intent == "employer" and chat.job_post and chat.job_post.draft:
+        output.job_draft = JobDraft.model_validate(chat.job_post.draft)
     output.can_publish = bool(
         chat.intent == "employer"
         and chat.status == "draft"
@@ -361,10 +364,26 @@ def list_chats(
     ).all()
 
 
+@app.get("/api/job-templates", response_model=list[JobDraft])
+def list_job_templates(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "recruiter":
+        raise HTTPException(status_code=403, detail="Recruiter access required")
+    return starter_templates()
+
+
 @app.post("/api/chats", response_model=schemas.ChatOut, status_code=status.HTTP_201_CREATED)
 def create_chat(
+    payload: schemas.ChatCreate | None = None,
     current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    draft = None
+    if payload and payload.template_id:
+        if current_user.role != "recruiter":
+            raise HTTPException(status_code=403, detail="Recruiter access required")
+        try:
+            draft = new_job_draft(payload.template_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
     if current_user.role == "candidate" and db.scalar(
         select(models.Chat.id).where(models.Chat.user_id == current_user.id).limit(1)
     ):
@@ -377,6 +396,11 @@ def create_chat(
     )
     db.add(chat)
     db.flush()
+    if draft:
+        db.add(models.JobPost(
+            chat=chat, user_id=current_user.id, title="Untitled role",
+            description="", target_profile={}, draft=draft,
+        ))
     db.add(
         models.Message(
             chat_id=chat.id,
@@ -384,7 +408,13 @@ def create_chat(
             content=(
                 "Tell me about the work you can do and the experience you have."
                 if intent == "candidate"
-                else "Tell me about the role and the person you need to hire."
+                else (
+                    f"Let's describe your role using the {draft['label']} starter. "
+                    "The suggestions below are examples, not requirements. "
+                    "Tell me the job title and what the person will do."
+                    if draft
+                    else "Tell me about the role and the person you need to hire."
+                )
             ),
         )
     )
@@ -540,6 +570,8 @@ def send_message(
             job.title = details.get("title") or "Untitled role"
     else:
         reply = generate_reply(context, chat.intent, text, reply)
+    if chat.intent == "employer" and job and job.draft:
+        job.draft = sync_job_draft(job.draft, job.title, job.description, job.target_profile)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
     db.commit()

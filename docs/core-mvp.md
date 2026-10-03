@@ -16,8 +16,10 @@ The conversation fills a shared structure; it does not remove that structure.
 The user has not accepted the current app as usable. Deployment is paused while
 the planned tickets JT-057 through JT-062 in [TASKS.md](../TASKS.md) improve the
 existing flow. Passing prior scripted tests does not replace manual acceptance.
-The behavior below describes the target; templates, field states, owner access,
-and source-aware manual job entry are not implemented by this documentation.
+The behavior below describes the target. JT-057 supplies the template picker and
+persisted draft structure. Full field interpretation and not-required handling
+(JT-058), improved candidate conversations, owner access, and source-aware manual
+job entry remain pending.
 
 ## One shared criteria contract
 
@@ -96,6 +98,20 @@ title, short description, work arrangement/location, skills, tools, experience,
 qualifications, working hours, and start availability. Keep the existing database
 model and JSON fields where practical; each job owns a separate draft. No template
 editor or generalized form engine is needed.
+
+The implemented catalogue is `backend/app/job_templates.json`: shared fields
+plus three sets of suggestions, served through the authenticated
+`GET /api/job-templates` endpoint. `POST /api/chats` accepts `template_id` and
+creates an independent draft. A nullable JSON `job_posts.draft` field keeps
+suggestions and field states outside `target_profile`, so neither suggestions
+nor metadata enter scoring. Private recruiter chat responses expose it as
+`job_draft`; public job responses do not include it. Existing no-template chats
+remain supported.
+
+Drafts start unanswered and show saved requirements from the existing parser as
+confirmed or needing clarification. The structure supports explicit not-required
+states; interpreting those answers and filling every template field is JT-058.
+Choosing a starter never confirms its title, criteria, or other suggestions.
 
 Template suggestions are kept separate from confirmed answers. Existing criterion
 keys and types are reused, including `education` for qualifications. Years are a

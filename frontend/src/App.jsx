@@ -15,6 +15,7 @@ import {
   UserRoundSearch,
 } from "lucide-react";
 import { api, SESSION_KEY } from "./api";
+import { JobDraftSummary, JobTemplatePicker } from "./JobTemplates";
 
 function Brand() {
   return (
@@ -703,15 +704,16 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
               {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
             </div>
           ))}
-          {!chat.messages.some((message) => message.sender === "user") && (
+          {!chat.job_draft && !chat.messages.some((message) => message.sender === "user") && (
             <div className="starter-prompts">
               <span>TRY AN EXAMPLE</span>
               {chat.intent === "candidate" && <button type="button" disabled={sending} onClick={() => sendPrompt("I have three years of welding and forklift experience in Cape Town.")}>Describe trade experience</button>}
-              {chat.intent === "employer" && <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Describe a welder role</button>}
+              {chat.intent === "employer" && !chat.job_draft && <button type="button" disabled={sending} onClick={() => sendPrompt("I am looking to hire a welder with welding and forklift experience in Cape Town, with two years of experience.")}>Describe a welder role</button>}
             </div>
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
           <ProfileChips profile={chat.profile} />
+          {chat.status === "draft" && chat.job_draft && <JobDraftSummary draft={chat.job_draft} />}
           {chat.intent === "employer" && chat.job_post && <JobReadiness job={chat.job_post} />}
           {chat.intent === "employer" && chat.job_post && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           {!!recommendations.length && (
@@ -750,11 +752,14 @@ function JobTalkApp() {
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showJobsOnEntry, setShowJobsOnEntry] = useState(false);
+  const [templateChoices, setTemplateChoices] = useState(null);
+  const [creatingChat, setCreatingChat] = useState(false);
   const user = session?.user;
 
   useEffect(() => { api.visit().catch(() => {}); }, []);
 
   async function loadChat(id) {
+    setTemplateChoices(null);
     setError("");
     try {
       const selected = await api.getChat(id);
@@ -785,6 +790,7 @@ function JobTalkApp() {
       setRecommendations([]);
       setApplications([]);
       setShowJobsOnEntry(false);
+      setTemplateChoices(null);
     };
     window.addEventListener("job-talk:unauthorized", clearExpiredSession);
     return () => window.removeEventListener("job-talk:unauthorized", clearExpiredSession);
@@ -797,14 +803,30 @@ function JobTalkApp() {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
     setShowJobsOnEntry(false);
     setSession(nextSession);
+    setTemplateChoices(null);
   }
 
   async function newChat() {
-    const created = await api.createChat();
-    setChat(created);
-    setRecommendations([]);
-    setApplications([]);
-    await loadChats(false);
+    setError("");
+    try {
+      setTemplateChoices(await api.jobTemplates());
+      setSidebarOpen(false);
+    } catch (err) { setError(err.message); }
+  }
+
+  async function createFromTemplate(templateId) {
+    if (creatingChat) return;
+    setCreatingChat(true);
+    setError("");
+    try {
+      const created = await api.createChat(templateId);
+      setChat(created);
+      setRecommendations([]);
+      setApplications([]);
+      setTemplateChoices(null);
+      await loadChats(false);
+    } catch (err) { setError(err.message); }
+    finally { setCreatingChat(false); }
   }
 
   async function send(content) {
@@ -855,6 +877,7 @@ function JobTalkApp() {
     setChats([]);
     setRecommendations([]);
     setApplications([]);
+    setTemplateChoices(null);
   }
 
   async function recoverView() {
@@ -869,7 +892,7 @@ function JobTalkApp() {
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <button className="backdrop" type="button" aria-label="Close conversation menu" onClick={() => setSidebarOpen(false)} />}
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
-      {chat ? (
+      {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} onCancel={() => setTemplateChoices(null)} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
           <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>

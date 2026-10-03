@@ -1,6 +1,7 @@
 param(
     [string]$RecruiterEmail = "recruiter@example.com",
-    [string]$OutputDirectory = "$env:TEMP/jobtalk-local-signoff"
+    [string]$OutputDirectory = "$env:TEMP/jobtalk-local-signoff",
+    [switch]$TemplatesOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -142,7 +143,42 @@ try {
 
     $chatCount = Invoke-JavaScript "document.querySelectorAll('.chat-row').length"
     Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
+    Wait-JavaScript "document.querySelectorAll('.template-choice').length === 3" "three starter templates"
+    Save-Screenshot "00-templates-desktop.png"
+    Set-Viewport 390 760 $true
+    Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed template picker phone sidebar"
+    Save-Screenshot "00-templates-phone.png"
+    Set-Viewport 1200 800 $false
+    Invoke-JavaScript "[...document.querySelectorAll('.template-choice')].find(button => button.dataset.templateId === 'generic-role').click(); true" | Out-Null
     Wait-JavaScript "document.querySelectorAll('.chat-row').length > $chatCount && document.querySelectorAll('.message-wrap.user').length === 0" "new hiring conversation"
+    Wait-JavaScript "document.querySelector('.template-draft')?.textContent.includes('Unanswered')" "unconfirmed template fields"
+    if (Invoke-JavaScript "document.querySelector('.publish-bar') !== null") { throw "Template suggestions made the empty role publishable" }
+    Invoke-JavaScript "window.__jobTalkReloadPending = true; true" | Out-Null
+    Invoke-Cdp "Page.reload" | Out-Null
+    Wait-JavaScript "!window.__jobTalkReloadPending && document.querySelector('.template-draft')?.textContent.includes('Unanswered')" "saved template after reload"
+    if ($TemplatesOnly) {
+        foreach ($templateId in @('junior-software-developer', 'plumber')) {
+            Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
+            Wait-JavaScript "document.querySelectorAll('.template-choice').length === 3" "template picker"
+            Invoke-JavaScript "[...document.querySelectorAll('.template-choice')].find(button => button.dataset.templateId === '$templateId').click(); true" | Out-Null
+            Wait-JavaScript "document.querySelector('.template-draft') !== null" "new template draft"
+            Invoke-JavaScript "window.__jobTalkReloadPending = true; true" | Out-Null
+            Invoke-Cdp "Page.reload" | Out-Null
+            Wait-JavaScript "!window.__jobTalkReloadPending && document.querySelector('.template-draft') !== null" "restored template draft"
+            if (Invoke-JavaScript "[...document.querySelectorAll('.template-draft li')].some(field => field.dataset.fieldState !== 'unanswered')") { throw "Template silently confirmed a field" }
+            if (Invoke-JavaScript "document.querySelector('.publish-bar') !== null") { throw "Template draft became publishable without answers" }
+            Invoke-JavaScript "document.querySelector('.template-draft').scrollIntoView({ block: 'start', behavior: 'instant' }); true" | Out-Null
+            Save-Screenshot "00-$templateId-desktop.png"
+            Set-Viewport 390 760 $true
+            Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed template draft phone sidebar"
+            Invoke-JavaScript "document.querySelector('.template-draft').scrollIntoView({ block: 'start', behavior: 'instant' }); true" | Out-Null
+            Save-Screenshot "00-$templateId-phone.png"
+            Set-Viewport 1200 800 $false
+        }
+        Write-Output "Template browser check passed: three separate drafts, unconfirmed suggestions, and refresh persistence on desktop and phone. No LLM messages sent."
+        Write-Output "Screenshots: $OutputDirectory"
+        return
+    }
     $roleText = "Job title is Browser Signoff Welder. Welding is required with two years of experience. The role is based in Cape Town. The candidate should be available immediately."
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $roleText
     Wait-JavaScript "document.querySelector('.publish-bar') !== null" "publish-ready role" 45

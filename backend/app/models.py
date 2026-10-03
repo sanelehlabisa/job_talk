@@ -84,6 +84,8 @@ class Chat(Base):
         job = self.job_post if self.intent == "employer" else self.target_job
         if job and job.title and job.title != "Untitled role":
             return job.title
+        if self.intent == "employer" and job and job.draft:
+            return f"{job.draft['label']} draft"
         if self.intent == "employer":
             return "New hiring conversation"
         if self.intent == "candidate":
@@ -111,6 +113,7 @@ class JobPost(Base):
     title: Mapped[str] = mapped_column(String(200), default="Untitled role")
     description: Mapped[str] = mapped_column(Text, default="")
     target_profile: Mapped[dict] = mapped_column(JSON, default=dict)
+    draft: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     published: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     chat: Mapped[Chat] = relationship(back_populates="job_post", foreign_keys=[chat_id])

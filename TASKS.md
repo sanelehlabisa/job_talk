@@ -13,8 +13,8 @@ The product hypothesis is:
 > comparison useful enough to try again or request continued access.
 
 Deployment is paused by the user (2026-10-03). Passing a scripted scenario is
-engineering evidence, not the user's usability approval. The new tickets below
-are planned only; none of their acceptance checks have passed yet.
+engineering evidence, not the user's usability approval. Ticket status below
+records implementation checks separately from the pending usability sign-off.
 
 ## P0 - Current ordered usability work
 
@@ -25,32 +25,43 @@ scrapers, template management, or deployment work.
 
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
 The final usability ticket covers the whole experience, including owner access
-and manually entered jobs. Begin with JT-057 when implementation is requested.
+and manually entered jobs. JT-057 is implemented; next is JT-058.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
 ### JT-057 - Add simple job templates
 
-- [ ] Add one shared JSON structure and three small starter templates: Junior
+- [x] Add one shared JSON structure and three small starter templates: Junior
   Software Developer, Plumber, and Generic Role. Each selection creates its own
   editable database draft, independent of the template and other jobs.
-- [ ] Include title, short description, remote/hybrid/on-site arrangement and
+- [x] Include title, short description, remote/hybrid/on-site arrangement and
   relevant location, skills, tools, experience, qualifications, working hours,
   and start availability. Reuse stable criterion keys, labels, types, targets,
   optional units, descriptions, and backend-owned weights.
-- [ ] Treat template values as suggestions. Track fields as `unanswered`,
+- [x] Treat template values as suggestions. Track fields as `unanswered`,
   `needs_clarification`, `confirmed`, or `not_required`; a suggestion is never
   silently confirmed or counted as a job requirement.
-- [ ] Support numeric, skill, and text targets. Require years only when the
+- [x] Support numeric, skill, and text targets. Require years only when the
   recruiter actually wants a years target; use the existing `education` key for
   qualifications and add keys only for genuinely new requirements.
-- [ ] Save draft progress in the existing database/JSON model and restore it on
+- [x] Save draft progress in the existing database/JSON model and restore it on
   refresh. Metadata such as the title and source URL must not become score axes.
 
 **Done when:** creating each template yields a separate draft, and neither
 template hints nor unanswered fields appear as confirmed assessment criteria.
 
-**Status:** Planned. Supersedes the template deferral in JT-034 (2026-10-03).
+**Status:** Implemented (2026-10-03). Supersedes the template deferral in JT-034.
+One JSON catalogue supplies the picker and private per-job drafts; suggestions
+remain separate from scoring criteria. Existing chat extraction updates draft
+values. Full template interpretation, explicit exclusions, and revised publishing
+rules remain JT-058.
+
+**Checks:** 61 backend tests passed with the deterministic mock, including draft
+isolation, access checks, suggestion exclusion, and migration of an existing job.
+Frontend production build passed. The local browser `-TemplatesOnly` check passed
+for all three templates, refresh persistence, and desktop/phone layouts; corrected
+screenshots were reviewed. This check sends no chat messages. Actual LLM template
+conversations were **not run**; usability sign-off and deployment remain paused.
 
 ### JT-058 - Make recruiter chat fill the template
 
@@ -222,8 +233,9 @@ source metadata and the owner workflow are the additions (2026-10-03).
 the user can create a role, submit an honest application, and explain the
 candidate comparison without coaching. Passing scripted tests alone is not done.
 
-**Status:** Planned; manual approval pending. No new LLM or usability tests have
-been run for this plan (2026-10-03).
+**Status:** Planned; manual approval pending. JT-057 has template-only browser
+and backend checks. The complete conversations above and actual LLM usability
+checks have not been run for this plan (2026-10-03).
 
 ## Previous core MVP implementation evidence
 

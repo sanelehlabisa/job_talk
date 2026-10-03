@@ -33,12 +33,11 @@ contract and intentionally narrow scope are in
 user has not signed off the app as usable. The conversation should fill a shared
 structure that both the recruiter and candidate can read and correct.
 
-The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) are planned,
-not implemented by this update:
+The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
-- JT-057/JT-058: three fixed job templates, grounded updates to every relevant
-  field, explicit not-required states, and a live **Who you're looking for**
-  summary before final publication.
+- JT-057 adds three fixed templates and separate saved drafts. JT-058 is next:
+  grounded updates to every relevant field, explicit not-required answers, and
+  a live **Who you're looking for** summary before final publication.
 - JT-059: two available-job cards, **Find a different job** across all open
   listings, explicit job selection, and a live **Your application** summary that
   accepts honest gaps without inventing evidence.
@@ -57,6 +56,9 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 
 ## Existing implementation
 
+- **New hiring conversation** offers Junior Software Developer, Plumber, and
+  Generic Role starters. Suggestions are labelled separately from saved answers;
+  choosing a template creates no confirmed requirements or public job.
 - Passwordless entry: job seekers start a private guest conversation immediately,
   while approved recruiters sign in with a short-lived email code.
 - Three realistic demo jobs, public links and a job picker, and a guest
@@ -282,6 +284,11 @@ are in [`docs/production-operations.md`](docs/production-operations.md).
 
 ## Database migrations and recovery
 
+Template draft storage adds one nullable JSON field to the existing jobs table;
+existing jobs are retained. When updating an already running development stack,
+run `docker compose -f dev.docker-compose.yaml restart backend` once to apply
+pending migrations before testing the new picker.
+
 The backend container runs `alembic upgrade head` before Uvicorn. If a migration
 fails, the API does not start. Create a verified backup before each deployment
 and keep a copy outside the VM. The backup, restore drill, retention, upgrade,
@@ -327,6 +334,11 @@ reusing the same recruiter address.
 This scripted walkthrough does not establish usability or actual LLM quality.
 JT-060 adds varied conversations and separate live-provider evidence, followed
 by the user's [manual usability check](docs/usability-checklist.md).
+
+To check only template selection and saved drafts, append `-TemplatesOnly` to
+the `scripts/local-signoff.ps1` command. It opens all three templates, checks
+refresh persistence and unconfirmed fields, and captures desktop and phone
+screenshots without sending AI messages.
 
 The backend flow suite also includes the fixed plumber pilot scenario: a strong
 plumber, a partial handyman with an explicit geyser gap, and an unrelated software

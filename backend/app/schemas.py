@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from .services.criteria import normalize_target_profile
+from .services.job_templates import JobDraft
 
 
 def clean_user_text(value: str, allowed_controls: str = "") -> str:
@@ -40,6 +41,12 @@ class MessageResponseStatus(BaseModel):
 
 class GuestSessionRequest(BaseModel):
     job_id: int | None = Field(default=None, gt=0)
+
+
+class ChatCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str | None = Field(default=None, min_length=1, max_length=60)
 
 
 class UserOut(ORMModel):
@@ -116,6 +123,7 @@ class ChatOut(ChatSummary):
     job_post: JobOut | None = None
     target_job: JobOut | None = None
     can_publish: bool = False
+    job_draft: JobDraft | None = None
 
 
 class MessageResponse(BaseModel):

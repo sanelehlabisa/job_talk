@@ -62,7 +62,11 @@ export const api = {
   logout: () => request("/auth/logout", { method: "POST" }),
   deleteAccount: () => request("/account", { method: "DELETE" }),
   listChats: () => request("/chats"),
-  createChat: () => request("/chats", { method: "POST" }),
+  jobTemplates: () => request("/job-templates"),
+  createChat: (templateId) => request("/chats", {
+    method: "POST",
+    body: JSON.stringify(templateId ? { template_id: templateId } : {}),
+  }),
   getChat: (chatId) => request(`/chats/${chatId}`),
   sendMessage: (chatId, content) =>
     request(`/chats/${chatId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),

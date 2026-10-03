@@ -1,0 +1,51 @@
+{
+  "fields": {
+    "job_title": {"label": "Job title", "type": "text", "scope": "metadata", "description": "The name of this role."},
+    "role_description": {"label": "Role description", "type": "text", "scope": "metadata", "description": "The work the person will do."},
+    "working_arrangement": {"label": "Work arrangement", "type": "text", "weight": 0.5, "description": "Remote, hybrid, or on-site work."},
+    "location": {"label": "Location", "type": "text", "weight": 0.55, "description": "Work location, or any location restrictions for remote work."},
+    "experience": {"label": "Experience", "type": "text", "weight": 0.8, "description": "Relevant experience, which can include practical examples rather than years."},
+    "education": {"label": "Qualifications", "type": "text", "weight": 0.45, "description": "Any required or preferred qualifications, or explicitly not required."},
+    "working_hours": {"label": "Working hours", "type": "text", "weight": 0.5, "description": "Expected hours, shifts, or scheduling flexibility."},
+    "availability": {"label": "Start availability", "type": "text", "weight": 0.5, "description": "When the person needs to be available to start."}
+  },
+  "templates": [
+    {
+      "id": "junior-software-developer",
+      "label": "Junior Software Developer",
+      "description": "Start with software skills, tools, and entry-level experience.",
+      "fields": {
+        "job_title": {"suggestion": "Junior Software Developer"},
+        "role_description": {"suggestion": "Help build, test, and maintain applications with guidance from the team."},
+        "working_arrangement": {"suggestion": "Hybrid"},
+        "experience": {"suggestion": "A small software project the applicant can explain"},
+        "working_hours": {"suggestion": "Weekday working hours"},
+        "javascript": {"label": "JavaScript", "type": "skill", "weight": 0.85, "suggestion": true, "description": "Can explain and write basic JavaScript."},
+        "git": {"label": "Git", "type": "skill", "weight": 0.7, "suggestion": true, "description": "Can use Git to save and share code changes."}
+      }
+    },
+    {
+      "id": "plumber",
+      "label": "Plumber",
+      "description": "Start with practical plumbing skills, tools, and site requirements.",
+      "fields": {
+        "job_title": {"suggestion": "Plumber"},
+        "role_description": {"suggestion": "Install and repair pipes and fittings on residential jobs."},
+        "working_arrangement": {"suggestion": "On-site"},
+        "experience": {"type": "number", "unit": "years", "suggestion": 2},
+        "plumbing": {"label": "Plumbing", "type": "skill", "weight": 0.85, "suggestion": true, "description": "Can carry out practical plumbing work."},
+        "pipe_fitting": {"label": "Pipe fitting", "type": "skill", "weight": 0.8, "suggestion": true, "description": "Can fit and join pipes safely."},
+        "tools": {"label": "Tools", "type": "text", "weight": 0.7, "suggestion": "Pipe cutters and wrenches", "description": "Tools the role requires the person to use."}
+      }
+    },
+    {
+      "id": "generic-role",
+      "label": "Generic Role",
+      "description": "Describe any role using the same small set of job fields.",
+      "fields": {
+        "skills": {"label": "Skills", "type": "text", "weight": 0.85, "description": "The practical skills needed for this role."},
+        "tools": {"label": "Tools", "type": "text", "weight": 0.7, "description": "Tools or equipment the person will use, if any."}
+      }
+    }
+  ]
+}

@@ -87,6 +87,89 @@ def application_payload(
     }
 
 
+def test_job_templates_create_private_independent_drafts_without_scoring_suggestions():
+    _, headers = authenticate("template-owner@example.com", "recruiter")
+    _, other_headers = authenticate("template-other@example.com", "recruiter")
+    with TestClient(app) as client:
+        templates = client.get("/api/job-templates", headers=headers).json()
+        assert [item["label"] for item in templates] == [
+            "Junior Software Developer", "Plumber", "Generic Role"
+        ]
+        created = []
+        for template in templates:
+            response = client.post(
+                "/api/chats", json={"template_id": template["template_id"]}, headers=headers
+            )
+            assert response.status_code == 201
+            chat = response.json()
+            created.append(chat)
+            assert chat["job_draft"] == template
+            assert chat["job_post"]["title"] == "Untitled role"
+            assert chat["job_post"]["target_profile"] == chat["profile"] == {}
+            assert chat["can_publish"] is False
+            assert all(field["state"] == "unanswered" and field["target"] is None
+                       for field in chat["job_draft"]["fields"])
+            assert client.post(
+                f"/api/jobs/{chat['job_post']['id']}/publish", headers=headers
+            ).status_code == 400
+            assert client.get(
+                f"/api/chats/{chat['id']}", headers=other_headers
+            ).status_code == 404
+        assert len({chat["job_post"]["id"] for chat in created}) == 3
+        assert client.get("/api/public/jobs").json() == []
+
+        # A later draft from the same template must not share mutable answers.
+        untouched = client.post(
+            "/api/chats", json={"template_id": "junior-software-developer"}, headers=headers
+        ).json()
+        developer = created[0]
+        changed = client.post(
+            f"/api/chats/{developer['id']}/messages",
+            json={"content": "Job title is Junior App Developer. JavaScript is required with two years of experience. The role is based in Cape Town. The candidate should be available immediately."},
+            headers=headers,
+        )
+        assert changed.status_code == 200
+        changed_chat = changed.json()["chat"]
+        fields = {field["key"]: field for field in changed_chat["job_draft"]["fields"]}
+        assert fields["javascript"]["state"] == "confirmed"
+        assert fields["javascript"]["target"] == 2
+        assert fields["javascript"]["unit"] == "years"
+        assert fields["git"]["state"] == "unanswered"
+        assert fields["git"]["target"] is None
+        assert "git" not in changed_chat["job_post"]["target_profile"]
+        assert "job_title" not in changed_chat["job_post"]["target_profile"]
+        for unchanged in [*created[1:], untouched]:
+            assert client.get(
+                f"/api/chats/{unchanged['id']}", headers=headers
+            ).json()["job_draft"] == unchanged["job_draft"]
+        assert client.get(
+            f"/api/chats/{developer['id']}", headers=headers
+        ).json()["job_draft"] == changed_chat["job_draft"]
+        with SessionLocal() as db:
+            saved = db.get(models.JobPost, developer["job_post"]["id"])
+            assert saved.draft == changed_chat["job_draft"]
+        assert client.get("/api/job-templates", headers=headers).json() == templates
+
+
+def test_job_template_access_and_payload_are_validated():
+    _, headers = authenticate("template-validation@example.com", "recruiter")
+    _, candidate_headers = authenticate("template-candidate@example.com", "candidate")
+    with TestClient(app) as client:
+        assert client.get("/api/job-templates").status_code == 401
+        assert client.get("/api/job-templates", headers=candidate_headers).status_code == 403
+        assert client.post(
+            "/api/chats", json={"template_id": "plumber"}, headers=candidate_headers
+        ).status_code == 403
+        assert client.post(
+            "/api/chats", json={"template_id": "unknown-template"}, headers=headers
+        ).status_code == 404
+        assert client.post(
+            "/api/chats", json={"template_id": "plumber", "fields": {"confirmed": True}},
+            headers=headers,
+        ).status_code == 422
+        assert client.get("/api/chats", headers=headers).json() == []
+
+
 def test_end_to_end_employer_to_application():
     with TestClient(app) as client:
         employer, employer_headers = authenticate("employer@example.com", "recruiter")
