@@ -69,6 +69,7 @@ export const api = {
     body: JSON.stringify(templateId ? { template_id: templateId, source } : {}),
   }),
   getChat: (chatId) => request(`/chats/${chatId}`),
+  editApplicationField: (chatId, field) => request(`/chats/${chatId}/application/field`, { method: "PUT", body: JSON.stringify(field) }),
   editDraftField: (chatId, field) => request(`/chats/${chatId}/draft/field`, { method: "PUT", body: JSON.stringify(field) }),
   removeDraftField: (chatId, key) => request(`/chats/${chatId}/draft/fields/${encodeURIComponent(key)}`, { method: "DELETE" }),
   finishDraft: (chatId) => request(`/chats/${chatId}/draft/done`, { method: "POST" }),

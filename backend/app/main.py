@@ -32,13 +32,12 @@ from .services.conversation import (
     employer_reply,
     expected_candidate_criterion,
     expected_employer_skill,
-    summarize_job_requirements,
     update_candidate_turn,
     update_employer_profile,
     wants_to_publish,
 )
 from .services.context import build_chat_context
-from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers
+from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers, edit_application_answer
 from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn, guided_reply
@@ -215,7 +214,7 @@ def start_guest_session(
                 (
                     f"You're applying for {job.title}. "
                     + recipient_notice(job)
-                    + f"{summarize_job_requirements(job.title, job.target_profile)} "
+                    + "Fill in Your application here or in chat. "
                     + candidate_reply({}, job.target_profile)
                 )
                 if job
@@ -260,7 +259,7 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
     chat.profile = reuse_discovery_answers(chat.messages, job.target_profile)
     db.add(models.Message(chat_id=chat.id, sender="assistant", content=(
         f"You selected {job.title}. " + recipient_notice(job)
-        + f"{summarize_job_requirements(job.title, job.target_profile)} "
+        + "Fill in Your application here or in chat. "
         + candidate_reply(chat.profile, job.target_profile)
     )))
     db.commit()
@@ -653,6 +652,26 @@ def complete_draft(chat_id: int, current_user: models.User = Depends(get_current
     draft = finish_draft(chat.job_post.draft)
     return save_draft_action(db, chat, draft, "Done — remove unanswered optional fields.",
                              "Unanswered optional fields removed. " + draft_question(draft))
+
+
+@app.put("/api/chats/{chat_id}/application/field", response_model=schemas.ChatOut)
+def edit_application_field(chat_id: int, payload: schemas.ApplicationFieldEdit,
+                           current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    chat = get_chat_or_404(db, chat_id, current_user)
+    if current_user.role != "candidate" or chat.intent != "candidate" or not chat.target_job:
+        raise HTTPException(status_code=403, detail="Choose a job before editing your application.")
+    if chat.status == "submitted":
+        raise HTTPException(status_code=409, detail="This application has already been submitted")
+    if chat.status == "closed" or not chat.target_job.accepting_applications:
+        raise HTTPException(status_code=409, detail="This recruitment is closed")
+    if payload.criteria_version != chat.target_job.criteria_version:
+        raise HTTPException(status_code=409, detail="The job requirements changed. Reload and review them before saving.")
+    if payload.key not in chat.target_job.target_profile:
+        raise HTTPException(status_code=404, detail="Application field not found.")
+    chat.profile = edit_application_answer(chat.profile, chat.target_job.target_profile, payload.key, payload.value)
+    db.commit()
+    db.refresh(chat)
+    return serialize_chat(chat)
 
 
 @app.post("/api/chats/{chat_id}/messages", response_model=schemas.MessageResponse)

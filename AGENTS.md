@@ -34,6 +34,12 @@ Types, units, importance and descriptions remain in the backend contract; do not
 reintroduce separate controls or duplicate text. Closing date is optional job
 metadata, excluded from applicant scoring.
 
+Use the same label/value layout for the seeker's application answers. Keep one
+editable answer per published criterion, with the requirement as an input hint.
+Chat and direct edits update the same candidate profile. Clearing an answer does
+not remove an employer requirement. Contact review, consent and Submit belong at
+the bottom of that form; do not duplicate the application review inside chat.
+
 Published recruiter chats and forms remain editable. Save changes in the existing
 draft JSON and require explicit Publish changes before updating the live job.
 Preserve submitted evidence, requirements and scores; distinguish applications

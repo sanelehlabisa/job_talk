@@ -85,6 +85,15 @@ class DraftFieldEdit(BaseModel):
     _clean_fields = field_validator("label", "value")(clean_user_text)
 
 
+class ApplicationFieldEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(pattern=r"^[a-z][a-z0-9_]{0,59}$")
+    value: str = Field(max_length=500)
+    criteria_version: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    _clean_value = field_validator("value")(clean_user_text)
+
+
 class MessageOut(ORMModel):
     id: int
     sender: Literal["user", "assistant"]

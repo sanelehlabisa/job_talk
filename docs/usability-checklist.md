@@ -18,6 +18,36 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Editable seeker application (JT-072)
+
+1. Open a published job as a seeker. Check that **Your application** shows one
+   label and editable answer per requirement, without duplicate descriptions or
+   badges. Empty inputs show what the role asks for.
+2. Enter an answer directly and Save. Correct another answer in chat. Check both
+   appear in the same form and remain after reload.
+3. Clear an answer; the requirement must stay. Enter an honest gap such as
+   "I don't have that experience" and confirm it can still be submitted.
+4. At the bottom of the form, review name/location/contact, tick consent and use
+   **Submit application**. Confirm submission and read-only saved answers.
+5. As recruiter, open that application and check its evidence and comparison.
+   Repeat the seeker flow at phone width. Record confusing steps for JT-060.
+
+**Engineering checks (2026-10-03):** Frontend build and the local desktop/390px
+browser flow passed. The full isolated backend run had 124 passing checks and
+five failures in new test setup/old UI wording; after correcting those fixtures
+and expectations, all 13 focused checks passed (129 unique checks across runs).
+No development database reset was used.
+
+The browser used configured Gemini (`gemini-3.5-flash-lite`), with no provider
+fallback warnings. It created a fictional developer role, then changed working
+hours from 40 to 30 through chat while retaining a directly entered 1.5-year
+experience answer. Direct edits, a gap, clearing, reload and phone consent/submit
+passed. Direct form saves make no AI calls; mocked extraction/security checks
+are separate from this limited live-model scenario. Broader user acceptance is
+still pending. The test guest was deleted and its fictional job closed.
+
+Run with `scripts/local-signoff.ps1 -SeekerFormOnly -RecruiterEmail <approved-test-email>`.
+
 ### Published edits and immediate discovery (JT-069)
 
 1. Publish a role. Keep typing in its chat or edit a form value. Confirm the public

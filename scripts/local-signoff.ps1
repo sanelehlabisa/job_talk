@@ -6,7 +6,8 @@ param(
     [switch]$AdminOnly,
     [switch]$VacancyOnly,
     [switch]$DraftEditorOnly,
-    [switch]$LiveEditingOnly
+    [switch]$LiveEditingOnly,
+    [switch]$SeekerFormOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -162,6 +163,10 @@ try {
         . "$PSScriptRoot/live-editing-check.ps1"
         return
     }
+    if ($SeekerFormOnly) {
+        . "$PSScriptRoot/seeker-form-check.ps1"
+        return
+    }
 
     $chatCount = Invoke-JavaScript "document.querySelectorAll('.chat-row').length"
     Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
@@ -256,19 +261,18 @@ try {
     if ($preservedMessage -ne $candidateText) { throw "Failed send discarded the candidate message" }
     Invoke-JavaScript "document.querySelector('.error-dismiss').click(); true" | Out-Null
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $candidateText
-    Wait-JavaScript "document.querySelector('.application-summary')?.textContent.includes('welding') && document.querySelector('.job-card .score strong')?.textContent !== '0%' && !document.querySelector('.typing')" "captured candidate evidence" 45
+    Wait-JavaScript "document.querySelector('.application-summary [data-field-state=captured]') !== null && !document.querySelector('.typing')" "captured candidate evidence" 45
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" "Actually I have two years of welding experience"
-    Wait-JavaScript "document.querySelector('.application-summary [data-field-key=experience]')?.textContent.includes('2 years') && !document.querySelector('.typing')" "corrected candidate duration" 45
+    Wait-JavaScript "/(?:2|two) years/.test(document.querySelector('#answer-experience')?.value) && !document.querySelector('.typing')" "corrected candidate duration" 45
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" "I cannot use welding equipment"
     Wait-JavaScript "document.querySelector('.application-summary [data-field-key=tools]')?.dataset.fieldState === 'gap' && !document.querySelector('.typing')" "reported tools gap" 45
-    if (-not (Invoke-JavaScript "document.querySelector('.application-summary [data-field-key=experience]')?.dataset.fieldState === 'captured' && document.querySelector('.application-summary [data-field-key=experience]')?.textContent.includes('2 years')")) { throw "A tool gap incorrectly overwrote the experience answer" }
+    if (-not (Invoke-JavaScript "document.querySelector('.application-summary [data-field-key=experience]')?.dataset.fieldState === 'captured' && /(?:2|two) years/.test(document.querySelector('#answer-experience')?.value)")) { throw "A tool gap incorrectly overwrote the experience answer" }
     Save-Screenshot "03-application-summary-desktop.png"
     Set-Viewport 390 760 $true
     Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed candidate summary phone sidebar"
     Invoke-JavaScript "document.querySelector('.application-summary').scrollIntoView({ block: 'start', behavior: 'instant' }); true" | Out-Null
     Save-Screenshot "03-application-summary-phone.png"
     Set-Viewport 1200 800 $false
-    Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#candidate-name') !== null" "application review"
     $candidateForm = @"
 (async () => {
@@ -343,7 +347,7 @@ try {
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" "I have three years of welding and forklift experience in Cape Town. I repaired gates and operated a forklift in a workshop."
     Wait-JavaScript "document.querySelector('.job-card button')?.textContent.includes('Apply to this job') && !document.querySelector('.typing')" "real job suggestions" 45
     Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
-    Wait-JavaScript "document.querySelector('.application-summary') !== null && document.querySelector('.job-card button')?.textContent.includes('Review application')" "selected job with carried answers"
+    Wait-JavaScript "document.querySelector('.application-summary .application-review') !== null && document.querySelector('.messages .job-card') === null" "selected job with carried answers"
     Set-Viewport 1200 800 $false
     Save-Screenshot "10-discovery-selected-desktop.png"
 

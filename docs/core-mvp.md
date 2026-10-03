@@ -22,7 +22,11 @@ The behavior below describes the implemented loop. JT-057 supplies the template 
 persisted draft structure. JT-058 implements validated template updates,
 not-required handling, the live summary and publication gate.
 JT-059 adds explicit candidate selection, structured updates and a live application
-summary. JT-064 passed one developer hiring loop and discovery extraction with
+summary. JT-072 uses one editable label/value answer per criterion, matching the
+recruiter form. Requirements appear as input hints; clearing an answer keeps the
+criterion. Chat and form edits share the same profile. Contact review, consent
+and explicit Submit sit at the bottom of the form, with no second review panel
+inside chat. Submitted answers remain frozen. JT-064 passed one developer hiring loop and discovery extraction with
 actual Gemini responses; broader live scenarios and user acceptance remain open.
 OpenAI attempts were blocked by exhausted API credit. JT-061 implements owner access; JT-062 adds manually entered,
 source-labelled vacancies and operator-only submission consent.

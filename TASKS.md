@@ -26,7 +26,7 @@ scrapers, template management, or deployment work.
 
 The user approved merging the completed history through JT-071 (`fae157a`)
 into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
-The next priority is a simpler editable seeker application form.
+Current user priority: **JT-072**, a simpler editable seeker application form.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -53,6 +53,29 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-072 - One editable seeker application form
+
+- [x] Use the recruiter form's label/value layout for candidate answers; remove
+  duplicate statuses, descriptions and the separate review card inside chat.
+- [x] Let candidates edit or clear their own answers directly, or fill them in
+  chat. Keep employer criteria unchanged and retain honest gaps.
+- [x] Put contact review, consent and explicit Submit at the bottom of the form.
+  Preserve scoped tokens, closed-job checks and frozen submitted applications.
+- [x] Check saved answers, chat corrections, scoring, desktop/mobile layout and
+  submission. Keep deployment paused and record a short manual checklist.
+
+**Status:** Implemented on `feat/simple-seeker-form`. Completed work through
+JT-071 was merged and pushed to master at `3b9e265` with user approval. The new
+form saves without an AI call, keeps typed answers and cleared fields across
+later chat turns, validates job versions and preserves submitted snapshots.
+Frontend build and desktop/phone browser checks passed. Backend checks used
+disposable SQLite: 124 passed initially; fixture/wording corrections brought
+the 13 focused checks to passing (129 unique checks across runs). The browser
+used actual Gemini for role creation and a multi-field candidate correction,
+then checked direct edits, a gap, clear/reload and explicit consent/submit.
+Its guest was deleted and its job closed. See the JT-072 manual checklist.
+This feature awaits merge approval; deployment and JT-060 acceptance stay paused.
 
 ### JT-071 - Record deployment address and current readiness
 

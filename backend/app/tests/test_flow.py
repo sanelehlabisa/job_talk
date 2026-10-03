@@ -220,8 +220,11 @@ def test_end_to_end_employer_to_application():
         candidate_chat = client.get(
             f"/api/chats/{candidate_chat['id']}", headers=candidate_headers
         ).json()
-        assert "Python: preferred" in candidate_chat["messages"][0]["content"]
-        assert "FastAPI: preferred" in candidate_chat["messages"][0]["content"]
+        assert "Fill in Your application" in candidate_chat["messages"][0]["content"]
+        python_field = next(field for field in candidate_chat["application_fields"] if field["key"] == "python")
+        assert python_field["importance"] == "preferred"
+        fastapi_field = next(field for field in candidate_chat["application_fields"] if field["key"] == "fastapi")
+        assert fastapi_field["importance"] == "preferred"
         response = client.post(
             f"/api/chats/{candidate_chat['id']}/messages",
             json={"content": "I am looking for a job. I have three years of Python experience, built two FastAPI APIs, and I am available to start within two weeks."},
@@ -869,7 +872,7 @@ def test_candidate_followup_repeats_when_answer_is_unrelated():
             headers=headers,
         ).json()
         assert denial["chat"]["profile"]["welding"]["assessment"] == "gap"
-        assert "gap, not a match" in denial["assistant_message"]["content"]
+        assert "recorded that gap" in denial["assistant_message"]["content"]
 
 
 def test_recruiter_compares_candidates_and_closes_recruitment():
@@ -1240,7 +1243,7 @@ def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interru
             },
             headers=strong_headers,
         ).json()
-        assert "candidate-provided claims for this role’s criteria" in strong["assistant_message"]["content"]
+        assert "Review Your application" in strong["assistant_message"]["content"]
         assert len(strong["recommendations"]) == 1
 
         partial_headers, partial_chat = start_candidate()
@@ -1278,7 +1281,7 @@ def test_job_specific_followups_cover_strong_partial_unrelated_empty_and_interru
             json={"content": "I operated a forklift every day for the last two years."},
             headers=partial_headers,
         ).json()
-        assert "candidate-provided claims for this role’s criteria" in completed["assistant_message"]["content"]
+        assert "Review Your application" in completed["assistant_message"]["content"]
         assert {"welding", "experience", "location", "forklift_operation"} <= completed["chat"]["profile"].keys()
 
 

@@ -93,7 +93,10 @@ the candidate stated in this chat. Claims are unverified. Never invent skills,
 qualifications, durations, achievements, evidence or vacancies. Return only updates.
 For a selected job, use exactly its criterion keys and types; never change the
 employer's requirements. Map each answer to ALL relevant fields, even if not asked.
-Reuse earlier statements for unanswered fields. Corrections replace the same key
+The saved draft also includes candidate answers entered directly in the form.
+Respect those answers; edited_in_form with empty evidence means the candidate
+cleared that answer. Never refill it from old history, only from a new statement.
+Reuse earlier statements for other unanswered fields. Corrections replace the same key
 with the latest statement. Never restore superseded evidence. Quote the exact
 source statement from the current message, or from this chat for unanswered fields.
 Polish each evidence sentence briefly without adding facts. Preserve units and

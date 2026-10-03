@@ -48,6 +48,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   open listings, explicit job selection, and a live **Your application** summary.
   Deterministic/browser checks cover corrections and honest gaps. JT-064 also
   verified one live Gemini application and a focused discovery extraction.
+- JT-072 simplifies **Your application** to the recruiter form's label/value
+  layout. Edit or clear your answers directly, or fill them through chat. Review
+  contact details, consent and **Submit application** at the bottom of this form.
+  Application cards and the separate review panel are removed from the chat.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. JT-065 uses the same recruiter workspace for admin, with
   all job-creation chats, owner labels and editing controls. Ordinary recruiters
@@ -92,8 +96,8 @@ verified for a public launch**. Before inviting candidates:
 - Issue the real certificate, run the renewal dry-run, verify backups and test
   email-code login plus create/apply/compare on the live domain.
 - Complete the [manual usability check](docs/usability-checklist.md). The user
-  approved merging the completed work through JT-071 into `master`; the next
-  usability improvement is a simpler editable seeker application form.
+  approved and merged work through JT-071 into `master` (`3b9e265`). JT-072's
+  editable seeker form is on `feat/simple-seeker-form`, awaiting merge approval.
 
 The [production guide](docs/production-operations.md) contains the commands.
 
@@ -170,19 +174,21 @@ See [privacy and access details](docs/privacy-and-safety.md).
   the current comparison plot/ranking. Closing recruitment stops applications
   while keeping the recruiter chat available.
 - One canonical job-criterion shape with a stable key, type, measurable target,
-  optional unit, backend-owned weight, and description. The pre-publish review
-  shows the target and weight, and clarifications update the existing key.
-- Candidate conversations open with a plain summary of the confirmed recruiter
-  requirements before collecting job-specific examples.
+  optional unit, backend-owned weight, and description. The recruiter form
+  shows an editable label/value, and clarifications update the existing key.
+- Candidate conversations collect job-specific examples. **Your application**
+  shows the confirmed requirements as input hints and one editable answer per
+  field; direct edits save immediately without an AI call.
 - A failed message request leaves the exact typed text in the composer so the
   recruiter or candidate can retry without rewriting it.
-- Up to five published job recommendations with weighted scores and plain language explanations.
+- Up to two published job suggestions during discovery; recruiter comparisons
+  show up to five strong candidates with weighted scores and explanations.
 - A review and consent step that collects contact details only when the candidate
   submits, including name, location, and email or phone, then freezes the
   structured application snapshot.
 - Candidate evidence is stored under the exact published criterion key with an
-  extracted typed value; the review shows both the job target and candidate value
-  before consent.
+  extracted typed value. Review answers and contact details, consent and submit
+  at the bottom of the form. Form edits do not add duplicate chat messages.
 - The model proposes evidence with source quotes from the current conversation.
   Backend checks reject unsupported fields/types/quantities and fall back to the
   quoted wording when a polished sentence adds new terms. Unclear measurable

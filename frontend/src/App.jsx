@@ -344,13 +344,13 @@ function JobReadiness({ job }) {
   );
 }
 
-function Recommendation({ item, onApply, onSelect, applied, selected, busy }) {
+function Recommendation({ item, onSelect, busy }) {
   const score = Math.round(item.match_score * 100);
   return (
     <article className="job-card">
       <div className="job-card-top">
         <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : item.recommended ? "Strong match" : selected ? "Selected role · below recommendation threshold" : "Possible role · add details to improve the match"}</span></div>
+        <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : item.recommended ? "Strong match" : "Possible role · add details to improve the match"}</span></div>
         {!item.available_example && <div className="score"><strong>{score}%</strong><span>match</span></div>}
       </div>
       <p>{item.explanation}</p>
@@ -359,88 +359,12 @@ function Recommendation({ item, onApply, onSelect, applied, selected, busy }) {
         {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
       </div>
       <div className="job-actions">
-        <button className="primary" disabled={applied || busy} onClick={selected ? onApply : onSelect}>{applied ? <><Check size={17} /> Submitted</> : <>{selected ? "Review application" : "Apply to this job"} <ChevronRight size={17} /></>}</button>
+        <button className="primary" disabled={busy} onClick={onSelect}>Apply to this job <ChevronRight size={17} /></button>
       </div>
     </article>
   );
 }
 
-function ApplicationReview({ item, profile, fields, onSubmit, onCancel }) {
-  const [candidateName, setCandidateName] = useState("");
-  const [candidateLocation, setCandidateLocation] = useState(profile?.location?.value || "");
-  const [preferredContact, setPreferredContact] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const requirements = item.job.target_profile || {};
-  const requirementKeys = new Set(Object.keys(requirements));
-  const evidence = [
-    ...Object.entries(requirements).map(([key, requirement]) => ({
-      key,
-      label: requirement.label || key.replaceAll("_", " "),
-      requirement: requirement.description,
-      target: requirement.type === "number" ? `${requirement.target} ${requirement.unit || ""}`.trim() : requirement.type === "skill" ? "Required" : requirement.target,
-      profileItem: profile?.[key],
-    })),
-    ...Object.entries(profile || {})
-      .filter(([key]) => !requirementKeys.has(key) && !["candidate_details", "consent"].includes(key))
-      .map(([key, profileItem]) => ({
-        key,
-        label: key.replaceAll("_", " "),
-        requirement: null,
-        target: null,
-        profileItem,
-      })),
-  ];
-
-  async function submit(event) {
-    event.preventDefault();
-    if (!consent || submitting) return;
-    setSubmitting(true);
-    try {
-      await onSubmit(candidateName.trim(), candidateLocation.trim(), preferredContact.trim());
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form className="application-review" onSubmit={submit}>
-      <SourceNotice source={item.job.source} />
-      <div className="review-heading">
-        <div><span>REVIEW BEFORE SHARING</span><h3>{item.job.title}</h3></div>
-        <button type="button" className="ghost" onClick={onCancel}>Cancel</button>
-      </div>
-      <p>The recruiter will receive the structured evidence below, your match breakdown, and the contact details you enter here. Your full chat is not shared.</p>
-      <div className="review-evidence">
-        {evidence.map(({ key, label, requirement, target, profileItem }) => {
-          const assessment = profileItem?.assessment;
-          const state = fields?.find((field) => field.key === key)?.state || (assessment === "gap" ? "gap" : profileItem?.evidence ? "captured" : "missing");
-          return (
-            <div className={`review-evidence-item ${state}`} key={key}>
-              <div><strong>{label}</strong><b>{state === "gap" ? "Reported gap" : state === "captured" ? "Evidence captured" : state === "needs_clarification" ? "Needs clarification" : "Evidence missing"}</b></div>
-              {requirement && <small>Target: {target || "Confirm with recruiter"} · {requirement}</small>}
-              {profileItem?.value !== undefined && profileItem?.value !== null && <small>Your extracted value: {String(profileItem.value)}</small>}
-              <span>{profileItem?.evidence || "You have not provided evidence for this requirement yet."}</span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="review-correction">See a mistake or missing item? <button type="button" onClick={onCancel}>Return to the chat</button> and describe the correction or evidence before submitting.</p>
-      <label htmlFor="candidate-name">Your name</label>
-      <input id="candidate-name" value={candidateName} onChange={(event) => setCandidateName(event.target.value)} minLength="2" maxLength="100" autoComplete="name" required />
-      <label htmlFor="candidate-location">Your location</label>
-      <input id="candidate-location" value={candidateLocation} onChange={(event) => setCandidateLocation(event.target.value)} minLength="2" maxLength="100" autoComplete="address-level2" required />
-      <label htmlFor="candidate-contact">Preferred email or phone number</label>
-      <input id="candidate-contact" value={preferredContact} onChange={(event) => setPreferredContact(event.target.value)} minLength="3" maxLength="320" autoComplete="email" required />
-      <label className="consent-check">
-        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />
-        <span>{item.job.source ? "I agree to send this application and my contact details to the Job Talk operator to record my interest. This does not authorize sharing my identifying details with the advertised employer; Job Talk must ask my permission separately." : "I agree to share this application and my contact details with the recruiter for this role and the Job Talk operator who runs and supports this experiment."}</span>
-      </label>
-      <p className="review-policy">Read how Job Talk uses and deletes data in <a href="/privacy" target="_blank" rel="noreferrer">Privacy &amp; safety</a>.</p>
-      <button className="primary full" disabled={!consent || submitting}>{submitting ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button>
-    </form>
-  );
-}
 
 function FeedbackPrompt({ kind, contextId }) {
   const storageKey = `job-talk-feedback-${kind}-${contextId}`;
@@ -667,13 +591,11 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
   );
 }
 
-function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraftChange, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
+function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraftChange, onAnswerChange, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const [editingDraft, setEditingDraft] = useState(false);
-  const [applied, setApplied] = useState({});
-  const [reviewing, setReviewing] = useState(null);
   const [selecting, setSelecting] = useState(false);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
@@ -705,10 +627,13 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
   }
 
   async function apply(candidateName, candidateLocation, preferredContact) {
-    await onApply(reviewing.job.id, candidateName, candidateLocation, preferredContact, reviewing.job.criteria_version);
-    setApplied((value) => ({ ...value, [reviewing.job.id]: true }));
-    setReviewing(null);
-    await onReload();
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      await onApply(chat.target_job.id, candidateName, candidateLocation, preferredContact, chat.target_job.criteria_version);
+      await onReload();
+    } finally { sendingRef.current = false; setSending(false); }
   }
 
   async function selectJob(jobId) {
@@ -724,6 +649,14 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
     finally { sendingRef.current = false; setSending(false); }
   }
 
+  async function changeAnswer(value) {
+    if (sendingRef.current) throw new Error("Wait for the current change to finish.");
+    sendingRef.current = true;
+    setSending(true);
+    try { return await onAnswerChange(value); }
+    finally { sendingRef.current = false; setSending(false); }
+  }
+
   return (
     <section className="chat-shell">
       <header className="chat-header">
@@ -734,7 +667,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
       <div className={chat.job_draft || chat.intent === "candidate" ? "chat-workspace with-draft" : "chat-workspace"}>
       <div className="messages">
         <div className="conversation-inner">
-          <SourceNotice source={(chat.job_post || chat.target_job)?.source} owner={chat.intent === "employer"} />
+          {chat.intent === "employer" && <SourceNotice source={chat.job_post?.source} owner />}
           {isAdmin && chat.job_post?.source && <InterestSummary key={`${chat.id}-${applications.length}`} jobId={chat.job_post.id} />}
           {chat.status === "draft" && chat.job_draft?.source && !chat.messages.some((message) => message.sender === "user") && <section className="source-notice">
             <details><summary>Pasted job description</summary><p className="source-original">{chat.job_draft.source.original_text}</p></details>
@@ -748,7 +681,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
               {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
             </div>
           ))}
-          {!submitted && chat.status !== "closed" && !chat.job_draft && !chat.messages.some((message) => message.sender === "user") && (
+          {!submitted && chat.status !== "closed" && !chat.job_draft && !chat.target_job && !chat.messages.some((message) => message.sender === "user") && (
             <div className="starter-prompts">
               <span>TRY AN EXAMPLE</span>
               {chat.intent === "candidate" && <button type="button" disabled={sending} onClick={() => sendPrompt("I have three years of welding and forklift experience in Cape Town.")}>Describe trade experience</button>}
@@ -759,23 +692,16 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
           {!chat.job_draft && !chat.target_job && <ProfileChips profile={chat.profile} />}
           {chat.intent === "employer" && chat.job_post && !chat.job_draft && <JobReadiness job={chat.job_post} />}
           {chat.intent === "employer" && chat.job_post && chat.status !== "draft" && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
-          {!!recommendations.length && chat.target_job_id && !submitted && (
-            <div className="recommendations">
-              <div className="recommendation-heading"><span>{chat.target_job_id ? "YOUR APPLICATION" : "RECOMMENDED JOBS"}</span><small>{chat.target_job_id ? "Selected role" : "Top two from your conversation"}</small></div>
-              <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
-              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} selected={Boolean(chat.target_job_id)} busy={selecting || sending} applied={submitted || applied[item.job.id]} onSelect={() => selectJob(item.job.id)} onApply={() => setReviewing(item)} />)}
-              {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} fields={chat.application_fields} onSubmit={apply} onCancel={() => setReviewing(null)} />}
-            </div>
-          )}
-          {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
           <div ref={bottomRef} />
         </div>
       </div>
       {chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
-      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
+      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary key={chat.id} fields={chat.application_fields || []} job={chat.target_job} profile={chat.profile} submitted={submitted} closed={chat.status === "closed"} busy={sending} onChange={changeAnswer} onEditingChange={setEditingDraft} onSubmit={apply}>
+        {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
+      </ApplicationSummary></aside>}
       {chat.intent === "candidate" && !chat.target_job_id && <aside className="draft-sidebar discovery-sidebar" aria-label="Job suggestions">
         <section className="discovery-empty" role="status"><strong>{!recommendations.length ? "No open jobs right now" : recommendations.some((item) => !item.available_example) ? "Matching jobs" : Object.keys(chat.profile || {}).length ? "No useful match yet" : "Available jobs"}</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs as you chat.</p>{recommendations.some((item) => item.available_example) && <p>These are available-job examples. Keep chatting to narrow your search, or choose one to apply.</p>}</section>
-        {recommendations.map((item) => <Recommendation key={item.job.id} item={item} busy={selecting || sending} selected={false} onSelect={() => selectJob(item.job.id)} />)}
+        {recommendations.map((item) => <Recommendation key={item.job.id} item={item} busy={selecting || sending} onSelect={() => selectJob(item.job.id)} />)}
       </aside>}
       </div>
       {chat.can_publish && <div className="publish-bar"><div><strong>{chat.job_post?.published ? "Your edits are ready" : "Your role is ready for final review"}</strong><span>{chat.job_post?.published ? "Publish changes to update the live post." : "Check the criteria above, then publish it explicitly."}</span></div><button className="primary" disabled={sending || editingDraft} onClick={onPublish}>{chat.job_post?.published ? "Publish changes" : "Publish job"} <ArrowRight size={17} /></button></div>}
@@ -934,6 +860,13 @@ function JobTalkApp() {
     return result;
   }
 
+  async function changeAnswer(value) {
+    const chatId = chat.id;
+    const updated = await api.editApplicationField(chatId, value);
+    setChat((current) => current?.id === chatId ? updated : current);
+    return updated;
+  }
+
   async function closeJob() {
     if (!window.confirm("Close this recruitment and stop new applications?")) return;
     try { await api.closeJob(chat.job_post.id); await loadChat(chat.id); await loadChats(false); } catch (err) { setError(err.message); }
@@ -986,7 +919,7 @@ function JobTalkApp() {
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
       {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} isAdmin={user.is_admin} onCancel={() => setTemplateChoices(null)} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
-          <ChatView chat={chat} recommendations={recommendations} applications={applications} isAdmin={user.is_admin} onSend={send} onDraftChange={changeDraft} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
+          <ChatView key={chat.id} chat={chat} recommendations={recommendations} applications={applications} isAdmin={user.is_admin} onSend={send} onDraftChange={changeDraft} onAnswerChange={changeAnswer} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>
       ) : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" type="button" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>

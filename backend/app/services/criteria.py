@@ -117,6 +117,8 @@ def normalize_candidate_evidence(
         item = normalized.get(key)
         if not isinstance(item, dict) or not item.get("evidence"):
             continue
+        if item.get("edited_in_form"):
+            continue  # Already typed against this criterion by the answer form.
         item["criterion_key"] = key
         if item.get("assessment") == "gap":
             item["value"] = None

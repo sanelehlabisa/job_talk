@@ -54,6 +54,44 @@ def application_fields(profile: dict, criteria: dict) -> list[dict]:
     ]
 
 
+def edit_application_answer(profile: dict, criteria: dict, key: str, text: str) -> dict:
+    """A form names the criterion explicitly; save only that candidate answer.
+
+    No model call is needed to save an edit. Keep unclear quantities unscored and
+    retain a cleared entry so history recovery cannot restore a deleted answer.
+    """
+    requirement = normalize_target_profile(criteria)[key]
+    result = deepcopy(profile)
+    text = text.strip()
+    value, state, assessment = text or None, "captured" if text else "unanswered", "claimed"
+    if text and (_criterion_denied(text, key, requirement) or re.fullmatch(
+        r"(?:i )?(?:don't|do not|cannot|can't|haven't) (?:have|do|meet) (?:that|this|it)(?: skill| requirement| experience)?[.! ]*",
+        text, re.I,
+    )):
+        value, state, assessment = None, "gap", "gap"
+    elif text and requirement["type"] == "number":
+        amount = r"\d+(?:\.\d+)?|zero|" + "|".join(NUMBER_WORDS)
+        unit = re.escape(requirement.get("unit", "").rstrip("s"))
+        bare = re.fullmatch(rf"({amount})", text, re.I)
+        matches = ([bare.group(1)] if bare else re.findall(rf"(?<![\w.+-])({amount})\s*{unit}s?(?=\W|$)", text, re.I) if unit else [])
+        value = None
+        if len(matches) == 1:
+            raw = matches[0].lower()
+            value = NUMBER_WORDS.get(raw, 0) if raw.isalpha() else float(raw)
+            if not math.isfinite(value) or not 0 <= value <= 100000:
+                value = None
+        if value is None:
+            state = "needs_clarification"
+    elif text and requirement["type"] == "skill":
+        value = True
+    if re.fullmatch(r"(?:not sure|maybe|i don't know|i do not know)[.! ]*", text, re.I):
+        value, state = None, "needs_clarification"
+    result[key] = {"criterion_key": key, "value": value, "evidence": text,
+                   "source_quote": text, "state": state, "assessment": assessment,
+                   "edited_in_form": True}
+    return result
+
+
 def apply_candidate_updates(profile: dict, criteria: dict | None, updates: list[CandidateUpdate],
                             current_text: str, earlier_user_texts: list[str], expected: str | None = None) -> dict:
     """Accept source-backed values; never let the model change job criteria or scores."""
@@ -74,7 +112,8 @@ def apply_candidate_updates(profile: dict, criteria: dict | None, updates: list[
             continue
         if source not in current:
             # Reuse an unanswered field from this chat, never overwrite a later correction.
-            if result.get(update.key, {}).get("evidence") or not any(source in text for text in history):
+            if (result.get(update.key, {}).get("evidence") or result.get(update.key, {}).get("edited_in_form")
+                    or not any(source in text for text in history)):
                 continue
         requirement = (requirements or {}).get(update.key, {})
         if update.key == "experience" and _experience_scope_conflicts(update.source_quote, requirement):

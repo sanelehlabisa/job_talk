@@ -875,8 +875,8 @@ def candidate_reply(
                 return f"Thanks for clarifying. I'll record that as a gap, not a match. {question}"
             return question
         if answer_status == "gap":
-            return "Thanks for clarifying. I recorded that as a gap, not a match. Review the structured application below when you're ready to submit."
-        return "I’ve captured the candidate-provided claims for this role’s criteria. Review the structured application below when you’re ready to submit."
+            return "I've recorded that gap. Review Your application and use Submit application when you're ready."
+        return "Your answers are saved. Review Your application and use Submit application when you're ready."
     if len(profile) < 2:
         return "Tell me about the skills you use, your experience, or a project you’re proud of."
     if "experience" not in profile:
