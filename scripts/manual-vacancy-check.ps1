@@ -9,7 +9,7 @@ $sourceUrl = "https://example.com/jobtalk-check/$stamp"
 $sourceText = "Job title: Curated Check Welder; Role description: Repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
 
 try {
-    Wait-JavaScript "document.querySelector('.admin-nav') !== null" "approved owner navigation"
+    Wait-JavaScript "document.querySelector('.chat-list-label')?.textContent.includes('ALL HIRING') && document.querySelector('.chat-shell') !== null" "approved owner navigation"
     Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#curated-vacancy') !== null" "owner vacancy option"
     Invoke-JavaScript "document.querySelector('#curated-vacancy').click(); true" | Out-Null
@@ -87,8 +87,8 @@ try {
 
     $ownerSessionJson = $ownerSession | ConvertTo-Json -Compress
     Invoke-JavaScript "sessionStorage.setItem('job-talk-session', $ownerSessionJson); location.href='/'; true" | Out-Null
-    Wait-JavaScript "document.querySelector('#admin-job') !== null" "owner jobs after restart"
-    Invoke-JavaScript "(() => { const select = document.querySelector('#admin-job'); select.value = '$vacancyJobId'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()" | Out-Null
+    Wait-JavaScript "document.querySelector('.chat-shell') !== null && document.querySelector('.chat-row') !== null" "owner chats after restart"
+    Invoke-JavaScript "[...document.querySelectorAll('.chat-row')].find(b => b.textContent.includes('Curated Check Welder')).click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.interest-summary')?.textContent.includes('1 applications') && document.querySelector('.candidate-comparison')?.textContent.includes('Fictional Vacancy Candidate')" "counts and private submitted snapshot"
     if (Invoke-JavaScript "document.querySelector('.interest-summary').textContent.includes('Fictional Vacancy Candidate') || document.querySelector('.interest-summary').textContent.includes('vacancy-check@example.com')") { throw 'Aggregate summary contains identifying data' }
     Save-Screenshot 'vacancy-owner-phone.png'

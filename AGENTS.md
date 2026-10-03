@@ -47,7 +47,11 @@ jobs before the seeker selects the job-specific application.
 Owner access and manual vacancy entry are implemented in JT-061/JT-062. Use an
 optional backend-only `ADMIN_EMAIL` with approved email-code login and existing
 expiring session tokens; never authorize requests with a reusable login code.
-Ordinary recruiters retain ownership limits. Operator-curated vacancies must
+Admin uses the same recruiter workspace and may access and manage all hiring
+chats through existing edit, publish and close controls. Show owner emails in
+the shared list; do not add a separate admin dashboard. Ordinary recruiters
+retain ownership limits and guest candidate chats remain scoped to their session.
+Operator-curated vacancies must
 identify their source and who receives applications. Reuse existing storage and
 views rather than adding administration or import infrastructure.
 

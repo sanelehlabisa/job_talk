@@ -59,7 +59,6 @@ export const api = {
       body: JSON.stringify({ email, code }),
     }),
   me: () => request("/auth/me"),
-  adminJobs: () => request("/admin/jobs"),
   jobInterest: (jobId) => request(`/admin/jobs/${jobId}/interest`),
   logout: () => request("/auth/logout", { method: "POST" }),
   deleteAccount: () => request("/account", { method: "DELETE" }),

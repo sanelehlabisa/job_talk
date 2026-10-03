@@ -105,10 +105,11 @@ using guided questions; record those runs as fallback, not actual AI success.
   values, evidence, weights, top-five comparison, and parallel plot against the
   exact confirmed job criteria; qualifications marked not required must be absent.
 - [ ] **Review owner access.** Sign in with the configured, approved owner email
-  and a code from Mailpit. In All jobs, select another recruiter's listing and
-  inspect its submitted candidates and plot. Refresh and repeat on phone size.
-  Sign in as an ordinary recruiter and confirm All jobs is absent and only their
-  own applicants are available. Neither view should expose full candidate chats.
+  and a code from Mailpit. Open another recruiter's draft from All hiring
+  conversations; edit it, then sign in as its recruiter and check the same saved
+  changes. Use the normal publish, compare and close controls. Refresh and repeat
+  on phone size. Ordinary recruiters should see only their own conversations
+  and applicants. Neither view should expose full candidate chats.
 - [ ] **Use a manual vacancy.** With the approved owner email
   configured, paste one manually checked vacancy with its source, review and
   publish it, then submit a test application. Confirm who receives it is clear.
@@ -129,6 +130,7 @@ Record the result in this table when executing JT-060:
 | JT-064 test safety | 95 isolated backend tests passed, followed by focused checks after the last validation fixes (13 draft/provider checks and all 11 Gemini regressions). Earlier incorrectly isolated run caused the local data incident documented above. |
 | Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
 | Owner/recruiter/guest access checks | JT-061: 78 backend tests and focused owner browser check passed; user acceptance pending |
+| JT-065 shared owner workspace | 14 isolated admin/manual-vacancy/candidate tests and frontend build passed. Browser verified emailed login, all hiring chats with owner labels, another recruiter's editable draft, shared comparison/close controls, refresh and phone navigation. No LLM calls. Published criteria retain the normal lock. |
 | Manual vacancies and persistence | JT-062: 81 backend tests, build, guided browser flow and two backend/PostgreSQL restarts passed with fictional data; no live LLM calls |
 | JT-060 guided comparison follow-up | 2026-10-03: 84 backend tests passed in isolated SQLite; separate Plumber/Generic jobs, strong/partial/unrelated submissions, fields/targets/weights/scores and frozen comparison verified. Fixed singular-year draft validation and unrelated trade experience credit. No new browser or actual LLM run; visible plot and live language acceptance remain pending. |
 | User decision: usable / needs fixes | Pending |

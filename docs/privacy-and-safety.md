@@ -6,11 +6,12 @@ Use that inbox for privacy, abuse, access, and deletion reports.
 
 ## Operator application review
 
-The approved recruiter whose email matches backend `ADMIN_EMAIL` can use
-**All jobs** to review submitted application snapshots across recruiters. This
-includes approved contact details, evidence and scores. Ordinary recruiters
-retain access only to their own jobs' applicants; these views expose no full
-candidate or recruiter chats. Job editing remains restricted to the job owner.
+The approved recruiter whose email matches backend `ADMIN_EMAIL` uses the shared
+recruiter workspace to view all job-creation chats, edit drafts, publish and close
+jobs, and review submitted applications across recruiters. Submitted snapshots
+include approved contact details, evidence and scores. Ordinary recruiters see
+only their own chats and applicants. Full candidate chats remain private to
+their scoped guest session. Admin edits do not transfer job ownership.
 Submission consent and the public privacy page explain operator access. New
 snapshots record `operator_access_disclosed`; earlier snapshots are not rewritten.
 Keep the actual admin address in ignored `.env`, never in source or frontend

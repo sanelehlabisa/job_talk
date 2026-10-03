@@ -20,7 +20,7 @@ def test_admin_email_is_optional_normalized_and_validated():
         Settings(_env_file=None, admin_email="not an email")
 
 
-def test_admin_reads_all_jobs_and_submitted_snapshots_without_other_chat_or_edit_access(monkeypatch):
+def test_admin_reads_all_hiring_chats_and_snapshots_but_not_candidate_chats(monkeypatch):
     monkeypatch.setattr(app_settings, "admin_email", "owner@example.com")
     _, admin_headers = authenticate("owner@example.com", "recruiter")
     job_ids = [create_published_job(email=f"recruiter-{i}@example.com") for i in range(2)]
@@ -51,12 +51,14 @@ def test_admin_reads_all_jobs_and_submitted_snapshots_without_other_chat_or_edit
                                       job_post_id=job_ids[0], submitted=False))
             db.commit()
         assert client.post(f"/api/jobs/{job_ids[1]}/close", headers=recruiter_headers[1]).status_code == 200
-        jobs = client.get("/api/admin/jobs", headers=admin_headers).json()
-        assert {job["status"] for job in jobs} == {"draft", "published", "closed"}
-        assert {job["id"] for job in jobs} == {*job_ids, draft["job_post"]["id"]}
-        assert sum(job["submitted_count"] for job in jobs) == 2
-        assert all("messages" not in job and "draft" not in job and "chat_id" not in job for job in jobs)
-        assert client.get("/api/chats", headers=admin_headers).json() == []
+        chats = client.get("/api/chats", headers=admin_headers).json()
+        assert len(chats) == 3
+        assert {chat["status"] for chat in chats} == {"draft", "published", "closed"}
+        assert {chat["recruiter_email"] for chat in chats} == {"recruiter-0@example.com", "recruiter-1@example.com"}
+        for chat in chats:
+            assert client.get(f"/api/chats/{chat['id']}", headers=admin_headers).status_code == 200
+        assert len(client.get("/api/chats", headers=recruiter_headers[0]).json()) == 2
+        assert len(client.get("/api/chats", headers=recruiter_headers[1]).json()) == 1
         assert client.get("/api/applications?job_id=99999", headers=admin_headers).status_code == 404
         for i, job_id in enumerate(job_ids):
             assert client.get(f"/api/applications?job_id={job_id}", headers=admin_headers).json() == [applications[i]]
@@ -65,13 +67,42 @@ def test_admin_reads_all_jobs_and_submitted_snapshots_without_other_chat_or_edit
             for headers in (admin_headers, recruiter_headers[i], guests[1-i][0]):
                 assert client.get(f"/api/chats/{guests[i][1]['id']}", headers=headers).status_code == 404
             for action in ("publish", "close"):
-                assert client.post(f"/api/jobs/{job_id}/{action}", headers=admin_headers).status_code == 404
+                assert client.post(f"/api/jobs/{job_id}/{action}", headers=recruiter_headers[1-i]).status_code == 404
             assert client.get("/api/applications", headers=guests[i][0]).json() == [applications[i]]
             assert client.get(f"/api/applications?job_id={job_id}", headers=guests[i][0]).status_code == 403
-        assert client.get(f"/api/chats/{draft['id']}", headers=admin_headers).status_code == 404
-        assert client.post(f"/api/chats/{draft['id']}/messages", json={"content": "Change the title"}, headers=admin_headers).status_code == 404
+        assert client.get(f"/api/chats/{draft['id']}", headers=recruiter_headers[1]).status_code == 404
+        assert client.post(f"/api/chats/{draft['id']}/messages", json={"content": "Change the title"}, headers=recruiter_headers[1]).status_code == 404
         assert len(client.get("/api/public/jobs").json()) == 1
         assert "recruiter_email" not in client.get("/api/public/jobs").json()[0]
+
+
+def test_admin_edits_publishes_and_closes_another_recruiters_draft_without_changing_owner(monkeypatch):
+    monkeypatch.setattr(app_settings, "admin_email", "owner@example.com")
+    _, admin_headers = authenticate("owner@example.com", "recruiter")
+    recruiter, recruiter_headers = authenticate("recruiter@example.com", "recruiter")
+    with TestClient(app) as client:
+        draft = client.post("/api/chats", json={"template_id": "plumber"}, headers=recruiter_headers).json()
+        chat_id, job_id = draft["id"], draft["job_post"]["id"]
+        message = (
+            "Job title: Plumber; Role description: Repair residential pipes; "
+            "Work arrangement: on-site; Location: Cape Town; Experience: two years of plumbing experience; "
+            "Plumbing required; Pipe fitting required; Tools: pipe cutters required; No degree needed; "
+            "Working hours: weekdays; Start availability: immediately"
+        )
+        response = client.post(f"/api/chats/{chat_id}/messages", json={"content": message}, headers=admin_headers)
+        assert response.status_code == 200
+        assert response.json()["chat"]["can_publish"] is True
+        assert client.get(f"/api/chats/{chat_id}", headers=recruiter_headers).json() == response.json()["chat"]
+        client.post(f"/api/chats/{chat_id}/messages", json={"content": "Experience: three years of plumbing experience"}, headers=recruiter_headers)
+        changed = client.get(f"/api/chats/{chat_id}", headers=admin_headers).json()
+        assert changed["job_post"]["target_profile"]["experience"]["target"] == 3
+        assert client.post(f"/api/jobs/{job_id}/publish", headers=admin_headers).status_code == 200
+        assert client.get(f"/api/chats/{chat_id}", headers=recruiter_headers).json()["status"] == "published"
+        assert client.post(f"/api/jobs/{job_id}/close", headers=admin_headers).status_code == 200
+        assert client.get(f"/api/chats/{chat_id}", headers=recruiter_headers).json()["status"] == "closed"
+        with SessionLocal() as db:
+            assert db.get(models.Chat, chat_id).user_id == recruiter["id"]
+            assert db.get(models.JobPost, job_id).user_id == recruiter["id"]
 
 
 def test_admin_capability_rechecks_configuration_and_approval_on_existing_sessions(monkeypatch):
@@ -81,18 +112,20 @@ def test_admin_capability_rechecks_configuration_and_approval_on_existing_sessio
     _, other_headers = authenticate("other@example.com", "recruiter")
     job_id = create_published_job()
     with TestClient(app) as client:
+        chat_id = client.get("/api/chats", headers=headers).json()[0]["id"]
         for configured in (None, "", "other@example.com"):
             monkeypatch.setattr(app_settings, "admin_email", configured)
             assert client.get("/api/auth/me", headers=headers).json()["is_admin"] is False
-            assert client.get("/api/admin/jobs", headers=headers).status_code == 403
+            assert client.get("/api/chats", headers=headers).json() == []
+            assert client.get(f"/api/chats/{chat_id}", headers=headers).status_code == 404
             assert client.get(f"/api/applications?job_id={job_id}", headers=headers).status_code == 404
-        assert client.get("/api/admin/jobs", headers=other_headers).status_code == 200
+        assert client.get(f"/api/chats/{chat_id}", headers=other_headers).status_code == 200
         monkeypatch.setattr(app_settings, "admin_email", "owner@example.com")
         assert client.get("/api/auth/me", headers=headers).json()["is_admin"] is True
         with SessionLocal() as db:
             db.get(models.User, admin["id"]).approval_status = "rejected"
             db.commit()
-        for path in ("/api/auth/me", "/api/admin/jobs", f"/api/applications?job_id={job_id}"):
+        for path in ("/api/auth/me", "/api/chats", f"/api/applications?job_id={job_id}"):
             assert client.get(path, headers=headers).status_code == 401
 
 
@@ -108,14 +141,17 @@ def test_admin_private_endpoints_reject_anonymous_spoofed_guest_and_expired_acce
         session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         db.commit()
     job_id = create_published_job()
+    with SessionLocal() as db:
+        chat_id = db.get(models.JobPost, job_id).chat_id
     with TestClient(app) as client:
         assert guest["is_admin"] is False
         for headers in ({}, {"Authorization": "Bearer made-up-token"}, expired_headers):
-            assert client.get("/api/admin/jobs", headers=headers).status_code == 401
+            assert client.get("/api/chats", headers=headers).status_code == 401
             assert client.get(f"/api/applications?job_id={job_id}", headers=headers).status_code == 401
         for headers in (guest_headers, recruiter_headers):
             spoofed = {**headers, "X-Role": "admin", "X-Admin-Email": "owner@example.com"}
-            assert client.get("/api/admin/jobs?is_admin=true&email=owner@example.com", headers=spoofed).status_code == 403
+            assert client.get(f"/api/chats/{chat_id}?is_admin=true&email=owner@example.com", headers=spoofed).status_code == 404
+            assert client.post(f"/api/chats/{chat_id}/messages", json={"content": "Change the title"}, headers=spoofed).status_code == 404
             assert client.get("/api/auth/me", headers=spoofed).json()["is_admin"] is False
         forged_guest = client.post("/api/auth/guest", json={"email": "owner@example.com", "role": "recruiter", "is_admin": True}).json()
         assert forged_guest["user"]["role"] == "candidate"
@@ -141,8 +177,8 @@ def test_admin_uses_approved_single_use_email_code_then_bearer_token(monkeypatch
         assert verified.status_code == 200
         assert verified.json()["user"]["is_admin"] is True
         headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
-        assert client.get("/api/admin/jobs", headers=headers).status_code == 200
-        assert client.get("/api/admin/jobs", headers={"Authorization": f"Bearer {code}"}).status_code == 401
+        assert client.get("/api/chats", headers=headers).status_code == 200
+        assert client.get("/api/chats", headers={"Authorization": f"Bearer {code}"}).status_code == 401
         assert client.post("/api/auth/recruiter/verify-code", json={**payload, "code": code}).status_code == 401
         assert client.post("/api/auth/logout", headers=headers).status_code == 204
-        assert client.get("/api/admin/jobs", headers=headers).status_code == 401
+        assert client.get("/api/chats", headers=headers).status_code == 401

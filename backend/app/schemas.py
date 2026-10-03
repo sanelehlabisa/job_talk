@@ -96,12 +96,6 @@ class JobOut(ORMModel):
     )
 
 
-class AdminJobOut(JobOut):
-    status: Literal["draft", "published", "closed"]
-    recruiter_email: str
-    submitted_count: int
-
-
 class CriterionScoreOut(BaseModel):
     label: str
     type: Literal["number", "skill", "text"]
@@ -130,6 +124,7 @@ class ChatSummary(ORMModel):
     workspace_title: str
     target_job_id: int | None = None
     created_at: datetime
+    recruiter_email: str | None = None
 
 
 class ChatOut(ChatSummary):

@@ -145,55 +145,9 @@ try {
     Wait-JavaScript "document.querySelector('.new-chat') !== null" "recruiter workspace"
 
     if ($AdminOnly) {
-        Wait-JavaScript "document.querySelector('#admin-job') !== null" "owner all-jobs view"
-        $adminCheckToken = $null
-        try {
-            $jobId = Invoke-JavaScript @'
-(async () => {
-  const base = 'http://localhost:8000/api';
-  const jobs = await fetch(base + '/public/jobs').then(r => r.json());
-  if (!jobs.length) throw new Error('This check needs a published local job');
-  const guest = await fetch(base + '/auth/guest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobs[0].id }) }).then(r => r.json());
-  window.__adminCheckGuest = guest.access_token;
-  const headers = { Authorization: 'Bearer ' + guest.access_token, 'Content-Type': 'application/json' };
-  const chats = await fetch(base + '/chats', { headers }).then(r => r.json());
-  const submitted = await fetch(base + '/jobs/' + jobs[0].id + '/apply', { method: 'POST', headers, body: JSON.stringify({ candidate_chat_id: chats[0].id, candidate_name: 'Owner View Check', candidate_location: 'Cape Town', preferred_contact: 'owner-check@example.com', consent_to_share: true }) });
-  if (!submitted.ok) throw new Error('Could not submit fictional application');
-  return jobs[0].id;
-})()
-'@
-            $adminCheckToken = Invoke-JavaScript "window.__adminCheckGuest"
-            Invoke-JavaScript "[...document.querySelectorAll('.chat-header button')].find(button => button.textContent === 'Refresh').click(); true" | Out-Null
-            Wait-JavaScript "document.querySelector('#admin-job') !== null" "refreshed owner job list"
-            Invoke-JavaScript "(() => { const select = document.querySelector('#admin-job'); select.value = '$jobId'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()" | Out-Null
-            Wait-JavaScript "document.querySelector('.candidate-comparison')?.textContent.includes('Owner View Check')" "submitted snapshot from another recruiter's job"
-            if (Invoke-JavaScript "document.querySelector('.close-job, .composer, .publish-bar') !== null") { throw "Owner view exposed job mutation controls" }
-            Save-Screenshot "admin-jobs-desktop.png"
-            Set-Viewport 390 760 $true
-            Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed phone sidebar"
-            if (Invoke-JavaScript "document.documentElement.scrollWidth > window.innerWidth") { throw "Admin view overflows the phone viewport" }
-            Save-Screenshot "admin-jobs-phone.png"
-            Invoke-JavaScript 'document.querySelector("[aria-label=''Open conversation menu'']").click(); true' | Out-Null
-            Wait-JavaScript "document.querySelector('.sidebar.open') !== null" "phone owner navigation"
-            Invoke-JavaScript "document.querySelector('.admin-nav').click(); true" | Out-Null
-            Wait-JavaScript "document.querySelector('.sidebar.open') === null" "closed owner navigation"
-            Invoke-JavaScript "window.__jobTalkReloadPending = true; true" | Out-Null
-            Invoke-Cdp "Page.reload" | Out-Null
-            Wait-JavaScript "!window.__jobTalkReloadPending && document.querySelector('#admin-job') !== null" "owner access after refresh"
-            if (Invoke-JavaScript "document.querySelector('.error-notice, .admin-jobs .error') !== null") { throw "Owner view displayed an error" }
-            Write-Output "Admin browser check passed: email-code login, all jobs, another recruiter's submitted snapshot, read-only comparison, refresh and phone navigation. No LLM calls made."
-            Write-Output "Screenshots: $OutputDirectory"
-        } finally {
-            # Keep this temporary token in PowerShell across Page.reload; the
-            # application's own browser session remains the owner session.
-            if (-not $adminCheckToken) { $adminCheckToken = Invoke-JavaScript "window.__adminCheckGuest" }
-            if ($adminCheckToken) {
-                Invoke-RestMethod -Method Delete -Uri "http://localhost:8000/api/account" -Headers @{ Authorization = "Bearer $adminCheckToken" } | Out-Null
-            }
-        }
+        . "$PSScriptRoot/admin-workspace-check.ps1"
         return
     }
-
     if ($VacancyOnly) {
         . "$PSScriptRoot/manual-vacancy-check.ps1"
         return

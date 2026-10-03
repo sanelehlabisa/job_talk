@@ -72,10 +72,14 @@ app.add_middleware(
 )
 
 
-def get_chat_or_404(db: Session, chat_id: int, user_id: int) -> models.Chat:
+def chat_access_filter(user: models.User):
+    return models.Chat.intent == "employer" if is_admin(user) else models.Chat.user_id == user.id
+
+
+def get_chat_or_404(db: Session, chat_id: int, user: models.User) -> models.Chat:
     chat = db.scalar(
         select(models.Chat)
-        .where(models.Chat.id == chat_id, models.Chat.user_id == user_id)
+        .where(models.Chat.id == chat_id, chat_access_filter(user))
         .options(
             selectinload(models.Chat.messages),
             selectinload(models.Chat.job_post),
@@ -229,7 +233,7 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
                current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "candidate":
         raise HTTPException(status_code=403, detail="Candidate access required")
-    chat = get_chat_or_404(db, chat_id, current_user.id)
+    chat = get_chat_or_404(db, chat_id, current_user)
     if chat.target_job_id is not None:
         if chat.target_job_id != payload.job_id:
             raise HTTPException(status_code=403, detail="This guest session belongs to another job")
@@ -252,7 +256,7 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
         + candidate_reply(chat.profile, job.target_profile)
     )))
     db.commit()
-    return serialize_chat(get_chat_or_404(db, chat_id, current_user.id))
+    return serialize_chat(get_chat_or_404(db, chat_id, current_user))
 
 
 @app.post(
@@ -376,35 +380,6 @@ def current_account(current_user: models.User = Depends(get_current_user)):
     return serialize_user(current_user)
 
 
-@app.get("/api/admin/jobs", response_model=list[schemas.AdminJobOut])
-def list_admin_jobs(
-    current_user: models.User = Depends(get_admin_user),
-    db: Session = Depends(get_db),
-):
-    submitted_count = (
-        select(func.count(models.Application.id))
-        .where(
-            models.Application.job_post_id == models.JobPost.id,
-            models.Application.submitted.is_(True),
-        ).scalar_subquery()
-    )
-    rows = db.execute(
-        select(models.JobPost, models.User.email, models.Chat.status, submitted_count)
-        .join(models.User, models.User.id == models.JobPost.user_id)
-        .join(models.Chat, models.Chat.id == models.JobPost.chat_id)
-        .order_by(models.JobPost.created_at.desc(), models.JobPost.id.desc())
-    ).all()
-    return [
-        schemas.AdminJobOut(
-            **schemas.JobOut.model_validate(job).model_dump(),
-            recruiter_email=email,
-            status="closed" if chat_status == "closed" else "published" if job.published else "draft",
-            submitted_count=count,
-        )
-        for job, email, chat_status, count in rows
-    ]
-
-
 @app.get("/api/admin/jobs/{job_id}/interest")
 def job_interest_summary(
     job_id: int, current_user: models.User = Depends(get_admin_user),
@@ -460,15 +435,19 @@ def delete_candidate_account(
 def list_chats(
     current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    return db.scalars(
+    chats = db.scalars(
         select(models.Chat)
-        .where(models.Chat.user_id == current_user.id)
+        .where(chat_access_filter(current_user))
         .options(
             selectinload(models.Chat.job_post),
             selectinload(models.Chat.target_job),
+            selectinload(models.Chat.user),
         )
         .order_by(models.Chat.created_at.desc())
     ).all()
+    return [schemas.ChatSummary.model_validate(chat).model_copy(update={
+        "recruiter_email": chat.user.email if is_admin(current_user) else None,
+    }) for chat in chats]
 
 
 @app.get("/api/job-templates", response_model=list[JobDraft])
@@ -502,7 +481,7 @@ def create_chat(
             models.JobPost.draft["source"]["url"].as_string() == payload.source.url
         ).limit(1))
         if existing:
-            raise HTTPException(status_code=409, detail="This source URL already has a saved job. Open it from All jobs.")
+            raise HTTPException(status_code=409, detail="This source URL already has a saved job. Open its hiring conversation.")
         draft["source"] = payload.source.model_dump()
     if current_user.role == "candidate" and db.scalar(
         select(models.Chat.id).where(models.Chat.user_id == current_user.id).limit(1)
@@ -539,7 +518,7 @@ def create_chat(
         )
     )
     db.commit()
-    return serialize_chat(get_chat_or_404(db, chat.id, current_user.id))
+    return serialize_chat(get_chat_or_404(db, chat.id, current_user))
 
 
 @app.get("/api/chats/{chat_id}", response_model=schemas.ChatOut)
@@ -548,7 +527,7 @@ def get_chat(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return serialize_chat(get_chat_or_404(db, chat_id, current_user.id))
+    return serialize_chat(get_chat_or_404(db, chat_id, current_user))
 
 
 @app.post("/api/chats/{chat_id}/messages", response_model=schemas.MessageResponse)
@@ -558,7 +537,7 @@ def send_message(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    chat = get_chat_or_404(db, chat_id, current_user.id)
+    chat = get_chat_or_404(db, chat_id, current_user)
     if chat.status == "submitted":
         raise HTTPException(status_code=409, detail="This application has already been submitted")
     if chat.status == "closed":
@@ -736,7 +715,7 @@ def send_message(
     db.add(assistant_message)
     db.commit()
     db.refresh(assistant_message)
-    chat = get_chat_or_404(db, chat_id, current_user.id)
+    chat = get_chat_or_404(db, chat_id, current_user)
 
     recommendations = []
     if chat.intent == "candidate":
@@ -776,11 +755,10 @@ def publish_job(
 ):
     if current_user.role != "recruiter":
         raise HTTPException(status_code=403, detail="Recruiter access required")
-    job = db.scalar(
-        select(models.JobPost).where(
-            models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
-        )
-    )
+    query = select(models.JobPost).where(models.JobPost.id == job_id)
+    if not is_admin(current_user):
+        query = query.where(models.JobPost.user_id == current_user.id)
+    job = db.scalar(query)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.chat.status == "closed":
@@ -816,11 +794,10 @@ def close_job(
 ):
     if current_user.role != "recruiter":
         raise HTTPException(status_code=403, detail="Recruiter access required")
-    job = db.scalar(
-        select(models.JobPost).where(
-            models.JobPost.id == job_id, models.JobPost.user_id == current_user.id
-        )
-    )
+    query = select(models.JobPost).where(models.JobPost.id == job_id)
+    if not is_admin(current_user):
+        query = query.where(models.JobPost.user_id == current_user.id)
+    job = db.scalar(query)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.chat.status == "closed":
@@ -868,7 +845,7 @@ def get_recommendations(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    chat = get_chat_or_404(db, chat_id, current_user.id)
+    chat = get_chat_or_404(db, chat_id, current_user)
     if chat.intent != "candidate":
         return []
     jobs = db.scalars(
@@ -1085,12 +1062,10 @@ def submit_experiment_feedback(
                 status_code=403,
                 detail="Recruiter feedback requires recruiter access",
             )
-        subject = db.scalar(
-            select(models.JobPost.id).where(
-                models.JobPost.id == payload.context_id,
-                models.JobPost.user_id == current_user.id,
-            )
-        )
+        query = select(models.JobPost.id).where(models.JobPost.id == payload.context_id)
+        if not is_admin(current_user):
+            query = query.where(models.JobPost.user_id == current_user.id)
+        subject = db.scalar(query)
         subject_type = "job"
     if not subject:
         raise HTTPException(status_code=404, detail="Feedback context not found")

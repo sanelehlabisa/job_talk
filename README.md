@@ -44,9 +44,9 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   Deterministic/browser checks cover corrections and honest gaps. JT-064 also
   verified one live Gemini application and a focused discovery extraction.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
-  email-code sessions. **All jobs** shows drafts, open and closed jobs, and
-  submitted applications across recruiters. Ordinary recruiters keep access
-  only to their own jobs' applications. JT-062 adds manual entry of
+  email-code sessions. JT-065 uses the same recruiter workspace for admin, with
+  all job-creation chats, owner labels and editing controls. Ordinary recruiters
+  keep access to their own chats and applications. JT-062 adds manual entry of
   source-labelled vacancies through the existing draft/review/publish flow.
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
@@ -259,11 +259,15 @@ docker compose -f dev.docker-compose.yaml up -d --no-deps backend
 ```
 
 Sign in through **I'm hiring** with that email and the code in
-[local Mailpit](http://localhost:8025). **All jobs** opens automatically and
-remains available in the sidebar. Choose a job to read its requirements,
-submitted candidate cards and comparison plot. Manage your own roles through
-their hiring conversations. Reviewing other recruiters' jobs grants no access
-to their private chats or job editing actions.
+[local Mailpit](http://localhost:8025). Admin opens the same workspace as a
+recruiter. **All hiring conversations** lists every recruiter's job chats, with
+their email below the job title. Open any draft to continue its conversation,
+edit requirements and publish; open a published job to compare applicants or
+close recruitment. The original recruiter keeps ownership and sees the same
+saved changes. Published criteria follow the existing lock for both roles.
+
+There is no separate admin dashboard. Ordinary recruiters see only their own
+chats; candidate conversations remain scoped to their guest session.
 
 `ADMIN_EMAIL` is optional and backend-only; empty disables owner access. It
 does not approve the email automatically. The backend checks the configured
@@ -278,8 +282,9 @@ powershell -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -RecruiterEma
 ```
 
 Replace the example address with your configured owner email. The check needs
-one published local job, uses Mailpit, creates and removes one fictional
-application, and checks desktop/phone views. It makes no LLM requests.
+another recruiter's draft and published local job. It uses Mailpit, creates and
+removes one fictional application, and checks shared chat navigation, edit/close
+controls, comparison, refresh and desktop/phone views. It makes no LLM requests.
 
 ### Add a manually checked vacancy
 
@@ -290,7 +295,7 @@ application, and checks desktop/phone views. It makes no LLM requests.
    missing questions and correct mistakes in the chat, then explicitly publish.
 4. Open the public job link as a candidate. **Added by Job Talk** explains that
    interest goes to the operator; the advertised employer receives no application.
-5. Open **All jobs** to review candidate cards, the comparison plot and an
+5. Open the job's hiring conversation to review candidate cards, the comparison plot and an
    **Interest summary** containing only counts. Use the job's hiring conversation
    to close it when the advert is stale or filled.
 

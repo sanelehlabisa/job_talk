@@ -256,19 +256,18 @@ the existing emailed-code login. After verifying the single-use code, protected
 API requests use the existing unguessable, expiring bearer session token.
 
 The backend derives privileges from that verified identity on every request.
-The owner may inspect jobs and submitted applications across recruiters using
-the existing views. Ordinary recruiters see only applicants to their jobs;
-guest candidates see only their scoped data. This exception does not expose full
-chats, grant edit access to another recruiter's job, or trust a client-supplied
-role/email. Candidate consent explains operator access.
+JT-065 gives the owner the same recruiter workspace with every job-creation
+chat. The normal `GET /api/chats` list includes owner email labels for admin.
+Admin can read and continue any recruiter draft, publish and close jobs, and
+review submitted applications through the existing controls. Original ownership
+is retained. Ordinary recruiters see only their own chats and applicants;
+candidate guest sessions retain access only to their own conversations.
 
-The owner lands on **All jobs**, also available in the sidebar. The protected
-`GET /api/admin/jobs` supplies job criteria, recruiter email, state and submitted
-application counts, without chats or private draft history. The existing
-`GET /api/applications?job_id=...` supplies submitted snapshots after checking
-ownership or the configured admin identity. The same comparison component and
-backend scores are used. Publish, close and chat mutations still require job
-ownership. No database migration or separate admin account type is needed.
+The separate All jobs dashboard and its list endpoint are removed. The existing
+`GET /api/applications?job_id=...` still checks ownership or admin identity, and
+curated-job interest counts appear in the shared chat. Backend scores, published
+criteria locks and login approval follow the same flow as ordinary recruiters.
+No new account type, storage, or permission-management system is introduced.
 
 ## Usability acceptance
 

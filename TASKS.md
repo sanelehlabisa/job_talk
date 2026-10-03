@@ -23,8 +23,9 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-JT-064 Gemini integration is implemented. Next: resolve the local data incident
-recorded below and return to **JT-060** acceptance with the user.
+Current user priority: **JT-065**, simplify admin access to the recruiter workspace.
+JT-064 Gemini integration is implemented. The local data incident remains open;
+return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
 The final usability ticket covers the whole experience, including owner access
 and manually entered jobs. JT-057 is complete. JT-058 is implemented with
@@ -42,6 +43,36 @@ See [core context](docs/core-mvp.md) and the
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-065 - Use the same recruiter workspace for admin
+
+- [x] Remove the separate admin dashboard. Show all recruiter job-creation chats
+  in the existing sidebar for the approved configured admin, with an owner email
+  label; ordinary recruiters keep their own conversations.
+- [x] Let admin open and edit any recruiter draft, publish jobs and close
+  recruitment through the existing controls, without taking over ownership.
+- [x] Preserve accountless candidate session scope and ordinary recruiter access
+  limits. Keep the existing login and approval mechanism.
+- [x] Update affected documentation and browser checks; verify admin edits,
+  recruiter isolation and the frontend production build using disposable tests.
+
+**Status:** Implemented (2026-10-03). Admin opens the existing recruiter workspace
+with every hiring conversation and its owner email. Draft editing, publishing,
+candidate comparison and closing use the normal routes and controls, preserving
+the original owner. The separate dashboard, list endpoint and styles were removed.
+Curated vacancy interest counts now appear in the job chat.
+
+**Checks:** 14 isolated SQLite tests passed for admin, manual vacancies and
+candidate scope, including admin edits visible to the owner, publish/close,
+rechecked privileges and denied cross-recruiter/guest access. The frontend build
+passed. The email-code browser check verified another recruiter's draft composer,
+comparison/close controls, owner labels, refresh and phone navigation; it created
+and removed only its own fictional application and made no LLM calls.
+
+**Scope:** Shared recruiter controls were used as the default; published criteria
+keep their existing lock. Editing already-published requirements is a separate
+pending clarification, not implemented. Deployment remains paused and the prior
+data-recovery question remains open.
 
 ### JT-064 - Test the hiring flow with Gemini's free tier
 
@@ -242,6 +273,10 @@ fixed a tools denial clearing general experience; the repeated browser check
 asserts that experience remains intact. See [candidate test record](docs/candidate-application-checks.md).
 
 ### JT-061 - Configure owner access using existing login tokens
+
+**Superseded UI/access scope:** JT-065 replaces the All jobs dashboard described
+in this historical ticket with the shared recruiter workspace and access to all
+hiring chats, including draft editing, publish and close controls.
 
 - [x] Add an optional backend-only `ADMIN_EMAIL` setting, documented with an empty
   placeholder in `.env.example`. The owner sets their real address in ignored
