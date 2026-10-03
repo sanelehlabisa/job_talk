@@ -180,6 +180,11 @@ limits updates to actual criterion keys after selection and prevents an older
 statement from overwriting a later saved correction. If polished wording adds
 unsupported terms, the source wording is retained. The deterministic fallback
 keeps separate clauses' durations and gaps together and identifies guided mode.
+Both paths reject an explicitly different known trade/tool as evidence for a
+scoped experience requirement: Python years must not satisfy plumbing years.
+Keep the original experience wording so the recruiter can see its scope. This
+small guard uses the existing skill vocabulary; bare duration follow-ups and
+general work-experience requirements remain supported.
 These checks do not establish semantic accuracy; actual LLM acceptance remains open.
 
 Discovery suggestions are filtered at the existing useful-match threshold.

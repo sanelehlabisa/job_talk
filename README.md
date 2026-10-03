@@ -50,6 +50,13 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   source-labelled vacancies through the existing draft/review/publish flow.
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
+  The latest guided comparison checks fixed unrelated experience being counted
+  toward a trade requirement and singular "one year" blocking a draft. All 84
+  backend tests pass; live AI verification and user sign-off remain open.
+
+Ready for a local hands-on check: follow the
+[quick walkthrough](docs/usability-checklist.md#quick-local-walkthrough) to create
+a job, submit three fictional applications, and compare them.
 
 Jobs, criteria, chats, and submitted applications already persist in PostgreSQL
 in the development stack. Protected endpoints already use expiring bearer

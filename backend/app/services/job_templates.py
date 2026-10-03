@@ -191,7 +191,10 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str) -> d
                     from .criteria import NUMBER_WORDS
                     numbers = {float(n) for n in re.findall(r"\b\d+(?:\.\d+)?\b", supporting_source)}
                     numbers.update(v for k, v in NUMBER_WORDS.items() if re.search(r"\b" + k + r"\b", supporting_source, re.I))
-                    if target not in numbers or (update.unit and update.unit.casefold() not in supporting_source.casefold()):
+                    unit_pattern = (r"years?" if (update.unit or "").casefold() in {"year", "years"}
+                                    else re.escape(update.unit or ""))
+                    if target not in numbers or (update.unit and not re.search(
+                            rf"\b{unit_pattern}\b", supporting_source, re.I)):
                         continue
                 elif update.type == "skill":
                     if target is not True:

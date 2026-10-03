@@ -193,3 +193,16 @@ def test_plumber_and_generic_can_finish_with_labelled_guided_answers():
         draft = apply_draft_updates(draft, fallback_draft_updates(draft, text), text)
         assert draft_can_publish(draft), draft_question(draft)
         assert "education" not in draft_profile(draft)
+
+
+def test_numeric_experience_accepts_singular_year_without_accepting_other_units():
+    draft = new_job_draft("generic-role")
+    text = "Experience: one year of customer service"
+    guided = apply_draft_updates(draft, fallback_draft_updates(draft, text), text)
+    assert draft_profile(guided)["experience"]["target"] == 1
+    for source, target, unit in ((text, 1, "years"), ("Experience: two years", 2, "year")):
+        update = proposal("experience", source, target, kind="number", unit=unit)
+        assert draft_profile(apply_draft_updates(draft, [update], source))["experience"]["target"] == target
+    for source in ("Experience: one month", "Experience: one yearbook project"):
+        update = proposal("experience", source, 1, kind="number", unit="years")
+        assert "experience" not in draft_profile(apply_draft_updates(draft, [update], source))

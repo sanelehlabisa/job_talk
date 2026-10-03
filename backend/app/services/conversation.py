@@ -121,6 +121,21 @@ def _skill_hits(text: str) -> list[tuple[str, str]]:
     return found
 
 
+def _experience_scope_conflicts(text: str, requirement: dict | None) -> bool:
+    """Reject an explicitly different known trade/tool as scoped experience.
+
+    Bare follow-up durations and general experience criteria remain valid. This
+    is a narrow grounding guard; richer language still needs model verification.
+    """
+    if not requirement:
+        return False
+    required = {key for key, _ in _skill_hits(
+        f"{requirement.get('label', '')} {requirement.get('description', '')}"
+    )}
+    stated = {key for key, _ in _skill_hits(text)}
+    return bool(required and stated and required.isdisjoint(stated))
+
+
 NEGATION_PATTERN = re.compile(
     r"\b(?:no|not|never|without|cannot|can't|dont|don't|do not|haven't|have not|lack|lacking)\b",
     re.I,
@@ -186,8 +201,13 @@ def _criterion_denied(text: str, key: str, requirement: dict | None = None) -> b
         "education": r"\b(?:degree|diploma|qualification|education|certificate|college|school)\b",
     }
     if key in general_terms:
+        scoped_experience = bool(_skill_hits(
+            f"{(requirement or {}).get('label', '')} {(requirement or {}).get('description', '')}"
+        ))
         return any(NEGATION_PATTERN.search(clause) and re.search(general_terms[key], clause)
-                   and (key != "experience" or not _skill_hits(clause)) for clause in clauses)
+                   and (key != "experience" or not _skill_hits(clause)
+                        or (scoped_experience and not _experience_scope_conflicts(clause, requirement)))
+                   for clause in clauses)
     return any(
         NEGATION_PATTERN.search(clause)
         and (
@@ -225,6 +245,8 @@ def _supports_expected_criterion(
 ) -> bool:
     lower = text.lower()
     if key == "experience":
+        if _experience_scope_conflicts(text, requirement):
+            return False
         return bool(_years(text) or re.search(r"\b(?:worked|experience|apprentice|employed)\b", lower))
     if key == "location":
         return bool(_location(text))
@@ -580,6 +602,7 @@ def _update_candidate_fragment(
     expected_criterion: str | None = None,
 ) -> dict:
     profile = dict(profile or {})
+    previous_experience = profile.get("experience")
     for key, label in _skill_hits(text):
         requirement = (target_profile or {}).get(key)
         profile[key] = (
@@ -591,10 +614,7 @@ def _update_candidate_fragment(
     if _criterion_denied(text, "experience", (target_profile or {}).get("experience")):
         profile["experience"] = _gap_evidence(text)
     elif years:
-        profile["experience"] = {
-            "evidence": f"The candidate reported {years} of experience.",
-            "assessment": "claimed",
-        }
+        profile["experience"] = _claimed_evidence(text)
     location = _location(text)
     if _criterion_denied(text, "location", (target_profile or {}).get("location")):
         profile["location"] = _gap_evidence(text)
@@ -664,6 +684,11 @@ def _update_candidate_fragment(
             )
         ):
             profile[expected_criterion] = _claimed_evidence(text)
+    if _experience_scope_conflicts(text, (target_profile or {}).get("experience")):
+        if previous_experience is None:
+            profile.pop("experience", None)
+        else:
+            profile["experience"] = previous_experience
     return normalize_candidate_evidence(profile, target_profile)
 
 

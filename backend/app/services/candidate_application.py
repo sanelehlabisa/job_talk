@@ -8,7 +8,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from .criteria import NUMBER_WORDS, normalize_target_profile
-from .conversation import _criterion_denied, _supports_expected_criterion, update_candidate_profile
+from .conversation import (
+    _criterion_denied, _experience_scope_conflicts, _supports_expected_criterion,
+    update_candidate_profile,
+)
 
 
 class CandidateUpdate(BaseModel):
@@ -74,6 +77,8 @@ def apply_candidate_updates(profile: dict, criteria: dict | None, updates: list[
             if result.get(update.key, {}).get("evidence") or not any(source in text for text in history):
                 continue
         requirement = (requirements or {}).get(update.key, {})
+        if update.key == "experience" and _experience_scope_conflicts(update.source_quote, requirement):
+            continue
         related = _supports_expected_criterion(update.source_quote, update.key, requirement)
         label = requirement.get("label") or update.label
         named = bool(label.strip()) and (label.casefold() in source or update.key.replace("_", " ") in source)

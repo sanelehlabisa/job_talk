@@ -13,6 +13,45 @@ stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
 flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
 
+## Quick local walkthrough
+
+Use this first to check the core loop. The labelled recruiter text also works in
+guided fallback; success here does not verify actual LLM understanding.
+
+1. Open [Job Talk](http://localhost:3000), choose **I'm hiring**, and use your
+   configured owner email or `recruiter@example.com`. Get the code from
+   [Mailpit](http://localhost:8025).
+2. Choose **New hiring conversation -> Plumber** and paste:
+
+   ```text
+   Job title: Plumber; Role description: Repair residential pipes; Work arrangement: on-site; Location: Cape Town; Experience: two years of plumbing experience; Plumbing required; Pipe fitting required; Tools: pipe cutters required; No degree needed; Working hours: weekdays; Start availability: immediately
+   ```
+
+3. Check **Who you're looking for**, then publish explicitly. Qualifications
+   should be not required and absent from scoring. Copy the job link.
+4. Open that link in a private browser window. Submit each fictional applicant
+   below with fictional contact details and consent. Close **all** private
+   windows between applicants to start a fresh guest session. Before submission,
+   check **Your application** and try "I like pizza"; saved answers must stay intact.
+
+   | Applicant | Message |
+   | --- | --- |
+   | Strong | I worked on-site in Cape Town. I have four years of plumbing experience. I repaired plumbing and fitted pipes. I used pipe cutters on residential jobs. I can work weekdays and start immediately. |
+   | Partial | I have one year of plumbing experience in Cape Town. I cannot do pipe fitting. I have not used pipe cutters. I can work on-site on weekdays and start immediately. |
+   | Unrelated | I have four years of Python experience in Johannesburg. I built Python websites. |
+
+5. Return to the recruiter job. Strong should score above Partial and Unrelated.
+   Partial must show the reported gaps. Unrelated must **not** receive plumbing
+   experience credit or appear as a recommended match. Check the cards and plot
+   against the published requirements, then refresh and check they persist.
+6. Repeat the core screens at phone width. Report any confusing step, incorrect
+   value or repeated question. Close the fictional job when finished.
+
+Then try the natural-language scenarios below. Check whether the app says it is
+using guided questions; record those runs as fallback, not actual AI success.
+
+## Full acceptance scenarios
+
 - [ ] **Create and correct a developer job.** Choose Junior Software Developer
   and paste: "junior dev for our Cape Town team, hybrid two days in office,
   JavaScript and Git needed, one year hands-on coding, 40 hours Mon-Fri,
@@ -62,6 +101,7 @@ Record the result in this table when executing JT-060:
 | Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
 | Owner/recruiter/guest access checks | JT-061: 78 backend tests and focused owner browser check passed; user acceptance pending |
 | Manual vacancies and persistence | JT-062: 81 backend tests, build, guided browser flow and two backend/PostgreSQL restarts passed with fictional data; no live LLM calls |
+| JT-060 guided comparison follow-up | 2026-10-03: 84 backend tests passed in isolated SQLite; separate Plumber/Generic jobs, strong/partial/unrelated submissions, fields/targets/weights/scores and frozen comparison verified. Fixed singular-year draft validation and unrelated trade experience credit. No new browser or actual LLM run; visible plot and live language acceptance remain pending. |
 | User decision: usable / needs fixes | Pending |
 
 Do not put API keys, login codes, tokens, or real candidate details in this

@@ -318,11 +318,25 @@ candidate comparison without coaching. Passing scripted tests alone is not done.
 **Status:** Engineering checks recorded; manual approval and live conversation
 acceptance pending. JT-057/JT-058/JT-059 have template, recruiter and candidate
 browser/backend checks; JT-061/JT-062 add owner access, source notices, consent
-and restart persistence checks. Latest regression suite: 81 passed. Actual LLM
+and restart persistence checks. Latest regression suite: 84 passed. Actual LLM
 attempts for JT-058/JT-059 were blocked by exhausted API credit; the JT-062 browser
 run used the deterministic provider and made no LLM calls. The complete messy
 conversations above have not passed with the actual LLM (2026-10-03). Deployment
 remains paused.
+
+**Unblocked engineering follow-up (2026-10-03):** Guided API conversations create
+and publish separate Plumber and Generic Role drafts, then submit strong, partial
+and unrelated applicants. Checks trace application fields, saved values, targets,
+weights and recruiter comparison responses to the published criteria, including
+degree exclusion, explicit skill gaps, irrelevant/vague replies and closed-job
+snapshot retention. They found and fixed two blockers: "one year" was rejected
+by a plural-unit check, and Python experience could fill a plumbing-experience
+target. Guided extraction and AI-proposal validation now reject that known-skill
+scope mismatch while preserving relevant corrections and bare duration answers.
+All 84 backend tests passed with the deterministic provider in an isolated test
+database. No frontend changes or new browser run in this follow-up; plot rendering
+and natural-language acceptance still need the user's walkthrough. Actual LLM
+was not retried. The broader conversation/sign-off checkboxes remain open.
 
 ## Previous core MVP implementation evidence
 
