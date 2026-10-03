@@ -1,9 +1,10 @@
 # Manual usability check
 
-Status: **Pending user acceptance and remaining tickets (2026-10-03).** This is
+Status: **Pending actual LLM verification and user acceptance (2026-10-03).** This is
 the acceptance checklist for JT-057 through JT-062. JT-057/JT-058/JT-059 have
 implementation checks recorded in the recruiter and candidate test notes.
-JT-061 owner access passed backend and local browser checks (see TASKS.md). Live
+JT-061 owner access and JT-062 manual vacancies passed backend/local browser
+checks, including persistence across restart (see TASKS.md). Live
 OpenAI attempts returned `credit_balance_exhausted`; language quality remains
 unverified. Deployment stays paused.
 
@@ -43,7 +44,7 @@ API succeeds.
   inspect its submitted candidates and plot. Refresh and repeat on phone size.
   Sign in as an ordinary recruiter and confirm All jobs is absent and only their
   own applicants are available. Neither view should expose full candidate chats.
-- [ ] **Use a manual vacancy (JT-062 pending).** With the approved owner email
+- [ ] **Use a manual vacancy.** With the approved owner email
   configured, paste one manually checked vacancy with its source, review and
   publish it, then submit a test application. Confirm who receives it is clear.
   Restart the local stack normally (preserving volumes) and confirm it remains.
@@ -60,6 +61,7 @@ Record the result in this table when executing JT-060:
 | Live cases that fell back or failed | Both used guided fallback after HTTP 429 `credit_balance_exhausted` |
 | Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
 | Owner/recruiter/guest access checks | JT-061: 78 backend tests and focused owner browser check passed; user acceptance pending |
+| Manual vacancies and persistence | JT-062: 81 backend tests, build, guided browser flow and two backend/PostgreSQL restarts passed with fictional data; no live LLM calls |
 | User decision: usable / needs fixes | Pending |
 
 Do not put API keys, login codes, tokens, or real candidate details in this

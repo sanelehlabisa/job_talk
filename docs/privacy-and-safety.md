@@ -16,6 +16,15 @@ snapshots record `operator_access_disclosed`; earlier snapshots are not rewritte
 Keep the actual admin address in ignored `.env`, never in source or frontend
 settings. See the README for approval, local login and disabling this access.
 
+For vacancies marked **Added by Job Talk**, consent records operator access and
+`external_employer_sharing_authorized: false`. An employer named in a public
+advert has no access to the submitted application. Before sharing identifying
+details, request separate candidate permission and manually approve the recruiter.
+There is no automated transfer, outreach or export. Until then, use only the
+aggregate interest summary, avoiding screenshots of private candidate cards.
+Original pasted vacancy text remains private in the owner's draft; public
+responses contain only its source URL, advertised employer and date checked.
+
 ## Data retention
 
 The candidate guest-data retention period is at most 30 days. Run the cleanup at

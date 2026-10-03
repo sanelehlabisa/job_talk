@@ -44,7 +44,7 @@ Distinguish an employer's not-required field from a candidate's reported gap.
 Keep initial seeker cards labelled available jobs and search all published open
 jobs before the seeker selects the job-specific application.
 
-Owner access is implemented in JT-061; manual vacancy entry is planned in JT-062. Use an
+Owner access and manual vacancy entry are implemented in JT-061/JT-062. Use an
 optional backend-only `ADMIN_EMAIL` with approved email-code login and existing
 expiring session tokens; never authorize requests with a reusable login code.
 Ordinary recruiters retain ownership limits. Operator-curated vacancies must

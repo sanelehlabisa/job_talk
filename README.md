@@ -46,7 +46,7 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. **All jobs** shows drafts, open and closed jobs, and
   submitted applications across recruiters. Ordinary recruiters keep access
-  only to their own jobs' applications. JT-062 is next: manual entry of
+  only to their own jobs' applications. JT-062 adds manual entry of
   source-labelled vacancies through the existing draft/review/publish flow.
 - JT-060: broader conversations, separately recorded actual LLM and fallback
   results, and the user's [manual acceptance checklist](docs/usability-checklist.md).
@@ -54,7 +54,7 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
 Jobs, criteria, chats, and submitted applications already persist in PostgreSQL
 in the development stack. Protected endpoints already use expiring bearer
 sessions issued after sign-in; the single-use login code is not an API token.
-Manual source-entry metadata remains planned in JT-062.
+Manually entered vacancies retain their source details in the existing job draft.
 Deployment resumes only after user acceptance and an explicit request to resume.
 
 ## Existing implementation
@@ -263,6 +263,43 @@ powershell -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -RecruiterEma
 Replace the example address with your configured owner email. The check needs
 one published local job, uses Mailpit, creates and removes one fictional
 application, and checks desktop/phone views. It makes no LLM requests.
+
+### Add a manually checked vacancy
+
+1. Sign in as the configured owner and choose **New hiring conversation**.
+2. Tick **Add a vacancy I checked on another website**. Enter its URL, advertised
+   employer, date checked and pasted description. Choose a starter template.
+3. Click **Fill draft from pasted text**. Review the saved criteria, answer
+   missing questions and correct mistakes in the chat, then explicitly publish.
+4. Open the public job link as a candidate. **Added by Job Talk** explains that
+   interest goes to the operator; the advertised employer receives no application.
+5. Open **All jobs** to review candidate cards, the comparison plot and an
+   **Interest summary** containing only counts. Use the job's hiring conversation
+   to close it when the advert is stale or filled.
+
+No URL is fetched. The original advert text is private to the owner's draft;
+public views show the source link, employer and date checked. The saved source
+is separate from criteria and cannot create score axes. Duplicate source URLs
+are rejected, including common tracking-parameter/fragment variants and closed
+listings. Source details are fixed for that job; review them before creating it.
+
+Curated-job submission authorizes the operator to record candidate interest.
+Before sharing identifying details with a prospective employer, contact the
+candidate for separate permission and approve that recruiter through the existing
+process. There is no automatic outreach, transfer or export. Share only the
+aggregate summary while demonstrating interest; keep private candidate cards out
+of screenshots sent to prospective recruiters.
+
+With the configured owner, the focused local check is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -RecruiterEmail owner@example.com -VacancyOnly
+```
+
+It uses fictional source text and candidate details, checks consent, and restarts
+the local backend and PostgreSQL without removing volumes. It closes the test job
+and removes the test candidate afterward. Use the deterministic provider for a
+repeatable guided check; live LLM language acceptance is a separate gate.
 
 ### Email-code limits
 

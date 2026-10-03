@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .job_sources import VacancySource
+
 class DraftField(BaseModel):
     key: str
     label: str
@@ -30,6 +32,7 @@ class JobDraft(BaseModel):
     label: str
     description: str
     fields: list[DraftField]
+    source: VacancySource | None = None
 
 
 class DraftUpdate(BaseModel):

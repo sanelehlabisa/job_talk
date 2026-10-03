@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const stateLabels = {
   unanswered: "Unanswered",
   needs_clarification: "Needs clarification",
@@ -10,19 +12,42 @@ function displayValue(value, unit) {
   return `${value}${unit ? ` ${unit}` : ""}`;
 }
 
-export function JobTemplatePicker({ templates, busy, onSelect, onCancel }) {
+export function JobTemplatePicker({ templates, busy, onSelect, onCancel, isAdmin = false }) {
+  const [curated, setCurated] = useState(false);
+  const today = new Date().toLocaleDateString("sv-SE");
+  function choose(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const source = curated ? {
+      url: data.get("source_url"), employer: data.get("employer"),
+      checked_on: data.get("checked_on"), original_text: data.get("original_text"),
+    } : undefined;
+    onSelect(event.nativeEvent.submitter.value, source);
+  }
   return (
     <section className="template-picker" aria-labelledby="template-picker-title">
       <h1 id="template-picker-title">Start with a role</h1>
       <p>Choose a starting point, then describe what you need. Each job gets its own draft. Suggestions become requirements only when you confirm them.</p>
+      <form onSubmit={choose}>
+      {isAdmin && <label className="consent-check"><input id="curated-vacancy" type="checkbox" checked={curated} disabled={busy} onChange={(event) => setCurated(event.target.checked)} /><span>Add a vacancy I checked on another website</span></label>}
+      {curated && <fieldset className="vacancy-source-form" disabled={busy}>
+        <legend>Public vacancy source</legend>
+        <p>Applicants will send interest to Job Talk. The advertised employer is not automatically onboarded or given their details.</p>
+        <label htmlFor="source-url">Original advert URL</label><input id="source-url" name="source_url" type="url" maxLength="2000" required />
+        <label htmlFor="source-employer">Advertised employer</label><input id="source-employer" name="employer" minLength="2" maxLength="160" required />
+        <label htmlFor="source-checked">Date you checked the advert</label><input id="source-checked" name="checked_on" type="date" defaultValue={today} max={today} required />
+        <label htmlFor="source-text">Paste the job description</label><textarea id="source-text" name="original_text" rows="6" minLength="20" maxLength="5000" required />
+        <p>Choose a starter below, then use the pasted description to fill and review the draft.</p>
+      </fieldset>}
       <div className="template-options">
         {templates.map((template) => (
-          <button className="template-choice" data-template-id={template.template_id} key={template.template_id} type="button" disabled={busy} onClick={() => onSelect(template.template_id)}>
+          <button className="template-choice" data-template-id={template.template_id} value={template.template_id} key={template.template_id} type="submit" disabled={busy}>
             <strong>{template.label}</strong>
             <span>{template.description}</span>
           </button>
         ))}
       </div>
+      </form>
       {busy && <p role="status">Opening your draft…</p>}
       <button className="ghost" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
     </section>

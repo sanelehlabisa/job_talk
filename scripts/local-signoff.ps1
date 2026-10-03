@@ -3,7 +3,8 @@ param(
     [string]$OutputDirectory = "$env:TEMP/jobtalk-local-signoff",
     [switch]$TemplatesOnly,
     [switch]$RecruiterDraftOnly,
-    [switch]$AdminOnly
+    [switch]$AdminOnly,
+    [switch]$VacancyOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -190,6 +191,11 @@ try {
                 Invoke-RestMethod -Method Delete -Uri "http://localhost:8000/api/account" -Headers @{ Authorization = "Bearer $adminCheckToken" } | Out-Null
             }
         }
+        return
+    }
+
+    if ($VacancyOnly) {
+        . "$PSScriptRoot/manual-vacancy-check.ps1"
         return
     }
 

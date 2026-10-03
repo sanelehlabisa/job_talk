@@ -29,8 +29,9 @@ and manually entered jobs. JT-057 is complete. JT-058 is implemented with
 deterministic checks; its live LLM acceptance remains open because API credit is
 exhausted. The user approved merging that work and proceeding with JT-059;
 candidate implementation checks are recorded below, with live acceptance also
-pending. JT-061 owner access is implemented and checked. JT-062 manual vacancy
-entry is the next independent implementation ticket.
+pending. JT-061 owner access and JT-062 manual vacancy entry are implemented and
+checked. JT-060 remains the acceptance gate; actual LLM checks and the user's
+hands-on sign-off are still open.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
@@ -224,24 +225,24 @@ continues through the normal hiring conversations.
 
 **Depends on:** JT-058, JT-059, and JT-061.
 
-- [ ] Let the owner paste a manually checked public vacancy into the existing job
+- [x] Let the owner paste a manually checked public vacancy into the existing job
   creation flow, using a template or Generic Role. Keep source URL, employer name,
   date checked, and original source text alongside the reviewed draft. No scraper,
   URL fetcher, external feed, or new database service is needed.
-- [ ] Persist the job, confirmed criteria, owner, publication state, and linked
+- [x] Persist the job, confirmed criteria, owner, publication state, and linked
   applications in the existing PostgreSQL database. Verify drafts and published
   listings survive a normal local Compose restart with the existing volume.
-- [ ] Review extracted fields and unresolved requirements before explicit
+- [x] Review extracted fields and unresolved requirements before explicit
   publication. Keep owner-curated listings distinct from jobs posted by an
   onboarded recruiter; do not imply that an external employer uses Job Talk or
   has received an application. Show source and who receives the submission.
-- [ ] Use the existing job list and close action so the owner can stop stale or
+- [x] Use the existing job list and close action so the owner can stop stale or
   filled listings. Check for an already entered source URL to avoid accidental
   duplicate listings; preserve submitted snapshots when closing a job.
-- [ ] Let the owner inspect candidates for each curated role and manually show
+- [x] Let the owner inspect candidates for each curated role and manually show
   prospective recruiters a non-identifying match summary/count to demonstrate
   interest. No automatic recruiter outreach, applicant export, or bulk sharing.
-- [ ] Make submission consent explicit that the Job Talk owner receives interest
+- [x] Make submission consent explicit that the Job Talk owner receives interest
   for a curated job. Require candidate authorization before passing identifying
   details to a prospective recruiter; ordinary recruiter access stays limited
   to owned jobs. Automated job transfer/invitations remain deferred.
@@ -251,8 +252,33 @@ receives a consented candidate application, reloads it after a local restart,
 and can demonstrate matching interest without exposing the candidate to an
 unapproved external recruiter.
 
-**Status:** Planned. Job and application persistence already exists; manual
-source metadata and the owner workflow are the additions (2026-10-03).
+**Status:** Implemented (2026-10-03). The admin template picker accepts source
+URL, employer, date checked and original text. Source data lives in the existing
+draft JSON, separate from criteria. The owner fills the draft through the existing
+chat, reviews requirements, and publishes explicitly. Source details are fixed
+for that job; duplicates are rejected, including tracking/fragment variants.
+No migrations, infrastructure, scraping or deployment changes.
+
+Public cards, chat and review identify Job Talk as the recipient. Curated-job
+consent does not authorize sharing identifying data with the advertised employer;
+separate candidate permission and recruiter approval are required before manual
+sharing. All jobs shows an aggregate interest summary alongside the existing
+private candidate cards. No automated handover, export or outreach was added.
+
+**Checks:** 81 backend tests passed, including source validation, owner-only
+creation, duplicate rejection, private source text, consent, aggregate-only
+responses, access boundaries and closed-job snapshot retention. Frontend build
+passed. The `-VacancyOnly` browser check used fictional data and the deterministic
+provider; entry, review/publish, candidate disclosure/consent and owner comparison
+passed. Draft source, published criteria and submitted snapshots survived two
+ordinary backend/PostgreSQL restarts with the existing volume. The test vacancy
+was closed and its candidate deleted afterward; the configured AI provider was
+restored. This does not verify real LLM interpretation or replace user sign-off.
+
+**Quick manual check:** As owner, choose New hiring conversation, tick the public
+vacancy option, add its source and description, choose a starter, and click Fill
+draft from pasted text. Review/correct and publish. Apply from a private browser
+window, confirm Job Talk is the recipient, then inspect All jobs and its counts.
 
 ### JT-060 - Test usability beyond the existing demo
 
@@ -272,14 +298,14 @@ source metadata and the owner workflow are the additions (2026-10-03).
 - [ ] Compare strong, partial, and unrelated applicants. Trace visible summaries,
   stored candidate values, weights, scores, exclusions, and plot axes back to the
   exact same confirmed criteria. Retain the locked published job contract.
-- [ ] Exercise owner-curated job persistence and owner/recruiter/guest access
+- [x] Exercise owner-curated job persistence and owner/recruiter/guest access
   boundaries from JT-061 and JT-062, including direct API requests.
-- [ ] Record deterministic fallback tests separately from actual LLM runs. For
+- [x] Record deterministic fallback tests separately from actual LLM runs. For
   live runs use fictional data and record provider/model, date, scenarios,
   outcomes, and whether fallback was used; omit secrets and personal data. Mark
   live LLM checks **not run** if unavailable. Mock success alone cannot establish
   natural-language understanding.
-- [ ] Run relevant backend regressions, the frontend production build, and the
+- [x] Run relevant backend regressions, the frontend production build, and the
   revised browser scenarios on desktop and phone. Fix observed usability blockers
   and provide the [short manual checklist](docs/usability-checklist.md).
 - [ ] Obtain the user's manual usability sign-off. Record outstanding issues and
@@ -289,10 +315,14 @@ source metadata and the owner workflow are the additions (2026-10-03).
 the user can create a role, submit an honest application, and explain the
 candidate comparison without coaching. Passing scripted tests alone is not done.
 
-**Status:** Planned; manual approval pending. JT-057/JT-058/JT-059 have template,
-recruiter and candidate browser/backend checks. Actual LLM attempts for JT-058
-and JT-059 were blocked by exhausted API credit. The complete conversations above
-have not passed with the actual LLM (2026-10-03).
+**Status:** Engineering checks recorded; manual approval and live conversation
+acceptance pending. JT-057/JT-058/JT-059 have template, recruiter and candidate
+browser/backend checks; JT-061/JT-062 add owner access, source notices, consent
+and restart persistence checks. Latest regression suite: 81 passed. Actual LLM
+attempts for JT-058/JT-059 were blocked by exhausted API credit; the JT-062 browser
+run used the deterministic provider and made no LLM calls. The complete messy
+conversations above have not passed with the actual LLM (2026-10-03). Deployment
+remains paused.
 
 ## Previous core MVP implementation evidence
 

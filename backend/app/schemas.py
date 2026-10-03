@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from .services.criteria import normalize_target_profile
 from .services.job_templates import JobDraft
+from .services.job_sources import VacancySource, VacancySourcePublic
 
 
 def clean_user_text(value: str, allowed_controls: str = "") -> str:
@@ -47,6 +48,7 @@ class ChatCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     template_id: str | None = Field(default=None, min_length=1, max_length=60)
+    source: VacancySource | None = None
 
 
 class SelectJobRequest(BaseModel):
@@ -87,6 +89,7 @@ class JobOut(ORMModel):
     description: str
     target_profile: dict
     published: bool
+    source: VacancySourcePublic | None = None
 
     _normalize_target_profile = field_validator("target_profile", mode="before")(
         normalize_target_profile

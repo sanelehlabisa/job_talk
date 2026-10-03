@@ -60,13 +60,14 @@ export const api = {
     }),
   me: () => request("/auth/me"),
   adminJobs: () => request("/admin/jobs"),
+  jobInterest: (jobId) => request(`/admin/jobs/${jobId}/interest`),
   logout: () => request("/auth/logout", { method: "POST" }),
   deleteAccount: () => request("/account", { method: "DELETE" }),
   listChats: () => request("/chats"),
   jobTemplates: () => request("/job-templates"),
-  createChat: (templateId) => request("/chats", {
+  createChat: (templateId, source) => request("/chats", {
     method: "POST",
-    body: JSON.stringify(templateId ? { template_id: templateId } : {}),
+    body: JSON.stringify(templateId ? { template_id: templateId, source } : {}),
   }),
   getChat: (chatId) => request(`/chats/${chatId}`),
   selectJob: (chatId, jobId) => request(`/chats/${chatId}/select-job`, {

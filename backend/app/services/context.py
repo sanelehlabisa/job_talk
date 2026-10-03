@@ -46,7 +46,7 @@ def build_chat_context(
             else None
         ),
         "draft": deepcopy(chat.profile or {}),
-        **({"job_draft": deepcopy(job.draft)}
+        **({"job_draft": deepcopy({key: value for key, value in job.draft.items() if key != "source" or value is None})}
            if job and job.draft and chat.intent == "employer" else {}),
         "messages": [
             {"role": message.sender, "content": message.content}

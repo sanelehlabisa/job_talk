@@ -104,6 +104,16 @@ def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     return output
 
 
+def recipient_notice(job: models.JobPost) -> str:
+    if job.source:
+        return (
+            "This vacancy was added by Job Talk from a public advert. Your application goes "
+            "to the Job Talk operator, not the advertised employer. Identifying details "
+            "will only be shared with that employer after your separate permission. "
+        )
+    return ""
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -192,7 +202,8 @@ def start_guest_session(
             content=(
                 (
                     f"You're applying for {job.title}. "
-                    f"{summarize_job_requirements(job.title, job.target_profile)} "
+                    + recipient_notice(job)
+                    + f"{summarize_job_requirements(job.title, job.target_profile)} "
                     + candidate_reply({}, job.target_profile)
                 )
                 if job
@@ -236,7 +247,8 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
         raise HTTPException(status_code=409, detail="A job was already selected. Reload the conversation.")
     chat.profile = reuse_discovery_answers(chat.messages, job.target_profile)
     db.add(models.Message(chat_id=chat.id, sender="assistant", content=(
-        f"You selected {job.title}. {summarize_job_requirements(job.title, job.target_profile)} "
+        f"You selected {job.title}. " + recipient_notice(job)
+        + f"{summarize_job_requirements(job.title, job.target_profile)} "
         + candidate_reply(chat.profile, job.target_profile)
     )))
     db.commit()
@@ -393,6 +405,32 @@ def list_admin_jobs(
     ]
 
 
+@app.get("/api/admin/jobs/{job_id}/interest")
+def job_interest_summary(
+    job_id: int, current_user: models.User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    job = db.get(models.JobPost, job_id)
+    if not job or not job.source:
+        raise HTTPException(status_code=404, detail="Curated job not found")
+    results = db.scalars(select(models.Application.match_result).where(
+        models.Application.job_post_id == job_id, models.Application.submitted.is_(True)
+    )).all()
+    return {
+        "title": job.title,
+        "applications": len(results),
+        "strong_matches": sum(is_recommended(result) for result in results),
+        "criteria": [
+            {"key": key, "label": criterion["label"], "strong_evidence": sum(
+                (result.get("criteria", {}).get(key, {}).get("score", 0) >= .75
+                 and bool(result.get("criteria", {}).get(key, {}).get("evidence")))
+                for result in results
+            )}
+            for key, criterion in normalize_target_profile(job.target_profile).items()
+        ],
+    }
+
+
 @app.post("/api/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     current_session: models.AuthSession = Depends(get_current_session),
@@ -453,6 +491,19 @@ def create_chat(
             draft = new_job_draft(payload.template_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if payload and payload.source:
+        if not is_admin(current_user):
+            raise HTTPException(status_code=403, detail="Admin access required to add a public vacancy")
+        if not draft:
+            raise HTTPException(status_code=422, detail="Choose a starter template for this vacancy")
+        # Serialize this owner's imports to prevent duplicate submissions in PostgreSQL.
+        db.scalar(select(models.User).where(models.User.id == current_user.id).with_for_update())
+        existing = db.scalar(select(models.JobPost.id).where(
+            models.JobPost.draft["source"]["url"].as_string() == payload.source.url
+        ).limit(1))
+        if existing:
+            raise HTTPException(status_code=409, detail="This source URL already has a saved job. Open it from All jobs.")
+        draft["source"] = payload.source.model_dump()
     if current_user.role == "candidate" and db.scalar(
         select(models.Chat.id).where(models.Chat.user_id == current_user.id).limit(1)
     ):
@@ -909,7 +960,11 @@ def apply(
             "preferred_contact": preferred_contact,
         },
         "consent": {
-            "share_with_recruiter": True,
+            "share_with_recruiter": not bool(job.source),
+            "share_with_operator": True,
+            **({"external_employer_sharing_authorized": False,
+                "vacancy_source": schemas.VacancySourcePublic.model_validate(job.source).model_dump()}
+               if job.source else {}),
             "operator_access_disclosed": True,
             "captured_at": submitted_at.isoformat(),
         },
@@ -936,8 +991,9 @@ def apply(
             chat_id=chat.id,
             sender="assistant",
             content=(
-                f"Your application for {job.title} has been submitted. The recruiter can now "
-                "see your structured evidence and the contact details you approved."
+                f"Your application for {job.title} has been submitted to "
+                + ("the Job Talk operator. It has not been sent to the advertised employer."
+                   if job.source else "the recruiter, who can now see your structured evidence and the contact details you approved.")
             ),
         )
     )

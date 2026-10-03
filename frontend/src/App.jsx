@@ -17,6 +17,7 @@ import {
 import { api, SESSION_KEY } from "./api";
 import { JobDraftSummary, JobTemplatePicker } from "./JobTemplates";
 import { ApplicationSummary } from "./ApplicationSummary";
+import { SourceNotice, InterestSummary } from "./JobSources";
 
 function Brand() {
   return (
@@ -43,6 +44,7 @@ function PrivacyPage() {
         <p>To measure this experiment, the browser creates a random identifier. The backend stores only its keyed hash with event names, dates, numeric job or application references, and optional yes-or-no feedback. Analytics do not contain names, contact details, chat text, skills, evidence, IP addresses, or user-agent strings, and are removed on the same 30-day demo schedule.</p>
         <h2>Who can see it</h2>
         <p>The recruiter for the selected role and the Job Talk operator can review your submitted application snapshot, contact details, evidence, and match breakdown. Recruiters see applications only for their own jobs; the operator can review applications across jobs to run and support this experiment. These views do not expose your full chat. Job Talk does not sell personal data.</p>
+        <p>Vacancies marked Added by Job Talk come from manually checked public adverts. Interest in these vacancies is received by the Job Talk operator. The advertised employer does not receive your application; sharing identifying details with them requires your separate permission. A public advert does not mean that employer has joined Job Talk.</p>
         <p>The deterministic local response generator is the default. If the hosted AI option is enabled, only the selected job, structured draft, and a bounded window from the current chat are sent to that provider.</p>
         <h2>Retention and deletion</h2>
         <p>The demo retention period for candidate records is 30 days, and the operator runs the documented cleanup command regularly. While the private guest session is open, a submitted candidate can use <strong>Delete my application data</strong>. After leaving, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the application reference. Recruiters can use the same address to request account or hiring-record deletion.</p>
@@ -220,6 +222,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
                   <span className="entry-job-copy">
                     <strong>{job.title}</strong>
                     <small>{job.description}</small>
+                    <SourceNotice source={job.source} compact />
                     <span className="entry-job-action">Apply through chat</span>
                   </span>
                   <ChevronRight size={18} />
@@ -350,6 +353,7 @@ function Recommendation({ item, onApply, onSelect, applied, selected, busy }) {
         <div className="score"><strong>{score}%</strong><span>match</span></div>
       </div>
       <p>{item.explanation}</p>
+      <SourceNotice source={item.job.source} compact />
       <div className="criteria-row">
         {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
       </div>
@@ -400,6 +404,7 @@ function ApplicationReview({ item, profile, fields, onSubmit, onCancel }) {
 
   return (
     <form className="application-review" onSubmit={submit}>
+      <SourceNotice source={item.job.source} />
       <div className="review-heading">
         <div><span>REVIEW BEFORE SHARING</span><h3>{item.job.title}</h3></div>
         <button type="button" className="ghost" onClick={onCancel}>Cancel</button>
@@ -428,7 +433,7 @@ function ApplicationReview({ item, profile, fields, onSubmit, onCancel }) {
       <input id="candidate-contact" value={preferredContact} onChange={(event) => setPreferredContact(event.target.value)} minLength="3" maxLength="320" autoComplete="email" required />
       <label className="consent-check">
         <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />
-        <span>I agree to share this application and my contact details with the recruiter for this role and the Job Talk operator who runs and supports this experiment.</span>
+        <span>{item.job.source ? "I agree to send this application and my contact details to the Job Talk operator to record my interest. This does not authorize sharing my identifying details with the advertised employer; Job Talk must ask my permission separately." : "I agree to share this application and my contact details with the recruiter for this role and the Job Talk operator who runs and supports this experiment."}</span>
       </label>
       <p className="review-policy">Read how Job Talk uses and deletes data in <a href="/privacy" target="_blank" rel="noreferrer">Privacy &amp; safety</a>.</p>
       <button className="primary full" disabled={!consent || submitting}>{submitting ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button>
@@ -705,6 +710,11 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
       <div className={(chat.status === "draft" && chat.job_draft) || chat.target_job ? "chat-workspace with-draft" : "chat-workspace"}>
       <div className="messages">
         <div className="conversation-inner">
+          <SourceNotice source={(chat.job_post || chat.target_job)?.source} owner={chat.intent === "employer"} />
+          {chat.status === "draft" && chat.job_draft?.source && !chat.messages.some((message) => message.sender === "user") && <section className="source-notice">
+            <details><summary>Pasted job description</summary><p className="source-original">{chat.job_draft.source.original_text}</p></details>
+            <button className="primary" type="button" disabled={sending} onClick={() => sendPrompt(chat.job_draft.source.original_text)}>Fill draft from pasted text</button>
+          </section>}
           <div className="date-rule"><span>Today</span></div>
           {chat.messages.map((message) => (
             <div className={`message-wrap ${message.sender}`} key={message.id}>
@@ -713,7 +723,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
               {message.sender === "user" && <div className="avatar user-avatar" role="img" aria-label="You"><UserRound size={16} strokeWidth={2.2} aria-hidden="true" /></div>}
             </div>
           ))}
-          {!chat.job_draft && !chat.messages.some((message) => message.sender === "user") && (
+          {!submitted && chat.status !== "closed" && !chat.job_draft && !chat.messages.some((message) => message.sender === "user") && (
             <div className="starter-prompts">
               <span>TRY AN EXAMPLE</span>
               {chat.intent === "candidate" && <button type="button" disabled={sending} onClick={() => sendPrompt("I have three years of welding and forklift experience in Cape Town.")}>Describe trade experience</button>}
@@ -742,7 +752,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
       {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
       </div>
       {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
-      {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>Your approved snapshot is now frozen for the recruiter.</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
+      {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>{chat.target_job?.source ? "Your interest is saved with Job Talk. It has not been sent to the advertised employer." : "Your approved snapshot is now frozen for the recruiter."}</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
         <div className="composer-box">
           <textarea aria-label="Conversation message" rows="1" maxLength="5000" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} placeholder={chat.intent === "employer" ? "Describe the role or change a requirement…" : chat.intent === "candidate" ? "Tell me about your experience…" : "Type your answer…"} />
           <button aria-label="Send message" disabled={!text.trim() || sending}><Send size={18} /></button>
@@ -803,12 +813,14 @@ function AdminJobs({ onMenu }) {
       </>}
       {selected && <>
         <article className="admin-job-details">
+          <SourceNotice source={selected.source} owner />
           <h1>{selected.title}</h1><p>{selected.description || "The role description is still being drafted."}</p>
           <p><strong>{selected.status === "published" ? "Open" : selected.status === "closed" ? "Closed" : "Draft"}</strong> · {selected.recruiter_email}</p>
           <details><summary>Role criteria</summary><ul>{Object.entries(selected.target_profile).map(([key, item]) => <li key={key}><strong>{item.label || key.replaceAll("_", " ")}</strong>: {formatCriterionValue(item.target, item.unit)}<p>{item.description}</p></li>)}</ul>
             {!Object.keys(selected.target_profile).length && <p>No confirmed criteria yet.</p>}
           </details>
         </article>
+        {selected.source && <InterestSummary key={`${selected.id}-${refresh}`} jobId={selected.id} />}
         {snapshot?.jobId === selected.id ? <CandidateComparison applications={snapshot.items} status={selected.status} targetProfile={selected.target_profile} jobId={selected.id} readOnly /> : !error && <p role="status">Loading applications…</p>}
       </>}
     </div>
@@ -905,12 +917,12 @@ function JobTalkApp() {
     } catch (err) { setError(err.message); }
   }
 
-  async function createFromTemplate(templateId) {
+  async function createFromTemplate(templateId, source) {
     if (creatingChat) return;
     setCreatingChat(true);
     setError("");
     try {
-      const created = await api.createChat(templateId);
+      const created = await api.createChat(templateId, source);
       setChat(created);
       setRecommendations([]);
       setApplications([]);
@@ -989,7 +1001,7 @@ function JobTalkApp() {
       <Sidebar user={user} chats={chats} activeId={showAdminJobs ? null : chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} onAllJobs={() => { setShowAdminJobs(true); setTemplateChoices(null); setSidebarOpen(false); setError(""); }} showingAllJobs={showAdminJobs} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <button className="backdrop" type="button" aria-label="Close conversation menu" onClick={() => setSidebarOpen(false)} />}
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
-      {showAdminJobs && user.is_admin ? <AdminJobs onMenu={() => setSidebarOpen(true)} /> : templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} onCancel={() => { setTemplateChoices(null); if (user.is_admin) setShowAdminJobs(true); }} /> : chat ? (
+      {showAdminJobs && user.is_admin ? <AdminJobs onMenu={() => setSidebarOpen(true)} /> : templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} isAdmin={user.is_admin} onCancel={() => { setTemplateChoices(null); if (user.is_admin) setShowAdminJobs(true); }} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
           <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>

@@ -22,8 +22,8 @@ not-required handling, the live summary and publication gate; actual LLM
 acceptance is still pending (provider credit exhausted in the local check).
 JT-059 adds explicit candidate selection, structured updates and a live application
 summary; live candidate interpretation is also unverified because of exhausted
-API credit. JT-061 implements owner access; source-aware manual job entry remains
-pending in JT-062.
+API credit. JT-061 implements owner access; JT-062 adds manually entered,
+source-labelled vacancies and operator-only submission consent.
 
 ## One shared criteria contract
 
@@ -214,6 +214,22 @@ draft/review/publish flow. Keep source URL, employer name, date checked, and sou
 text with the job. The owner resolves unclear fields before publication and can
 close stale or filled listings. Verify persistence across a normal local restart.
 No scraping or automatic job feeds are planned.
+
+Implemented using optional `source` metadata inside the existing `JobDraft` JSON:
+`url`, `employer`, `checked_on` and `original_text`. Only an approved configured
+owner can supply it when creating a template chat. The saved source is immutable;
+template interpretation preserves it and scoring excludes it. Public responses
+expose only URL, employer and date checked. Original text remains in the private
+draft and is sent through the existing message flow when the owner chooses
+**Fill draft from pasted text**. URLs are validated and deduplicated, never fetched.
+
+Candidate entry, discovery cards, chat, review and submission show who receives
+curated-job interest. Its saved consent grants operator access and explicitly
+records that employer sharing is not authorized. `GET /api/admin/jobs/{id}/interest`
+returns only aggregate application/match counts and counts of strong evidence per
+criterion (score at least 0.75 with direct evidence). It contains no applicant
+identifiers, individual values, contact details or evidence text. Existing scores
+are reused; no new scoring system or database migration is introduced.
 
 Clearly label jobs curated by Job Talk and identify who receives a submission.
 An external advert does not establish that its employer is participating. The

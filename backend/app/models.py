@@ -118,6 +118,10 @@ class JobPost(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     chat: Mapped[Chat] = relationship(back_populates="job_post", foreign_keys=[chat_id])
 
+    @property
+    def source(self) -> dict | None:
+        return (self.draft or {}).get("source")
+
 
 class Application(Base):
     __tablename__ = "applications"
