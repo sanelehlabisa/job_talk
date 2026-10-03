@@ -675,7 +675,7 @@ def test_plumber_demo_orders_strong_partial_and_unrelated_candidates():
             "Strong Plumber",
             "strong@example.test",
             (
-                "I am a plumber with four years of plumbing experience in Cape Town. "
+                "I am a plumber with four years of plumbing, leak repair, pipe fitting, and geyser installation experience in Cape Town. "
                 "I repaired leaks, fitted pipes, and installed geysers on residential jobs. "
                 "I am available to start immediately."
             ),
@@ -1083,8 +1083,7 @@ def test_seeker_can_start_general_chat_and_choose_from_two_ranked_jobs():
         initial = client.get(
             f"/api/chats/{chat['id']}/recommendations", headers=headers
         ).json()
-        assert len(initial) == 2
-        assert {item["job"]["id"] for item in initial}.issubset(job_ids)
+        assert initial == []  # Available entry cards are separate from personalized suggestions.
 
         response = client.post(
             f"/api/chats/{chat['id']}/messages",
@@ -1095,9 +1094,15 @@ def test_seeker_can_start_general_chat_and_choose_from_two_ranked_jobs():
         )
         assert response.status_code == 200
         recommendations = response.json()["recommendations"]
-        assert len(recommendations) == 2
+        assert len(recommendations) == 1
+        assert all(item["recommended"] for item in recommendations)
         selected_job_id = recommendations[0]["job"]["id"]
         other_job_id = next(job_id for job_id in job_ids if job_id != selected_job_id)
+
+        chosen = client.post(f"/api/chats/{chat['id']}/select-job", json={"job_id": selected_job_id}, headers=headers)
+        assert chosen.status_code == 200
+        assert chosen.json()["target_job_id"] == selected_job_id
+        assert chosen.json()["application_fields"][0]["state"] == "captured"
 
         submitted = client.post(
             f"/api/jobs/{selected_job_id}/apply",
@@ -1704,9 +1709,9 @@ def test_send_replays_previous_chat_messages(monkeypatch):
 
     def fake_reply(context, intent, user_text, fallback):
         calls.append((context, user_text))
-        return fallback
+        return GeneratedTurn(reply=fallback)
 
-    monkeypatch.setattr("app.main.generate_reply", fake_reply)
+    monkeypatch.setattr("app.main.generate_turn", fake_reply)
     with TestClient(app) as client:
         user, headers = authenticate("history@example.com", "candidate")
         chat = client.post("/api/chats", headers=headers).json()
@@ -1733,12 +1738,7 @@ def test_send_replays_previous_chat_messages(monkeypatch):
         {
             "chat_id": chat["id"],
             "job": None,
-                "draft": {
-                    "welding": {
-                        "evidence": f"The candidate said: {second_text}",
-                        "assessment": "claimed",
-                    }
-                },
+            "draft": {},  # Only saved prior answers; current text is a separate input.
             "messages": [
                 {"role": "assistant", "content": chat["messages"][0]["content"]},
                 {"role": "user", "content": first_text},
@@ -1989,8 +1989,7 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
                                 "type": "output_text",
                                 "text": json.dumps(
                                     {
-                                        "reply": "What welding work have you completed?",
-                                        "role_updates": [],
+                                        "updates": [],
                                     }
                                 ),
                             }
@@ -2028,20 +2027,18 @@ def test_openai_provider_uses_bounded_current_chat_context(monkeypatch):
         settings=settings,
     )
 
-    assert reply == "What welding work have you completed?"
+    assert reply == "Tell me about your welding evidence."
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["json"]["model"] == "gpt-4o-mini"
     assert captured["json"]["store"] is False
     assert captured["json"]["max_output_tokens"] == 1000
     assert captured["json"]["text"]["format"]["strict"] is True
     schema = captured["json"]["text"]["format"]["schema"]
-    assert schema["required"] == ["reply", "role_updates"]
-    assert schema["properties"]["role_updates"]["items"]["additionalProperties"] is False
-    assert "unverified claims" in captured["json"]["instructions"]
-    assert "denials and contradictions" in captured["json"]["instructions"]
-    assert "required_next_step as authoritative" in captured["json"]["instructions"]
-    assert "required or preferred" in captured["json"]["instructions"]
-    assert "how many years" in captured["json"]["instructions"]
+    assert schema["required"] == ["updates"]
+    assert schema["$defs"]["CandidateUpdate"]["additionalProperties"] is False
+    assert "Claims are unverified" in captured["json"]["instructions"]
+    assert "never change the" in captured["json"]["instructions"]
+    assert "does not always require years" in captured["json"]["instructions"]
     sent = json.loads(captured["json"]["input"])
     assert sent["selected_job"]["id"] == 3
     assert sent["earlier_messages"] == context["messages"]
@@ -2085,9 +2082,9 @@ def test_context_builder_is_bounded_and_never_mixes_guest_chats(monkeypatch):
 
     def capture_context(context, intent, user_text, fallback):
         captured.append((context, user_text))
-        return fallback
+        return GeneratedTurn(reply=fallback)
 
-    monkeypatch.setattr("app.main.generate_reply", capture_context)
+    monkeypatch.setattr("app.main.generate_turn", capture_context)
     job_id = create_published_job()
     with TestClient(app) as client:
         first = client.post("/api/auth/guest", json={"job_id": job_id}).json()

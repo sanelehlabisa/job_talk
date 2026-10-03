@@ -49,6 +49,11 @@ class ChatCreate(BaseModel):
     template_id: str | None = Field(default=None, min_length=1, max_length=60)
 
 
+class SelectJobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    job_id: int = Field(gt=0)
+
+
 class UserOut(ORMModel):
     id: int
     email: str
@@ -124,6 +129,7 @@ class ChatOut(ChatSummary):
     target_job: JobOut | None = None
     can_publish: bool = False
     job_draft: JobDraft | None = None
+    application_fields: list[dict] = Field(default_factory=list)
 
 
 class MessageResponse(BaseModel):

@@ -34,6 +34,7 @@ from .services.conversation import (
     wants_to_publish,
 )
 from .services.context import build_chat_context
+from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers
 from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
 from .services.ai import generate_reply, generate_turn
@@ -87,6 +88,8 @@ def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     output = schemas.ChatOut.model_validate(chat)
     if chat.intent == "employer" and chat.job_post and chat.job_post.draft:
         output.job_draft = JobDraft.model_validate(chat.job_post.draft)
+    if chat.intent == "candidate" and chat.target_job:
+        output.application_fields = application_fields(chat.profile, chat.target_job.target_profile)
     output.can_publish = bool(
         chat.intent == "employer"
         and chat.status == "draft"
@@ -187,7 +190,7 @@ def start_guest_session(
                 (
                     f"You're applying for {job.title}. "
                     f"{summarize_job_requirements(job.title, job.target_profile)} "
-                    "Tell me which requirement you can meet and give one work example."
+                    + candidate_reply({}, job.target_profile)
                 )
                 if job
                 else (
@@ -205,6 +208,36 @@ def start_guest_session(
         subject_id=chat.id,
     )
     return issue_session(db, user)
+
+
+@app.post("/api/chats/{chat_id}/select-job", response_model=schemas.ChatOut)
+def select_job(chat_id: int, payload: schemas.SelectJobRequest,
+               current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "candidate":
+        raise HTTPException(status_code=403, detail="Candidate access required")
+    chat = get_chat_or_404(db, chat_id, current_user.id)
+    if chat.target_job_id is not None:
+        if chat.target_job_id != payload.job_id:
+            raise HTTPException(status_code=403, detail="This guest session belongs to another job")
+        return serialize_chat(chat)
+    if chat.status in {"submitted", "closed"}:
+        raise HTTPException(status_code=409, detail="This conversation is no longer open")
+    job = db.scalar(select(models.JobPost).where(models.JobPost.id == payload.job_id, models.JobPost.published.is_(True)))
+    if not job:
+        raise HTTPException(status_code=404, detail="Published job not found")
+    # Bind exactly once, including concurrent selection requests from this guest.
+    bound = db.execute(update(models.Chat).where(
+        models.Chat.id == chat.id, models.Chat.target_job_id.is_(None)
+    ).values(target_job_id=job.id))
+    if bound.rowcount != 1:
+        raise HTTPException(status_code=409, detail="A job was already selected. Reload the conversation.")
+    chat.profile = reuse_discovery_answers(chat.messages, job.target_profile)
+    db.add(models.Message(chat_id=chat.id, sender="assistant", content=(
+        f"You selected {job.title}. {summarize_job_requirements(job.title, job.target_profile)} "
+        + candidate_reply(chat.profile, job.target_profile)
+    )))
+    db.commit()
+    return serialize_chat(get_chat_or_404(db, chat_id, current_user.id))
 
 
 @app.post(
@@ -447,6 +480,8 @@ def send_message(
         raise HTTPException(status_code=409, detail="This application has already been submitted")
     if chat.status == "closed":
         raise HTTPException(status_code=409, detail="This recruitment is closed")
+    if chat.intent == "candidate" and chat.target_job and not chat.target_job.published:
+        raise HTTPException(status_code=409, detail="This recruitment is closed")
     if chat.intent == "employer" and chat.status == "published":
         raise HTTPException(
             status_code=409,
@@ -474,6 +509,7 @@ def send_message(
     employer_profile_before = deepcopy(employer_profile or {})
     employer_title_before = chat.job_post.title if chat.job_post else None
     candidate_answer_status = None
+    candidate_profile_before = deepcopy(chat.profile or {})
     interpret_employer_answer = False
 
     expected_intent = "candidate" if current_user.role == "candidate" else "employer"
@@ -576,6 +612,23 @@ def send_message(
         reply = candidate_reply(
             context["draft"], target_profile, candidate_answer_status
         )
+        # The model proposes evidence only. The saved fields determine the reply.
+        context["draft"] = candidate_profile_before
+        turn = generate_turn(context, chat.intent, text, reply)
+        if turn.candidate_updates is not None:
+            chat.profile = apply_candidate_updates(
+                candidate_profile_before, target_profile, turn.candidate_updates, text,
+                [message.content for message in chat.messages if message.sender == "user"], expected_criterion,
+            )
+            candidate_answer_status = "gap" if any(
+                item.get("assessment") == "gap" and item != candidate_profile_before.get(key)
+                for key, item in chat.profile.items()
+            ) else "unclear" if chat.profile == candidate_profile_before and expected_criterion else None
+        reply = candidate_reply(chat.profile, target_profile, candidate_answer_status)
+        if turn.candidate_updates is None:
+            reply = "I'm using guided questions for now. " + reply
+        if target_profile is not None:
+            chat.profile = {key: value for key, value in chat.profile.items() if key in target_profile}
     if template_turn:
         pass  # The question reflects validated saved fields, never unaccepted AI claims.
     elif interpret_employer_answer:
@@ -592,7 +645,7 @@ def send_message(
             chat.profile = validated_profile
             job.target_profile = validated_profile
             job.title = details.get("title") or "Untitled role"
-    else:
+    elif chat.intent != "candidate":
         reply = generate_reply(context, chat.intent, text, reply)
     assistant_message = models.Message(chat_id=chat.id, sender="assistant", content=reply)
     db.add(assistant_message)
@@ -601,9 +654,7 @@ def send_message(
     chat = get_chat_or_404(db, chat_id, current_user.id)
 
     recommendations = []
-    if chat.intent == "candidate" and (
-        chat.target_job_id is None or len(chat.profile) >= 2
-    ):
+    if chat.intent == "candidate":
         jobs = db.scalars(
             select(models.JobPost).where(
                 models.JobPost.published.is_(True),
@@ -616,7 +667,7 @@ def send_message(
         ).all()
         ranked_jobs = rank_jobs(chat.profile, jobs)
         if chat.target_job_id is None:
-            ranked_jobs = ranked_jobs[:2]
+            ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
         for job, result in ranked_jobs:
             recommendations.append(
                 schemas.RecommendationOut(
@@ -747,7 +798,7 @@ def get_recommendations(
     ).all()
     ranked_jobs = rank_jobs(chat.profile, jobs)
     if chat.target_job_id is None:
-        ranked_jobs = ranked_jobs[:2]
+        ranked_jobs = [item for item in ranked_jobs if is_recommended(item[1])][:2]
     return [
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
@@ -790,7 +841,11 @@ def apply(
     if chat.target_job_id is not None and chat.target_job_id != job.id:
         raise HTTPException(status_code=403, detail="This guest session belongs to another job")
     if chat.target_job_id is None:
-        chat.target_job_id = job.id
+        bound = db.execute(update(models.Chat).where(
+            models.Chat.id == chat.id, models.Chat.target_job_id.is_(None)
+        ).values(target_job_id=job.id))
+        if bound.rowcount != 1:
+            raise HTTPException(status_code=409, detail="A job was already selected. Reload the conversation.")
     candidate_name = payload.candidate_name.strip()
     candidate_location = payload.candidate_location.strip()
     preferred_contact = payload.preferred_contact.strip()
@@ -806,12 +861,12 @@ def apply(
     submitted_at = datetime.now(timezone.utc)
     candidate_profile = {
         **chat.profile,
-        "location": {
+        **({"location": {
             "criterion_key": "location",
             "value": candidate_location,
             "evidence": f"The candidate is based in {candidate_location}.",
             "assessment": "claimed",
-        },
+        }} if "location" not in chat.profile else {}),
     }
     result = match_profiles(candidate_profile, job.target_profile)
     profile_snapshot = {

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api, SESSION_KEY } from "./api";
 import { JobDraftSummary, JobTemplatePicker } from "./JobTemplates";
+import { ApplicationSummary } from "./ApplicationSummary";
 
 function Brand() {
   return (
@@ -211,8 +212,8 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
             {error && <div className="error">{error}</div>}
           </>}
           {mode === "jobs" && <>
-            <h2>Two jobs to explore</h2>
-            <p>Choose a visible job now, or start from scratch and describe the work you want.</p>
+            <h2>Available jobs</h2>
+            <p>Here are two available jobs. To find others, describe your background in a new chat.</p>
             <div className="entry-jobs">
               {jobs.slice(0, 2).map((job) => (
                 <button className="entry-job" type="button" disabled={loading} key={job.id} onClick={() => continueAsSeeker(job.id)}>
@@ -227,7 +228,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
               {!jobs.length && <div className="error">No published jobs are available yet.</div>}
             </div>
             <button className="primary full" type="button" disabled={loading} onClick={() => continueAsSeeker()}>
-              Start from scratch <ArrowRight size={17} />
+              Find a different job <ArrowRight size={17} />
             </button>
             {error && <div className="error">{error}</div>}
             <button className="auth-toggle" type="button" onClick={() => { setMode("choose"); setError(""); }}>Back</button>
@@ -338,7 +339,7 @@ function JobReadiness({ job }) {
   );
 }
 
-function Recommendation({ item, onApply, applied, selected }) {
+function Recommendation({ item, onApply, onSelect, applied, selected, busy }) {
   const score = Math.round(item.match_score * 100);
   return (
     <article className="job-card">
@@ -352,13 +353,13 @@ function Recommendation({ item, onApply, applied, selected }) {
         {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
       </div>
       <div className="job-actions">
-        <button className="primary" disabled={applied} onClick={onApply}>{applied ? <><Check size={17} /> Submitted</> : <>Review application <ChevronRight size={17} /></>}</button>
+        <button className="primary" disabled={applied || busy} onClick={selected ? onApply : onSelect}>{applied ? <><Check size={17} /> Submitted</> : <>{selected ? "Review application" : "Apply to this job"} <ChevronRight size={17} /></>}</button>
       </div>
     </article>
   );
 }
 
-function ApplicationReview({ item, profile, onSubmit, onCancel }) {
+function ApplicationReview({ item, profile, fields, onSubmit, onCancel }) {
   const [candidateName, setCandidateName] = useState("");
   const [candidateLocation, setCandidateLocation] = useState(profile?.location?.value || "");
   const [preferredContact, setPreferredContact] = useState("");
@@ -406,10 +407,10 @@ function ApplicationReview({ item, profile, onSubmit, onCancel }) {
       <div className="review-evidence">
         {evidence.map(({ key, label, requirement, target, profileItem }) => {
           const assessment = profileItem?.assessment;
-          const state = assessment === "gap" ? "gap" : profileItem?.evidence ? "captured" : "missing";
+          const state = fields?.find((field) => field.key === key)?.state || (assessment === "gap" ? "gap" : profileItem?.evidence ? "captured" : "missing");
           return (
             <div className={`review-evidence-item ${state}`} key={key}>
-              <div><strong>{label}</strong><b>{state === "gap" ? "Reported gap" : state === "captured" ? "Evidence captured" : "Evidence missing"}</b></div>
+              <div><strong>{label}</strong><b>{state === "gap" ? "Reported gap" : state === "captured" ? "Evidence captured" : state === "needs_clarification" ? "Needs clarification" : "Evidence missing"}</b></div>
               {requirement && <small>Target: {target || "Confirm with recruiter"} · {requirement}</small>}
               {profileItem?.value !== undefined && profileItem?.value !== null && <small>Your extracted value: {String(profileItem.value)}</small>}
               <span>{profileItem?.evidence || "You have not provided evidence for this requirement yet."}</span>
@@ -655,11 +656,12 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
   );
 }
 
-function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onReload, onMenu, onDeleteAccount }) {
+function ChatView({ chat, recommendations, applications, onSend, onPublish, onCloseJob, onApply, onSelectJob, onReload, onMenu, onDeleteAccount }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [applied, setApplied] = useState({});
   const [reviewing, setReviewing] = useState(null);
+  const [selecting, setSelecting] = useState(false);
   const bottomRef = useRef(null);
   const submitted = chat?.status === "submitted";
   const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : chat?.status === "closed" ? "Closed" : chat?.status === "draft" ? "Draft" : "Live profile";
@@ -687,6 +689,11 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
     await onReload();
   }
 
+  async function selectJob(jobId) {
+    setSelecting(true);
+    try { await onSelectJob(jobId); } finally { setSelecting(false); }
+  }
+
   return (
     <section className="chat-shell">
       <header className="chat-header">
@@ -694,7 +701,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
         <div><span className={`intent-dot ${chat.intent || "new"}`} /> <strong>{chat.intent === "employer" ? (chat.job_post?.title || "Build your role") : chat.intent === "candidate" ? (chat.target_job?.title || "Find your next role") : "New conversation"}</strong><small>{chat.intent ? "Profile updates as you talk" : "Let’s work out where to begin"}</small></div>
         <div className="status-pill"><span /> {statusLabel}</div>
       </header>
-      <div className={chat.status === "draft" && chat.job_draft ? "chat-workspace with-draft" : "chat-workspace"}>
+      <div className={(chat.status === "draft" && chat.job_draft) || chat.target_job ? "chat-workspace with-draft" : "chat-workspace"}>
       <div className="messages">
         <div className="conversation-inner">
           <div className="date-rule"><span>Today</span></div>
@@ -713,7 +720,7 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
             </div>
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
-          {!chat.job_draft && <ProfileChips profile={chat.profile} />}
+          {!chat.job_draft && !chat.target_job && <ProfileChips profile={chat.profile} />}
           {chat.intent === "employer" && chat.job_post && !chat.job_draft && <JobReadiness job={chat.job_post} />}
           {chat.job_draft && chat.status !== "draft" && <JobDraftSummary draft={chat.job_draft} locked />}
           {chat.intent === "employer" && chat.job_post && !(chat.status === "draft" && chat.job_draft) && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
@@ -721,15 +728,17 @@ function ChatView({ chat, recommendations, applications, onSend, onPublish, onCl
             <div className="recommendations">
               <div className="recommendation-heading"><span>{chat.target_job_id ? "YOUR APPLICATION" : "RECOMMENDED JOBS"}</span><small>{chat.target_job_id ? "Selected role" : "Top two from your conversation"}</small></div>
               <p className="decision-support">Match guidance uses the unverified information you provide. Recruiters make hiring decisions.</p>
-              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} selected={Boolean(chat.target_job_id)} applied={submitted || applied[item.job.id]} onApply={() => setReviewing(item)} />)}
-              {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} onSubmit={apply} onCancel={() => setReviewing(null)} />}
+              {recommendations.map((item) => <Recommendation key={item.job.id} item={item} selected={Boolean(chat.target_job_id)} busy={selecting || sending} applied={submitted || applied[item.job.id]} onSelect={() => selectJob(item.job.id)} onApply={() => setReviewing(item)} />)}
+              {reviewing && !submitted && <ApplicationReview item={reviewing} profile={chat.profile} fields={chat.application_fields} onSubmit={apply} onCancel={() => setReviewing(null)} />}
             </div>
           )}
+          {chat.intent === "candidate" && !chat.target_job_id && !recommendations.length && <section className="discovery-empty" role="status"><strong>{chat.messages.some((message) => message.sender === "user") ? "No useful match yet" : "Find a different job"}</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs. A suitable role may not be available yet.</p></section>}
           {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
           <div ref={bottomRef} />
         </div>
       </div>
       {chat.status === "draft" && chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} /></aside>}
+      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary fields={chat.application_fields || []} submitted={submitted} /></aside>}
       </div>
       {chat.status === "draft" && chat.can_publish && <div className="publish-bar"><div><strong>Your role is ready for final review</strong><span>Check the criteria above, then publish it explicitly.</span></div><button className="primary" onClick={onPublish}>Publish job <ArrowRight size={17} /></button></div>}
       {chat.status === "closed" && chat.intent === "candidate" ? <div className="submitted-bar"><CircleMinus size={17} /><span><strong>This recruitment is closed</strong>This job is no longer accepting applications. Use Browse other jobs to find another available role.</span></div> : chat.status === "closed" ? <div className="submitted-bar"><Check size={17} /><span><strong>Recruitment closed</strong>New applications are stopped and submitted snapshots are preserved.</span></div> : chat.intent === "employer" && chat.status === "published" ? <div className="submitted-bar"><Check size={17} /><span><strong>Job published · criteria locked</strong>Candidates are scored against the reviewed criteria above. Close this recruitment before creating a revised role.</span></div> : submitted ? <div className="submitted-bar"><Check size={17} /><span><strong>Application submitted{applications[0]?.id ? ` · Reference #${applications[0].id}` : ""}</strong>Your approved snapshot is now frozen for the recruiter.</span><button type="button" onClick={onDeleteAccount}>Delete my application data</button></div> : <form className="composer" onSubmit={submit}>
@@ -859,6 +868,11 @@ function JobTalkApp() {
     try { await api.apply(jobId, chat.id, candidateName, candidateLocation, preferredContact); } catch (err) { setError(err.message); throw err; }
   }
 
+  async function selectJob(jobId) {
+    try { await api.selectJob(chat.id, jobId); await loadChat(chat.id); await loadChats(false); }
+    catch (err) { setError(err.message); }
+  }
+
   async function deleteCandidateAccount() {
     if (!window.confirm("Permanently delete this application, conversation, contact details, and guest session?")) return;
     try {
@@ -897,7 +911,7 @@ function JobTalkApp() {
       {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
       {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} onCancel={() => setTemplateChoices(null)} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
-          <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
+          <ChatView chat={chat} recommendations={recommendations} applications={applications} onSend={send} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />
         </ChatErrorBoundary>
       ) : <section className="welcome-empty"><Brand /><h1>Every opportunity starts with a conversation.</h1><p>Tell us whether you’re looking for your next role or your next great hire.</p><button className="primary" type="button" onClick={newChat}><Plus size={18} /> Start a conversation</button></section>}
     </main>

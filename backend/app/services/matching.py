@@ -26,6 +26,9 @@ NUMBER_WORDS = {
 }
 
 GENERIC_REQUIREMENT_TOKENS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "for", "from",
+    "has", "have", "in", "is", "it", "of", "on", "or", "the", "their", "to",
+    "was", "will", "with", "work", "working", "this", "that",
     "applicant",
     "applicants",
     "candidate",
@@ -70,7 +73,7 @@ def _place(value: str) -> str | None:
 
 
 def _candidate_value(key: str, requirement: dict, candidate_item: dict):
-    if candidate_item.get("assessment") == "gap":
+    if candidate_item.get("assessment") == "gap" or candidate_item.get("state") == "needs_clarification":
         return None
     if "value" in candidate_item:
         return candidate_item["value"]
@@ -97,6 +100,9 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
     evidence = candidate_item.get("evidence", "")
     requirement_text = requirement.get("description", "")
 
+    if candidate_item.get("state") == "needs_clarification":
+        return 0.0, "This answer needs clarification before it can be compared."
+
     if candidate_item.get("assessment") == "gap":
         return 0.0, "The candidate explicitly reported a gap for this criterion."
 
@@ -114,13 +120,14 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
                 f"The candidate reports {candidate_value} {unit} against a "
                 f"target of {target} {unit}."
             )
-        return 0.45, (
+        return 0.0, (
             "The candidate provided related evidence, but it does not contain "
             "the measurable value requested by this criterion."
         )
 
     if key == "location" and evidence:
-        required_place, candidate_place = _place(requirement_text), _place(evidence)
+        required_place = _place(requirement_text) or str(requirement.get("target") or "").strip().lower()
+        candidate_place = _place(evidence) or str(_candidate_value(key, requirement, candidate_item) or "").strip().lower()
         if required_place and candidate_place:
             if required_place == candidate_place:
                 return 0.95, f"The candidate's location matches the role: {candidate_place.title()}."

@@ -177,6 +177,17 @@ def _criterion_denied(text: str, key: str, requirement: dict | None = None) -> b
         return True
     terms = _criterion_terms(key, requirement)
     clauses = re.split(r"\b(?:but|however|although)\b|[.;]", lower)
+    general_terms = {
+        "experience": r"\b(?:experience|years?)\b",
+        "location": r"\b(?:location|based|located|relocate|commute)\b",
+        "availability": r"\b(?:available|availability|start|notice)\b",
+        "working_arrangement": r"\b(?:remote|hybrid|on-site|onsite)\b",
+        "working_hours": r"\b(?:hours?|shifts?|weekdays?|weekends?|schedule)\b",
+        "education": r"\b(?:degree|diploma|qualification|education|certificate|college|school)\b",
+    }
+    if key in general_terms:
+        return any(NEGATION_PATTERN.search(clause) and re.search(general_terms[key], clause)
+                   and (key != "experience" or not _skill_hits(clause)) for clause in clauses)
     return any(
         NEGATION_PATTERN.search(clause)
         and (
@@ -226,6 +237,8 @@ def _supports_expected_criterion(
         )
     if key == "working_arrangement":
         return any(item in lower for item in ("remote", "hybrid", "on-site", "onsite"))
+    if key == "working_hours":
+        return bool(re.search(r"\b(?:hours?|shifts?|weekdays?|weekends?|monday|schedule)\b", lower))
     if key == "education":
         return any(
             item in lower
@@ -560,7 +573,7 @@ def update_employer_profile(
     return normalize_target_profile(profile), {"title": title}
 
 
-def update_candidate_profile(
+def _update_candidate_fragment(
     profile: dict,
     text: str,
     target_profile: dict | None = None,
@@ -631,7 +644,8 @@ def update_candidate_profile(
     }
     for key, requirement in (target_profile or {}).items():
         if _criterion_denied(text, key, requirement):
-            profile[key] = _gap_evidence(text)
+            if text.strip().lower() not in {"no", "none", "not yet", "never", "i don't", "i do not"} or key == expected_criterion:
+                profile[key] = _gap_evidence(text)
         elif key not in general_fields and _supports_expected_criterion(
             text, key, requirement
         ):
@@ -646,11 +660,49 @@ def update_candidate_profile(
                 text,
                 expected_criterion,
                 requirement,
-                allow_unmatched_example=True,
+                allow_unmatched_example=False,
             )
         ):
             profile[expected_criterion] = _claimed_evidence(text)
     return normalize_candidate_evidence(profile, target_profile)
+
+
+def update_candidate_profile(profile: dict, text: str, target_profile: dict | None = None,
+                             expected_criterion: str | None = None) -> dict:
+    # Keep durations and denials with their own clause instead of copying a whole
+    # multi-answer message to every criterion. The live model handles richer prose.
+    if re.fullmatch(r"(?:that['’]?s fine|fine|ok(?:ay)?|yes|sure)[.! ]*", text.strip(), re.I):
+        return dict(profile or {})
+    if target_profile and expected_criterion and re.fullmatch(
+        r"(?:no|none|not yet|never|i (?:don't|do not) have (?:that|this) (?:skill|experience))[.! ]*", text.strip(), re.I
+    ):
+        return normalize_candidate_evidence({**profile, expected_criterion: _gap_evidence(text)}, target_profile)
+    result = dict(profile or {})
+    fragments = re.split(r"[;\n]|(?<!\d)[.!?](?!\d)|\b(?:but|however)\b", text)
+    for fragment in fragments:
+        fragment = fragment.strip(" ,")
+        if fragment:
+            before = result
+            result = _update_candidate_fragment(result, fragment, target_profile, expected_criterion)
+            for key, item in result.items():
+                if item != before.get(key):
+                    item["source_quote"] = fragment
+                    previous = before.get(key, {})
+                    if (target_profile is None and previous.get("assessment") != "gap"
+                            and item.get("assessment") != "gap" and _years(previous.get("evidence", ""))
+                            and not _years(item.get("evidence", ""))):
+                        item["evidence"] = previous["evidence"] + " " + item["evidence"]
+                        item["source_quote"] = previous.get("source_quote", "") + "; " + fragment
+                    if (normalize_target_profile(target_profile).get(key, {}).get("type") == "number"
+                            and item.get("value") is None and item.get("assessment") != "gap"
+                            and previous.get("value") is not None and previous.get("assessment") != "gap"):
+                        item["value"] = previous["value"]
+                        item["evidence"] = previous["evidence"] + " " + item["evidence"]
+                        item["source_quote"] = previous.get("source_quote", "") + "; " + fragment
+    if (expected_criterion == "core_requirement" and expected_criterion not in result
+            and _supports_expected_criterion(text, expected_criterion, target_profile[expected_criterion], allow_unmatched_example=True)):
+        result[expected_criterion] = {**_claimed_evidence(text), "state": "needs_clarification", "value": None, "source_quote": text}
+    return result
 
 
 def update_candidate_turn(
@@ -729,7 +781,7 @@ def employer_reply(
     return "When should the successful candidate be available to start?"
 
 
-def _candidate_criterion_question(key: str) -> str:
+def _candidate_criterion_question(key: str, requirement: dict | None = None) -> str:
     label = key.replace("_", " ")
     questions = {
         "experience": "How many years of relevant experience do you have, and what did you do?",
@@ -738,6 +790,12 @@ def _candidate_criterion_question(key: str) -> str:
         "working_arrangement": "Are you available for the working arrangement described for this role?",
         "education": "What relevant education, training, or certificates do you have?",
     }
+    if requirement and requirement.get("type") == "number" and requirement.get("unit") not in {None, "year", "years"}:
+        return f"For {requirement.get('label', label)}, how many {requirement['unit']} can you report, and what is the example?"
+    if requirement and key == "experience" and requirement.get("type") == "text":
+        return f"What experience or practical example can you share for this requirement: {requirement.get('target')}?"
+    if key == "working_hours":
+        return "What hours or shifts can you work?"
     return questions.get(
         key,
         f"Tell me about your {label} experience and one example that shows it.",
@@ -753,7 +811,7 @@ def expected_candidate_criterion(
         (
             key
             for key in target_profile
-            if _candidate_criterion_question(key) in assistant_text
+            if _candidate_criterion_question(key, normalize_target_profile(target_profile)[key]) in assistant_text
         ),
         None,
     )
@@ -765,16 +823,20 @@ def candidate_reply(
     answer_status: str | None = None,
 ) -> str:
     if target_profile:
+        target_profile = normalize_target_profile(target_profile)
         missing = sorted(
             (
                 (key, requirement)
                 for key, requirement in target_profile.items()
                 if not profile.get(key, {}).get("evidence")
+                or profile.get(key, {}).get("state") == "needs_clarification"
+                or (requirement["type"] == "number" and profile.get(key, {}).get("assessment") != "gap"
+                    and profile.get(key, {}).get("value") is None)
             ),
             key=lambda item: (-float(item[1].get("weight", 0.5)), item[0]),
         )
         if missing:
-            question = _candidate_criterion_question(missing[0][0])
+            question = _candidate_criterion_question(missing[0][0], missing[0][1])
             if answer_status == "unclear":
                 return f"I couldn't connect that answer to the requested evidence yet. {question}"
             if answer_status == "gap":

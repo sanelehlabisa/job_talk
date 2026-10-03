@@ -1,8 +1,10 @@
 # Manual usability check
 
-Status: **Pending implementation and user acceptance (2026-10-03).** This is the
-acceptance checklist for JT-057 through JT-062. No new conversation or live LLM
-checks were run while writing this plan. Deployment stays paused.
+Status: **Pending user acceptance and remaining tickets (2026-10-03).** This is
+the acceptance checklist for JT-057 through JT-062. JT-057/JT-058/JT-059 have
+implementation checks recorded in the recruiter and candidate test notes. Live
+OpenAI attempts returned `credit_balance_exhausted`; language quality remains
+unverified. Deployment stays paused.
 
 Use fictional people and an approved test recruiter. Run the existing local
 stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
@@ -46,11 +48,11 @@ Record the result in this table when executing JT-060:
 
 | Evidence | Result |
 | --- | --- |
-| Revision tested | Not yet recorded |
-| Deterministic/fallback scenarios | Not run for this plan |
-| Actual LLM: provider/model, date, scenarios, outcomes | Not run for this plan |
-| Live cases that fell back or failed | Not yet recorded |
-| Desktop/phone observations and remaining issues | Pending |
+| Revision tested | JT-058: `0b04303`; JT-059 feature branch, see test record |
+| Deterministic/fallback scenarios | See [recruiter](recruiter-draft-checks.md) and [candidate](candidate-application-checks.md) engineering checks |
+| Actual LLM: provider/model, date, scenarios, outcomes | OpenAI / `gpt-4o-mini`, 2026-10-03; recruiter and candidate attempts blocked by API credit |
+| Live cases that fell back or failed | Both used guided fallback after HTTP 429 `credit_balance_exhausted` |
+| Desktop/phone observations and remaining issues | Engineering screenshots reviewed; user acceptance pending |
 | Owner/recruiter/guest access checks | Pending |
 | User decision: usable / needs fixes | Pending |
 

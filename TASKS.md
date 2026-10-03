@@ -27,7 +27,9 @@ Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060
 The final usability ticket covers the whole experience, including owner access
 and manually entered jobs. JT-057 is complete. JT-058 is implemented with
 deterministic checks; its live LLM acceptance remains open because API credit is
-exhausted. JT-059 is the next implementation ticket after that acceptance.
+exhausted. The user approved merging that work and proceeding with JT-059;
+candidate implementation checks are recorded below, with live acceptance also
+pending. JT-061 is the next independent implementation ticket.
 See [core context](docs/core-mvp.md) and the
 [manual checklist](docs/usability-checklist.md).
 
@@ -118,28 +120,28 @@ default of 3000 before retrying a full live template conversation.
 
 **Depends on:** JT-057 and JT-058.
 
-- [ ] Keep accountless entry and at most two **available jobs** cards. Add a
+- [x] Keep accountless entry and at most two **available jobs** cards. Add a
   prominent **Find a different job** chat action using the existing discovery
   path. Initial cards and weak matches must not be labelled personalized
   recommendations.
-- [ ] Compare the seeker's background with all published, open database jobs,
+- [x] Compare the seeker's background with all published, open database jobs,
   including those absent from the initial two cards. Return real job IDs, titles,
   and links; never invent a vacancy. Apply the existing useful-match threshold
   and show a clear no-match state when none qualifies.
-- [ ] Make choosing a job explicit before job-specific follow-ups. Bind the
+- [x] Make choosing a job explicit before job-specific follow-ups. Bind the
   application to that job's confirmed criteria and carry forward supported
   evidence from this guest's discovery chat. Preserve expiring tokens, one
   application per scope, and isolation from other candidates and recruiters.
 - [ ] Use the existing AI boundary to propose candidate field updates, mapping
   one answer to multiple criteria and reusing earlier answers. Preserve supporting
   source statements, validate values, and polish wording without inventing facts.
-- [ ] Show a live **Your application** summary with captured answers, unclear
+- [x] Show a live **Your application** summary with captured answers, unclear
   fields, missing evidence, and reported gaps. Corrections update the same keys.
   Ask focused follow-ups without repeating resolved answers.
-- [ ] Treat "I don't have that skill" as a resolved reported gap. Preserve the
+- [x] Treat "I don't have that skill" as a resolved reported gap. Preserve the
   employer's requirement and allow an honest application with gaps; never convert
   missing information into evidence or treat every skill as a years target.
-- [ ] Keep contact review, clear consent, explicit **Submit**, frozen snapshots,
+- [x] Keep contact review, clear consent, explicit **Submit**, frozen snapshots,
   deterministic backend scores, concise candidate summaries, the top-five
   comparison, and the parallel-line plot on the same confirmed criterion keys.
 
@@ -147,7 +149,20 @@ default of 3000 before retrying a full live template conversation.
 outside those cards, selects it, answers several criteria in one turn, corrects
 one answer, and submits with an honest gap visible to the recruiter.
 
-**Status:** Planned. Extends JT-055 and JT-056 (2026-10-03).
+**Status:** Implemented with deterministic and browser checks; actual LLM
+acceptance remains open (2026-10-03). The unchecked AI mapping item is implemented
+but not accepted as natural-language understanding: the live OpenAI candidate
+attempt returned HTTP 429 `credit_balance_exhausted` and used the guided fallback.
+Extends JT-055/JT-056 without new infrastructure, accounts or deployment work.
+
+**Evidence:** 73 backend tests passed; focused candidate validation was checked
+again after the final guards. Frontend production build and the full local
+browser walkthrough passed, including desktop/phone summaries, experience
+correction, tools gap, consent, submission, recruiter comparison, closing/deleting
+test data and a separate discovery-to-selection flow. The API test finds a
+matching third job outside the initial two cards. Screenshot review caught and
+fixed a tools denial clearing general experience; the repeated browser check
+asserts that experience remains intact. See [candidate test record](docs/candidate-application-checks.md).
 
 ### JT-061 - Configure owner access using existing login tokens
 
@@ -250,10 +265,10 @@ source metadata and the owner workflow are the additions (2026-10-03).
 the user can create a role, submit an honest application, and explain the
 candidate comparison without coaching. Passing scripted tests alone is not done.
 
-**Status:** Planned; manual approval pending. JT-057/JT-058 have template and
-recruiter browser/backend checks. The actual LLM attempt for JT-058 was blocked
-by exhausted API credit. The complete conversations above have not passed with
-the actual LLM (2026-10-03).
+**Status:** Planned; manual approval pending. JT-057/JT-058/JT-059 have template,
+recruiter and candidate browser/backend checks. Actual LLM attempts for JT-058
+and JT-059 were blocked by exhausted API credit. The complete conversations above
+have not passed with the actual LLM (2026-10-03).
 
 ## Previous core MVP implementation evidence
 

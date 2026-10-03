@@ -344,6 +344,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .draft-state { background: #f0f2ed; border-radius: 99px; font-size: 10px; padding: 3px 7px; color: #596961; }
 .draft-state.confirmed { background: #e8f2e5; color: #365b41; }
 .draft-state.needs_clarification { background: #fff0df; color: #88521d; }
+.draft-state.captured { background: #e8f2e5; color: #365b41; }
+.draft-state.gap { background: #fff0df; color: #88521d; }
+.discovery-empty { margin: 20px 0; padding: 18px; border: 1px solid #dce3da; border-radius: 12px; background: white; font-size: 13px; line-height: 1.6; }
+.discovery-empty p { color: var(--muted); margin-bottom: 0; }
 
 @media (max-width: 800px) {
   .chat-workspace.with-draft { flex-direction: column; overflow-y: auto; }

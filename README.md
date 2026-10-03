@@ -39,9 +39,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   validated field updates, explicit not-required answers, and a live **Who you're
   looking for** summary. Live language verification is pending: the configured
   provider returned `credit_balance_exhausted` on 2026-10-03.
-- JT-059: two available-job cards, **Find a different job** across all open
-  listings, explicit job selection, and a live **Your application** summary that
-  accepts honest gaps without inventing evidence.
+- JT-059 implements two available-job cards, **Find a different job** across all
+  open listings, explicit job selection, and a live **Your application** summary.
+  Deterministic/browser checks cover corrections and honest gaps; live language
+  verification is pending the same API-credit issue.
 - JT-061/JT-062: owner access through a backend `ADMIN_EMAIL` setting and existing
   email-code sessions, plus manual entry of source-labelled vacancies through
   the existing draft/review/publish flow. Recruiters keep access only to their
@@ -72,8 +73,13 @@ Deployment resumes only after user acceptance and an explicit request to resume.
   while approved recruiters sign in with a short-lived email code.
 - Three realistic demo jobs, public links and a job picker, and a guest
   conversation anchored to the selected role.
-- Seeker entry shows two quick job choices plus a Start from scratch conversation
-  that returns at most two ranked roles and locks to one role at submission.
+- Seeker entry labels its two cards **Available jobs**. **Find a different job**
+  opens a discovery chat that searches all published open jobs and returns at most
+  two roles above the useful-match threshold, or a clear no-match state. **Apply
+  to this job** binds the guest conversation to that role and reuses earlier answers.
+- **Your application** shows the employer's criteria, captured answers, questions
+  still needing clarification, and reported gaps. Corrections replace the same
+  criterion's answer. A gap does not prevent review, consent or submission.
 - Rule based extraction of skills, experience, location, and work preferences from text, including trade examples.
 - Deterministic follow-up questions that ask for the selected job's highest-weight
   missing evidence and resume from the saved draft after a refresh.
@@ -98,6 +104,10 @@ Deployment resumes only after user acceptance and an explicit request to resume.
 - Candidate evidence is stored under the exact published criterion key with an
   extracted typed value; the review shows both the job target and candidate value
   before consent.
+- The model proposes evidence with source quotes from the current conversation.
+  Backend checks reject unsupported fields/types/quantities and fall back to the
+  quoted wording when a polished sentence adds new terms. Unclear measurable
+  answers receive no score until clarified; weights and scoring remain backend-owned.
 - Candidates can leave one scoped guest application, browse available jobs, and
   start a separate private conversation for another role.
 - Recruiters can compare submitted candidates in one consistent evidence view,

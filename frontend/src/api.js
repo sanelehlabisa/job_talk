@@ -68,6 +68,9 @@ export const api = {
     body: JSON.stringify(templateId ? { template_id: templateId } : {}),
   }),
   getChat: (chatId) => request(`/chats/${chatId}`),
+  selectJob: (chatId, jobId) => request(`/chats/${chatId}/select-job`, {
+    method: "POST", body: JSON.stringify({ job_id: jobId }),
+  }),
   sendMessage: (chatId, content) =>
     request(`/chats/${chatId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   recommendations: (chatId) => request(`/chats/${chatId}/recommendations`),

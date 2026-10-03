@@ -228,7 +228,7 @@ try {
     Save-Screenshot "03-public-job-desktop.png"
     Invoke-JavaScript "document.querySelector('.entry-job').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.chat-shell') !== null" "candidate conversation"
-    $candidateText = "I have three years of welding experience in Cape Town. I repaired workshop gates and frames, and I am available immediately."
+    $candidateText = "I have three years of welding experience in Cape Town. I repaired workshop gates and frames using welding equipment. I am available immediately for on-site work and weekday hours."
     Invoke-JavaScript "window.__jobTalkFetch = window.fetch; window.fetch = (...args) => { window.fetch = window.__jobTalkFetch; return Promise.reject(new TypeError('Simulated temporary send failure')); }; true" | Out-Null
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $candidateText
     Wait-JavaScript "document.querySelector('.error-notice') !== null" "recoverable send error"
@@ -236,7 +236,18 @@ try {
     if ($preservedMessage -ne $candidateText) { throw "Failed send discarded the candidate message" }
     Invoke-JavaScript "document.querySelector('.error-dismiss').click(); true" | Out-Null
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $candidateText
-    Wait-JavaScript "document.querySelector('.profile-chips')?.textContent.includes('welding') && document.querySelector('.job-card .score strong')?.textContent !== '0%'" "captured candidate evidence" 45
+    Wait-JavaScript "document.querySelector('.application-summary')?.textContent.includes('welding') && document.querySelector('.job-card .score strong')?.textContent !== '0%' && !document.querySelector('.typing')" "captured candidate evidence" 45
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" "Actually I have two years of welding experience"
+    Wait-JavaScript "document.querySelector('.application-summary [data-field-key=experience]')?.textContent.includes('2 years') && !document.querySelector('.typing')" "corrected candidate duration" 45
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" "I cannot use welding equipment"
+    Wait-JavaScript "document.querySelector('.application-summary [data-field-key=tools]')?.dataset.fieldState === 'gap' && !document.querySelector('.typing')" "reported tools gap" 45
+    if (-not (Invoke-JavaScript "document.querySelector('.application-summary [data-field-key=experience]')?.dataset.fieldState === 'captured' && document.querySelector('.application-summary [data-field-key=experience]')?.textContent.includes('2 years')")) { throw "A tool gap incorrectly overwrote the experience answer" }
+    Save-Screenshot "03-application-summary-desktop.png"
+    Set-Viewport 390 760 $true
+    Wait-JavaScript "document.querySelector('.sidebar')?.getBoundingClientRect().right <= 1" "closed candidate summary phone sidebar"
+    Invoke-JavaScript "document.querySelector('.application-summary').scrollIntoView({ block: 'start', behavior: 'instant' }); true" | Out-Null
+    Save-Screenshot "03-application-summary-phone.png"
+    Set-Viewport 1200 800 $false
     Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#candidate-name') !== null" "application review"
     $candidateForm = @"
@@ -304,7 +315,19 @@ try {
     $deletedStatus = Invoke-JavaScript "fetch('http://localhost:8000/api/auth/me', { headers: { Authorization: 'Bearer ' + $candidateTokenJson } }).then(response => response.status)"
     if ($deletedStatus -ne 401) { throw "Deleted candidate session is still valid" }
 
-    Write-Output "Local sign-off passed: preserve a failed send, create, lock published criteria, apply, compare, close, and delete on desktop and phone."
+    Invoke-JavaScript "[...document.querySelectorAll('.entry-choice')].find(button => button.textContent.includes('looking for work')).click(); true" | Out-Null
+    Wait-JavaScript "document.querySelectorAll('.entry-job').length === 2" "two available entry jobs"
+    if (-not (Invoke-JavaScript "document.querySelector('.login-card h2')?.textContent === 'Available jobs'")) { throw "Entry cards were not labelled available jobs" }
+    Invoke-JavaScript "[...document.querySelectorAll('button')].find(button => button.textContent.includes('Find a different job')).click(); true" | Out-Null
+    Wait-JavaScript "document.querySelector('.discovery-empty') !== null" "fresh discovery chat"
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" "I have three years of welding and forklift experience in Cape Town. I repaired gates and operated a forklift in a workshop."
+    Wait-JavaScript "document.querySelector('.job-card button')?.textContent.includes('Apply to this job') && !document.querySelector('.typing')" "real job suggestions" 45
+    Invoke-JavaScript "document.querySelector('.job-card button').click(); true" | Out-Null
+    Wait-JavaScript "document.querySelector('.application-summary') !== null && document.querySelector('.job-card button')?.textContent.includes('Review application')" "selected job with carried answers"
+    Set-Viewport 1200 800 $false
+    Save-Screenshot "10-discovery-selected-desktop.png"
+
+    Write-Output "Local check passed: create/publish, preserve failed send, candidate summary/correction/gap, consent/submit, compare, close/delete, and discover/select a real job. Desktop and phone screenshots captured; actual LLM quality is verified separately."
     Write-Output "Screenshots: $OutputDirectory"
 } finally {
     if ($script:socket) { $script:socket.Dispose() }

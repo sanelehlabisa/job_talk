@@ -20,8 +20,9 @@ The behavior below describes the target. JT-057 supplies the template picker and
 persisted draft structure. JT-058 implements validated template updates,
 not-required handling, the live summary and publication gate; actual LLM
 acceptance is still pending (provider credit exhausted in the local check).
-Improved candidate conversations, owner access, and source-aware manual job entry
-remain pending.
+JT-059 adds explicit candidate selection, structured updates and a live application
+summary; live candidate interpretation is also unverified because of exhausted
+API credit. Owner access and source-aware manual job entry remain pending.
 
 ## One shared criteria contract
 
@@ -165,6 +166,25 @@ fields confirmed or explicitly not required. The **Publish** action stays final.
    tool, skill, duration, or accomplishment that the candidate did not state.
 6. The candidate reviews the structured application, adds name, location, and
    email or phone, gives clear consent, and explicitly submits a frozen snapshot.
+
+JT-059 uses `POST /api/chats/{chat_id}/select-job` with a real public job ID.
+Ownership is checked and the chat can bind only once. Earlier user statements in
+that guest's chat are replayed against the selected criteria; other conversations
+are never read. `application_fields` in the private chat response derives the
+summary from the same job criteria and saved profile used for scoring.
+
+Candidate model responses propose typed values, states, evidence and source
+quotes. They cannot return jobs or modify criteria, weights or scores. Validation
+limits updates to actual criterion keys after selection and prevents an older
+statement from overwriting a later saved correction. If polished wording adds
+unsupported terms, the source wording is retained. The deterministic fallback
+keeps separate clauses' durations and gaps together and identifies guided mode.
+These checks do not establish semantic accuracy; actual LLM acceptance remains open.
+
+Discovery suggestions are filtered at the existing useful-match threshold.
+Common linking words do not count as evidence for an unrelated role. Text
+location comparisons use saved targets, and unclear numeric answers score zero.
+Submission contact review preserves a separately captured job-location answer.
 
 ## Matching and comparison
 
