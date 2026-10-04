@@ -12,7 +12,7 @@ function requirementText(field) {
   return `${field.target ?? ""}${field.unit ? ` ${field.unit}` : ""}`;
 }
 
-export function ApplicationSummary({ fields, job, profile, matchScore, submitted, closed, busy, onChange, onEditingChange, onSubmit, children }) {
+export function ApplicationSummary({ fields, job, profile, matchScore, ratingSource, submitted, closed, busy, onChange, onEditingChange, onSubmit, children }) {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -52,7 +52,7 @@ export function ApplicationSummary({ fields, job, profile, matchScore, submitted
       <summary>Your application</summary>
       {(!closed || submitted) && <div className="application-match" aria-live="polite">
         <div><span>{submitted ? "Submitted match" : "Match so far"}</span><strong>{busy ? "Updating…" : Number.isFinite(matchScore) ? `${Math.round(matchScore * 100)}%` : "Unavailable"}</strong></div>
-        <small>Based on {submitted ? "submitted" : "saved"} answers, not a hiring decision.</small>
+        <small>{ratingSource === "gemini" ? "AI estimate" : "Rule-based estimate"} from {submitted ? "submitted" : "saved"} answers. You can review and correct your answers.</small>
       </div>}
       <p>{submitted ? "Your submitted answers are saved." : closed ? "This job is no longer accepting applications." : "Edit an answer or describe it in chat. An honest skill gap is a valid answer."}</p>
       <SourceNotice source={job.source} />

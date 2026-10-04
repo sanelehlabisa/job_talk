@@ -18,6 +18,29 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Gemini criterion ratings (JT-075)
+
+1. Open a job and describe relevant work. Check **AI estimate** beside the score.
+   Edit an answer to unrelated work, then to an explicit skill gap; check that its
+   assessment falls. Clear an answer and confirm old chat text does not restore it.
+2. Search for software work, then add specific skills. Suggestions should follow
+   the actual jobs and your relevant work, with no discovery percentages.
+3. Submit after reviewing the form. In the recruiter view, check the same overall
+   score, individual reasons and plot values. Refresh should keep the saved score.
+
+**Engineering checks (2026-10-04):** Actual Gemini rated customer-service evidence
+100/100 and a replacement woodworking answer 0/100, despite earlier positive
+history. Relocation met the location requirement; an explicit Python gap remained
+zero. The live schema initially returned HTTP 400; a simpler provider schema now
+works with strict bounds still enforced in Python. The browser checked actual
+Gemini discovery, selected-job form edits, chat corrections, gaps, clear/reload,
+source labels, phone layout and submission. Generic years alone initially suggested
+an unrelated trade; discovery now requires an independent work-related connection.
+The final discovery replay excluded that trade and found the developer role after
+specific skills. Test guests were deleted and the fictional form-test job closed;
+existing user jobs were not changed. These checks do not establish that every AI
+rating is correct or replace your manual acceptance. Deployment remains paused.
+
 ### Numbered discovery suggestions (JT-074)
 
 1. Choose **Find a different job**. See entry guidance and numbered available-job

@@ -12,7 +12,10 @@ function Assert-MatchScore {
   const submitted=document.querySelector('.application-match')?.textContent.includes('Submitted match');
   const items=await fetch('http://localhost:8000/api/'+(submitted ? 'applications' : 'chats/'+chatId+'/recommendations'),{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
   const score=submitted ? items.find(item=>item.candidate_chat_id===chatId)?.match_result.overall_score : items[0]?.match_score;
+  const source=submitted ? items.find(item=>item.candidate_chat_id===chatId)?.match_result.rating_source : items[0]?.rating_source;
   if (!Number.isFinite(score) || document.querySelector('.application-match strong')?.textContent !== Math.round(score*100)+'%') throw new Error('Visible match score differs from saved backend score');
+  const label=source==='gemini' ? 'AI estimate' : 'Rule-based estimate';
+  if (!document.querySelector('.application-match small')?.textContent.includes(label)) throw new Error('Estimate source label differs from backend');
   return score;
 })()
 '@

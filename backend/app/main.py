@@ -41,7 +41,8 @@ from .services.context import build_chat_context
 from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers, edit_application_answer
 from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match, discovery_overlap, MIN_DISCOVERY_SCORE
-from .services.ai import generate_reply, generate_turn, guided_reply
+from .services.ai import generate_reply, generate_turn, guided_reply, rate_candidate
+from .services.ratings import RATINGS_KEY, evidence_profile
 from .services.email import send_recruiter_login_code
 from .services.job_templates import (
     JobDraft, new_job_draft, starter_templates, apply_draft_updates,
@@ -96,6 +97,7 @@ def get_chat_or_404(db: Session, chat_id: int, user: models.User) -> models.Chat
 
 def serialize_chat(chat: models.Chat) -> schemas.ChatOut:
     output = schemas.ChatOut.model_validate(chat)
+    output.profile = evidence_profile(output.profile)
     if chat.intent == "employer" and chat.job_post:
         if chat.job_post.draft or chat.status in {"published", "closed"}:
             output.job_draft = JobDraft.model_validate(chat.job_post.draft or draft_from_published_job(chat.job_post))
@@ -257,7 +259,12 @@ def select_job(chat_id: int, payload: schemas.SelectJobRequest,
     ).values(target_job_id=job.id))
     if bound.rowcount != 1:
         raise HTTPException(status_code=409, detail="A job was already selected. Reload the conversation.")
+    rating_state = chat.profile.get(RATINGS_KEY)
     chat.profile = reuse_discovery_answers(chat.messages, job.target_profile)
+    if rating_state:
+        chat.profile = {**chat.profile, RATINGS_KEY: rating_state}
+    chat.target_job = job
+    refresh_candidate_ratings(chat, db)
     db.add(models.Message(chat_id=chat.id, sender="assistant", content=(
         f"You selected {job.title}. " + recipient_notice(job)
         + "Fill in Your application here or in chat. "
@@ -670,6 +677,7 @@ def edit_application_field(chat_id: int, payload: schemas.ApplicationFieldEdit,
     if payload.key not in chat.target_job.target_profile:
         raise HTTPException(status_code=404, detail="Application field not found.")
     chat.profile = edit_application_answer(chat.profile, chat.target_job.target_profile, payload.key, payload.value)
+    refresh_candidate_ratings(chat, db)
     db.commit()
     db.refresh(chat)
     return serialize_chat(chat)
@@ -842,8 +850,9 @@ def send_message(
                 for key, item in chat.profile.items()
             ) else "unclear" if chat.profile == candidate_profile_before and expected_criterion else None
         if target_profile is not None:
-            chat.profile = {key: value for key, value in chat.profile.items() if key in target_profile}
+            chat.profile = {key: value for key, value in chat.profile.items() if key in target_profile or key == RATINGS_KEY}
         reply = candidate_reply(chat.profile, target_profile, candidate_answer_status)
+        refresh_candidate_ratings(chat, db, current_text=text)
         recommendations = recommendations_for_chat(chat, db)
         if chat.target_job_id is None:
             reply = discovery_reply(chat.profile, [
@@ -991,9 +1000,7 @@ def list_published_jobs(
     return [job for job in jobs if job.accepting_applications]
 
 
-def recommendations_for_chat(chat: models.Chat, db: Session):
-    if chat.intent != "candidate":
-        return []
+def open_jobs_for_chat(chat: models.Chat, db: Session):
     jobs = db.scalars(
         select(models.JobPost).where(
             models.JobPost.published.is_(True),
@@ -1004,23 +1011,48 @@ def recommendations_for_chat(chat: models.Chat, db: Session):
             ),
         ).order_by(models.JobPost.created_at, models.JobPost.id)
     ).all()
-    ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications], limit=None)
+    return [job for job in jobs if job.accepting_applications]
+
+
+def refresh_candidate_ratings(chat: models.Chat, db: Session, current_text: str | None = None):
+    context = build_chat_context(chat)
+    if current_text and (not context["messages"] or context["messages"][-1] != {"role": "user", "content": current_text}):
+        context["messages"].append({"role": "user", "content": current_text})
+    jobs = [{"id": job.id, "title": job.title, "criteria": normalize_target_profile(job.target_profile)}
+            for job in open_jobs_for_chat(chat, db)]
+    chat.profile = rate_candidate(context, jobs)
+
+
+def discovery_connection(profile: dict, job: models.JobPost, result: dict) -> list[str]:
+    if result.get("rating_source") == "gemini":
+        from .services.matching import DISCOVERY_LOGISTICS
+        return [field["label"] for key, field in result["criteria"].items()
+                if key not in DISCOVERY_LOGISTICS and field["score"] >= .25 and field["evidence"]
+                and (key != "experience" or discovery_overlap(profile, job))]
+    return discovery_overlap(profile, job)
+
+
+def recommendations_for_chat(chat: models.Chat, db: Session):
+    if chat.intent != "candidate":
+        return []
+    ranked_jobs = rank_jobs(chat.profile, open_jobs_for_chat(chat, db), limit=None)
     examples = False
     if chat.target_job_id is None:
         has_context = any(isinstance(item, dict) and (item.get("evidence") or item.get("value") is not None)
                           for item in chat.profile.values())
         matches = [item for item in ranked_jobs if has_context
                    and item[1]["overall_score"] >= MIN_DISCOVERY_SCORE
-                   and discovery_overlap(chat.profile, item[0])][:2]
+                   and discovery_connection(chat.profile, *item)][:2]
         examples = not bool(matches)
         ranked_jobs = matches or ranked_jobs[:2]
     return [
         schemas.RecommendationOut(
             job=schemas.JobOut.model_validate(job),
             match_score=result["overall_score"],
+            rating_source=result["rating_source"],
             recommended=not examples and is_recommended(result),
             explanation=(job.description if examples else
-                         "Related to what you shared about " + ", ".join(discovery_overlap(chat.profile, job)[:3])
+                         "Related to what you shared about " + ", ".join(discovery_connection(chat.profile, job, result)[:3])
                          + ". Review the requirements before applying."
                          if chat.target_job_id is None else summarize_match(result)),
             criteria={} if examples else result["criteria"],
@@ -1085,20 +1117,12 @@ def apply(
             detail="Add your name, location, and preferred contact details",
         )
     submitted_at = datetime.now(timezone.utc)
-    candidate_profile = {
-        **chat.profile,
-        **({"location": {
-            "criterion_key": "location",
-            "value": candidate_location,
-            "evidence": f"The candidate is based in {candidate_location}.",
-            "assessment": "claimed",
-        }} if "location" not in chat.profile else {}),
-    }
-    result = match_profiles(candidate_profile, job.target_profile)
+    # Freeze the same assessment the candidate reviewed; contact details are not evidence.
+    result = match_profiles(chat.profile, job.target_profile, job.id, job.title)
     result["criteria_version"] = job.criteria_version
     result["requirements"] = deepcopy(normalize_target_profile(job.target_profile))
     profile_snapshot = {
-        **candidate_profile,
+        **evidence_profile(chat.profile),
         "candidate_details": {
             "name": candidate_name,
             "location": candidate_location,

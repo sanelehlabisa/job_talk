@@ -16,7 +16,7 @@ function Assert-DiscoveryCards {
   });
   if (document.querySelector('.discovery-empty, .profile-chips, .discovery-sidebar .score, .discovery-sidebar .criteria-row')) throw new Error('Discovery intro/chips/percentages remain');
   if (reply.includes('as they become available') || reply.includes('Where are you based')) throw new Error('Generic or repeated discovery reply');
-  return items.map(item=>({id:item.job.id,title:item.job.title,score:item.match_score,example:item.available_example}));
+  return items.map(item=>({id:item.job.id,title:item.job.title,score:item.match_score,source:item.rating_source,example:item.available_example}));
 })()
 '@
 }

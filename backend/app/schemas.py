@@ -127,11 +127,13 @@ class CriterionScoreOut(BaseModel):
     evidence: str
     reason: str
     gap: Literal["reported", "missing"] | None = None
+    rating_source: Literal["gemini", "rules"] = "rules"
 
 
 class RecommendationOut(BaseModel):
     job: JobOut
     match_score: float
+    rating_source: Literal["gemini", "rules"] = "rules"
     recommended: bool
     explanation: str
     criteria: dict[str, CriterionScoreOut]

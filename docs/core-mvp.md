@@ -250,7 +250,8 @@ are never read. `application_fields` in the private chat response derives the
 summary from the same job criteria and saved profile used for scoring.
 
 Candidate model responses propose typed values, states, evidence and source
-quotes. They cannot return jobs or modify criteria, weights or scores. Validation
+quotes. Extraction cannot return jobs or modify criteria or weights; a separate
+bounded Gemini batch rates only validated saved answers. Validation
 limits updates to actual criterion keys after selection and prevents an older
 statement from overwriting a later saved correction. If polished wording adds
 unsupported terms, the source wording is retained. The deterministic fallback
@@ -270,7 +271,17 @@ Submission contact review preserves a separately captured job-location answer.
 
 ## Matching and comparison
 
-- Deterministic backend code compares candidate values with criterion targets.
+- With Gemini configured, a single bounded rating request compares validated
+  candidate answers with all relevant published job criteria, using the complete
+  authorized chat to interpret context. It returns 0–100 per criterion and a short
+  reason. The backend rejects invalid keys, scores and evidence references.
+- Missing/unclear application answers, cleared fields and explicit gaps score zero.
+  No model call is made on refresh: ratings are stored in existing chat JSON and
+  tied to the exact evidence and criteria. Changes invalidate the old ratings.
+  Submission freezes the score the candidate reviewed; contact details do not add
+  evidence. All recruiter cards and plot axes use that same saved assessment.
+- Gemini failures, limits and mock/OpenAI modes use the existing rule estimate.
+  Both sides label the estimate source; scores remain unverified claims for human review.
 - The overall score is the weighted mean of criterion scores.
 - Recommendations include at most five jobs above the minimum useful threshold.
 - A recruiter sees at most five leading candidates with contact details, score,
@@ -346,7 +357,7 @@ corrections, unrelated answers, explicit gaps, and persisted state on desktop an
 phone. Record actual LLM behavior separately from mocked/fallback tests, including
 when live calls were not run or silently fell back. Use fictional test data.
 The existing provider and guided fallback stay within `services/ai.py`; the backend
-owns validation, weights, publication readiness, and deterministic scores.
+owns validation, weights, publication readiness, and weighted score totals.
 
 The [manual checklist](usability-checklist.md) is the user's acceptance gate.
 Automated success does not mark the app usable or resume deployment. Deployment

@@ -26,7 +26,7 @@ scrapers, template management, or deployment work.
 
 The user approved merging the completed history through JT-071 (`fae157a`)
 into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
-Current user priority: **JT-074**, useful discovery replies and simple numbered job suggestions.
+Current user priority: **JT-075**, Gemini ratings of candidate evidence against job criteria.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -53,6 +53,39 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-075 - Simple Gemini criterion ratings
+
+- [x] Ask Gemini for 0–100 per published criterion and a short reason, using
+  validated candidate answers and the complete authorized chat. Score discovery
+  jobs together; selected applications use their job's confirmed requirements.
+- [x] Keep keys, evidence validation, weights and totals on the backend. Missing,
+  unclear or cleared application answers and explicit gaps cannot gain points.
+- [x] Save ratings in existing chat JSON; reuse on refresh and invalidate on
+  evidence/requirement changes. Freeze the reviewed assessment on submission.
+  Preserve scoped tokens and ownership; add no infrastructure or migrations.
+- [x] Label AI estimates and rule fallback; bound calls and fail safely if Gemini
+  is unavailable. Keep the existing form, candidate cards and comparison plot.
+- [x] Check meaningful versus unrelated answers, semantic wording, corrections,
+  gaps, malformed ratings, fallback and snapshot consistency. Report actual
+  Gemini checks separately from mocked tests.
+
+**Status:** Implemented on `feat/simple-seeker-form` (2026-10-04). User explicitly
+requested Gemini criterion scoring instead of the previous deterministic-only
+contract. Backend still owns the weighted total. Isolated SQLite checks passed
+across runs (152 unique checks; the legacy response-shape/contact assertions were
+updated, with the affected tests rerun). Checks cover malformed scores, invented
+keys/evidence, quota/budget/input bounds, corrections, gaps, cache isolation and
+submission consistency. Frontend build passed. Actual Gemini distinguished
+relevant customer-service evidence (100) from unrelated replacement work (0),
+accepted relocation and retained a skill gap at zero. Live schema rejection was
+fixed by simplifying only the provider schema; Python validation stays strict.
+Browser checks verified Gemini discovery, saved scores/source labels, direct
+edits, chat, gaps, clearing, reload, phone layout and submission. An unrelated
+trade discovered during testing led to a tighter work-connection check. Ratings
+are estimates, not verified ability. Existing jobs/data were preserved; temporary
+guests were deleted and the fictional test job closed. Deployment and master
+merge remain pending; JT-060 manual usability acceptance is unchanged.
 
 ### JT-074 - Useful discovery replies and numbered possible roles
 

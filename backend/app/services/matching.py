@@ -3,6 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import JobPost
 from .criteria import normalize_target_profile
+from .ratings import evidence_profile, saved_rating
 
 
 MIN_RECOMMENDATION_SCORE = 0.5
@@ -101,11 +102,12 @@ def _candidate_value(key: str, requirement: dict, candidate_item: dict):
 
 
 def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tuple[float, str]:
+    candidate_profile = evidence_profile(candidate_profile)
     candidate_item = candidate_profile.get(key, {})
     evidence = candidate_item.get("evidence", "")
     requirement_text = requirement.get("description", "")
 
-    if candidate_item.get("state") == "needs_clarification":
+    if candidate_item.get("state") in {"needs_clarification", "unanswered"}:
         return 0.0, "This answer needs clarification before it can be compared."
 
     if candidate_item.get("assessment") == "gap":
@@ -188,16 +190,22 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
     return score, "The conversation does not yet contain direct evidence for this criterion."
 
 
-def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
+def match_profiles(candidate_profile: dict, target_profile: dict, job_id: int | None = None, title: str | None = None) -> dict:
     criteria = {}
+    rating = saved_rating(candidate_profile, target_profile, job_id, title)
     weighted_total = Decimal("0")
     total_weight = Decimal("0")
     for key, requirement in normalize_target_profile(target_profile).items():
         weight = Decimal(str(requirement.get("weight", 0.5)))
         score, reason = criterion_score(key, requirement, candidate_profile)
+        if rating:
+            assessed = rating["criteria"][key]
+            score, reason = assessed["score"] / 100, assessed["reason"]
         rounded_score = Decimal(str(score)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         candidate_item = candidate_profile.get(key, {})
         evidence = candidate_item.get("evidence", "")
+        if rating and not evidence:
+            evidence = " ".join(candidate_profile[k]["evidence"] for k in rating["criteria"][key]["evidence_keys"])
         gap = (
             "reported"
             if candidate_item.get("assessment") == "gap"
@@ -216,6 +224,7 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
             "evidence": evidence,
             "reason": reason,
             "gap": gap,
+            "rating_source": "gemini" if rating else "rules",
         }
         weighted_total += rounded_score * weight
         total_weight += weight
@@ -223,11 +232,12 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
         (weighted_total / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if total_weight else Decimal("0")
     )
-    return {"criteria": criteria, "overall_score": float(overall)}
+    return {"criteria": criteria, "overall_score": float(overall), "rating_source": "gemini" if rating else "rules",
+            **({"rating_model": rating["model"]} if rating else {})}
 
 
 def rank_jobs(candidate_profile: dict, jobs: list[JobPost], limit: int | None = 5) -> list[tuple[JobPost, dict]]:
-    ranked = [(job, match_profiles(candidate_profile, job.target_profile)) for job in jobs]
+    ranked = [(job, match_profiles(candidate_profile, job.target_profile, job.id, job.title)) for job in jobs]
     return sorted(ranked, key=lambda item: item[1]["overall_score"], reverse=True)[:limit]
 
 

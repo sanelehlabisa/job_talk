@@ -242,7 +242,7 @@ def test_end_to_end_employer_to_application():
         assert submitted["match_result"]["overall_score"] > 0.5
         assert submitted["candidate_profile"]["python"]["criterion_key"] == "python"
         assert submitted["candidate_profile"]["python"]["value"] == 3
-        assert submitted["candidate_profile"]["location"]["value"] == "Cape Town"
+        assert "location" not in submitted["candidate_profile"]  # Contact review does not add assessment evidence.
         python_match = submitted["match_result"]["criteria"]["python"]
         assert python_match["candidate_value"] == 3
         assert python_match["target_value"] == 1
@@ -831,6 +831,7 @@ def test_typed_number_criterion_scores_candidate_value_against_target():
         "evidence": "The candidate reported two years of plumbing experience.",
         "reason": "The candidate reports 2 years against a target of 4 years.",
         "gap": None,
+        "rating_source": "rules",
     }
     assert result["overall_score"] == 0.5
     assert is_recommended(result) is True

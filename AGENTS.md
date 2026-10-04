@@ -20,7 +20,7 @@ Build one narrow loop before deployment or secondary features:
 
 Every feature must help this loop. The shared job criteria are the product
 contract: the recruiter defines them, the candidate supplies evidence against
-them, deterministic backend code scores them, and the recruiter compares the
+them, Gemini rates each criterion and backend code validates and totals the ratings, and the recruiter compares the
 results. See `docs/core-mvp.md` for the canonical shapes and acceptance flow.
 
 Each job criterion must have a stable `key`, visible `label`, `type`, measurable
@@ -107,8 +107,11 @@ The primary experiment must support this sequence:
 - Recruiter updates may recover unanswered fields from earlier user quotes.
   Preserve later corrections and keep source quotes verbatim when polishing text.
 - Let AI interpret, clarify, and polish user statements into the shared criteria
-  contract. The backend validates saved fields and owns weights, readiness, and
-  every match score.
+  contract. Gemini may rate candidate evidence against each confirmed criterion
+  from 0 to 100 with a short reason. The backend validates ratings and owns weights,
+  readiness and the weighted total. Missing/unclear application answers and explicit
+  gaps score zero. Cache ratings against the exact evidence and requirements;
+  freeze them on submission. Label unavailable-model fallback as a rule estimate.
 - Ask only about an important missing or unclear criterion. Use previously saved
   answers and do not repeat a resolved question.
 - Keep mock replies deterministic so local and automated tests are repeatable.

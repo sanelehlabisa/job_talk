@@ -186,7 +186,7 @@ See [privacy and access details](docs/privacy-and-safety.md).
   shows an editable label/value, and clarifications update the existing key.
 - Candidate conversations collect job-specific examples. **Your application**
   shows the confirmed requirements as input hints and one editable answer per
-  field; direct edits save immediately without an AI call.
+  field; direct edits keep the typed answer and refresh its assessment.
 - A failed message request leaves the exact typed text in the composer so the
   recruiter or candidate can retry without rewriting it.
 - Up to two published job suggestions during discovery; recruiter comparisons
@@ -200,7 +200,8 @@ See [privacy and access details](docs/privacy-and-safety.md).
 - The model proposes evidence with source quotes from the current conversation.
   Backend checks reject unsupported fields/types/quantities and fall back to the
   quoted wording when a polished sentence adds new terms. Unclear measurable
-  answers receive no score until clarified; weights and scoring remain backend-owned.
+  answers receive no score until clarified. Gemini rates criterion fit; the backend
+  validates ratings, owns weights and calculates the weighted total.
 - Candidates can leave one scoped guest application, browse available jobs, and
   start a separate private conversation for another role.
 - Recruiters can compare submitted candidates in one consistent evidence view,
@@ -604,10 +605,34 @@ cards remain the readable source for each score and gap. The overall `match_scor
 is the weighted mean: `sum(score * weight) / sum(weight)`, rounded to two decimals
 using half-up rounding, or 0 when there are no criteria.
 
+With `AI_PROVIDER=gemini`, Gemini rates each criterion from 0–100 with a short
+reason, after evidence has been validated. The backend checks ranges, criterion
+keys and supporting answer references, converts to 0–1 and applies its weights.
+Discovery rates all published open jobs in one bounded batch. A selected application
+uses only that job's criteria. Ratings are stored in the existing chat JSON and
+reused on refresh; changing answers or requirements invalidates them. Submission
+freezes the reviewed ratings for recruiter cards and the plot.
+
+The UI labels **AI estimate** versus **Rule-based estimate**. If Gemini is unavailable,
+over its call/output/input limit, or returns invalid data, saved answers still work
+and scoring falls back to the existing rules. No new service or database migration
+is required. Scoring adds at most one batch call after each changed answer, including
+form edits; no call per criterion and no calls on page refresh or submission.
+
+For a small actual-model check with fictional data and no database access:
+
+```powershell
+docker compose -f dev.docker-compose.yaml exec -T -e PYTHONPATH=/app backend python /app/scripts/check_live_ratings.py
+```
+
+The rating request uses [Gemini structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output).
+Its small schema describes the response; strict bounds and evidence checks also
+run in Python before anything is saved.
+
 Candidate statements remain unverified. An explicit denial or correction is
 stored as a reported gap and scores zero for that criterion. A vague answer does
-not fill the requested criterion, and a general skill claim scores below a
-concrete work example. The backend owns these decisions; provider wording cannot
+not fill the requested criterion. Gemini compares the meaning of the evidence
+with the requirement; detailed but unrelated answers should score low. Provider wording cannot
 turn a missing criterion or reported gap into a positive match.
 
 Recruiter conversation navigation uses each role title and its current state
@@ -688,8 +713,10 @@ unanswered fields. If an older draft missed details, continue the same chat with
 verified this recovery with the misspelled Durban graduate-electronics example;
 hours, start availability and any tools still need answers if never specified.
 
-Each request has input, output, and timeout bounds, and each chat can make at most
-12 provider calls. Invalid, unavailable, limited, or over-budget provider responses
+Each request has input, output, and timeout bounds. Evidence generation is limited
+to the first 12 chat turns; Gemini scoring has a separate maximum of 12 batch calls
+per chat (including direct form edits). Unchanged evidence reuses saved ratings.
+Invalid, unavailable, limited, or over-budget provider responses
 use the current guided question and deterministic extraction, so job creation stays
 available while a real provider is selected. Guided extraction remains limited
 and is not evidence of successful LLM understanding. The backend logs the HTTP status and safe
@@ -698,7 +725,7 @@ provider error code without logging the API key or response data.
 ## Current limits and next steps
 
 The app uses text chat with a configured LLM (Gemini in local testing), a limited
-guided fallback, and deterministic backend scores. It does not verify candidate
+guided fallback, and Gemini criterion ratings with backend weighted totals. It does not verify candidate
 skills or automate employer identity checks.
 Submitted application data is visible to the candidate guest session, the recruiter
 that owns the relevant job, and the configured approved Job Talk operator, as

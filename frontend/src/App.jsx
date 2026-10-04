@@ -551,7 +551,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
               <div className="candidate-card-head">
                 <div className="candidate-rank">{status === "closed" && !application.earlier_requirements ? `#${previousRank}` : <UserRound size={17} />}</div>
                 <div><h3>{details.name || "Candidate"}</h3><a href={contactHref}>{contact}</a></div>
-                <div className="score"><strong>{score}%</strong><span>{application.earlier_requirements ? "original match" : "match"}</span></div>
+                <div className="score"><strong>{score}%</strong><span>{application.earlier_requirements ? "original match" : application.match_result?.rating_source === "gemini" ? "AI estimate" : "rule estimate"}</span></div>
               </div>
               {application.earlier_requirements && <p className="earlier-requirements">Earlier requirements · Submitted before the job criteria changed.</p>}
               <p className="candidate-summary"><strong>Quick summary</strong>{candidateCardSummary(criteria, details.location)}</p>
@@ -597,6 +597,9 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
   const applicationScore = submitted
     ? applications.find((item) => item.candidate_chat_id === chat?.id)?.match_result?.overall_score
     : recommendations.find((item) => item.job.id === chat?.target_job_id)?.match_score;
+  const ratingSource = submitted
+    ? applications.find((item) => item.candidate_chat_id === chat?.id)?.match_result?.rating_source
+    : recommendations.find((item) => item.job.id === chat?.target_job_id)?.rating_source;
   const statusLabel = submitted ? "Application submitted" : chat?.status === "published" ? "Published" : chat?.status === "closed" ? "Closed" : chat?.status === "draft" ? "Draft" : "Live profile";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, recommendations]);
@@ -694,7 +697,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
         </div>
       </div>
       {chat.job_draft && <aside className="draft-sidebar" aria-label="Who you're looking for"><JobDraftSummary draft={chat.job_draft} busy={sending} onChange={changeDraft} onEditingChange={setEditingDraft} /></aside>}
-      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary key={chat.id} fields={chat.application_fields || []} job={chat.target_job} profile={chat.profile} matchScore={applicationScore} submitted={submitted} closed={chat.status === "closed"} busy={sending} onChange={changeAnswer} onEditingChange={setEditingDraft} onSubmit={apply}>
+      {chat.target_job && <aside className="draft-sidebar" aria-label="Your application"><ApplicationSummary key={chat.id} fields={chat.application_fields || []} job={chat.target_job} profile={chat.profile} matchScore={applicationScore} ratingSource={ratingSource} submitted={submitted} closed={chat.status === "closed"} busy={sending} onChange={changeAnswer} onEditingChange={setEditingDraft} onSubmit={apply}>
         {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
       </ApplicationSummary></aside>}
       {chat.intent === "candidate" && !chat.target_job_id && <aside className="draft-sidebar discovery-sidebar" aria-label="Job suggestions">
