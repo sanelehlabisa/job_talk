@@ -86,11 +86,11 @@ class ChatErrorBoundary extends Component {
   }
 }
 
-function ErrorNotice({ message, onRetry, onDismiss }) {
+function ErrorNotice({ message, onRetry, onDismiss, retryLabel = "Reload view" }) {
   return (
     <aside className="error-notice" role="alert" aria-live="assertive">
       <div><strong>Job Talk needs attention</strong><p>{message}</p></div>
-      <button type="button" className="error-retry" onClick={onRetry}>Reload view</button>
+      <button type="button" className="error-retry" onClick={onRetry}>{retryLabel}</button>
       <button type="button" className="error-dismiss" aria-label="Dismiss error" onClick={onDismiss}>×</button>
     </aside>
   );
@@ -736,6 +736,7 @@ function JobTalkApp() {
   const [creatingChat, setCreatingChat] = useState(false);
   const user = session?.user;
   const activeChatId = useRef(chat?.id);
+  const logoutRetry = useRef(null);
 
   useEffect(() => { activeChatId.current = chat?.id; }, [chat?.id]);
 
@@ -902,7 +903,17 @@ function JobTalkApp() {
   }
 
   async function endSession(showJobs = false) {
-    try { await api.logout(); } catch { /* Clear the browser session even when it already expired. */ }
+    try { await api.logout(); }
+    catch (err) {
+      if (err.status !== 401) {
+        logoutRetry.current = () => endSession(showJobs);
+        setError("Sign out could not finish. Check your connection and try again.");
+        return;
+      }
+      // An expired or already revoked token can safely be removed locally.
+    }
+    logoutRetry.current = null;
+    setError("");
     if (showJobs) window.history.replaceState({}, "", window.location.pathname);
     sessionStorage.removeItem(SESSION_KEY);
     setShowJobsOnEntry(showJobs);
@@ -925,7 +936,7 @@ function JobTalkApp() {
     <main className="app-layout">
       <Sidebar user={user} chats={chats} activeId={chat?.id} onSelect={loadChat} onNew={newChat} onBrowseJobs={() => endSession(true)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={() => endSession(false)} />
       {sidebarOpen && <button className="backdrop" type="button" aria-label="Close conversation menu" onClick={() => setSidebarOpen(false)} />}
-      {error && <ErrorNotice message={error} onRetry={recoverView} onDismiss={() => setError("")} />}
+      {error && <ErrorNotice message={error} onRetry={error.startsWith("Sign out could not finish.") ? logoutRetry.current : recoverView} retryLabel={error.startsWith("Sign out could not finish.") ? "Retry sign out" : "Reload view"} onDismiss={() => setError("")} />}
       {templateChoices ? <JobTemplatePicker templates={templateChoices} busy={creatingChat} onSelect={createFromTemplate} isAdmin={user.is_admin} onCancel={() => setTemplateChoices(null)} /> : chat ? (
         <ChatErrorBoundary key={chat.id} onRecover={() => loadChat(chat.id)}>
           <ChatView key={chat.id} chat={chat} recommendations={recommendations} applications={applications} isAdmin={user.is_admin} onSend={send} onDraftChange={changeDraft} onAnswerChange={changeAnswer} onPublish={publish} onCloseJob={closeJob} onApply={apply} onSelectJob={selectJob} onReload={() => loadChat(chat.id)} onMenu={() => setSidebarOpen(true)} onDeleteAccount={deleteCandidateAccount} />

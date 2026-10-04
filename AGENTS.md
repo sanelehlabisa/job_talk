@@ -128,6 +128,9 @@ The primary experiment must support this sequence:
   HTTPS reverse proxy may publish host ports.
 - Enforce recruiter authentication and ownership. Scope every guest candidate
   request to one unguessable, expiring application token.
+- Check recruiter approval on every private request. Logout must revoke the
+  presented server session; failed logout must remain visible and retryable.
+  Redeem email login codes atomically so concurrent requests cannot reuse them.
 - Recruiter authentication uses emailed, short-lived, single-use codes after
   manual approval. Do not add passwords, Keycloak, open recruiter registration,
   or a production authentication bypass.

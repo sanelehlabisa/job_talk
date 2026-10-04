@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sqlalchemy import func, select, text, update
+from sqlalchemy import case, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -379,14 +379,29 @@ def verify_recruiter_code(
             )
         )
         if not valid:
-            code_record.attempt_count += 1
-            if code_record.attempt_count >= settings.recruiter_code_max_attempts:
-                code_record.consumed_at = now
+            # Count concurrent wrong guesses atomically; never lose an attempt.
+            attempts = models.RecruiterLoginCode.attempt_count + 1
+            db.execute(update(models.RecruiterLoginCode).where(
+                models.RecruiterLoginCode.id == code_record.id,
+                models.RecruiterLoginCode.consumed_at.is_(None),
+            ).values(attempt_count=attempts, consumed_at=case(
+                (attempts >= settings.recruiter_code_max_attempts, now), else_=None,
+            )).execution_options(synchronize_session=False))
             db.commit()
 
     if not valid:
         raise HTTPException(status_code=401, detail="Invalid or expired sign-in code")
-    code_record.consumed_at = now
+    # Two valid requests can read the same code. Only one may claim it and
+    # create a session; consumption and session creation share one transaction.
+    claimed = db.execute(update(models.RecruiterLoginCode).where(
+        models.RecruiterLoginCode.id == code_record.id,
+        models.RecruiterLoginCode.consumed_at.is_(None),
+        models.RecruiterLoginCode.expires_at > now,
+        models.RecruiterLoginCode.attempt_count < settings.recruiter_code_max_attempts,
+    ).values(consumed_at=now).execution_options(synchronize_session=False))
+    if claimed.rowcount != 1:
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Invalid or expired sign-in code")
     return issue_session(db, user)
 
 

@@ -37,7 +37,9 @@ async function request(path, options = {}) {
       sessionStorage.removeItem(SESSION_KEY);
       window.dispatchEvent(new Event("job-talk:unauthorized"));
     }
-    throw new Error(body.detail || "Something went wrong");
+    const error = new Error(body.detail || "Something went wrong");
+    error.status = response.status;
+    throw error;
   }
   return response.status === 204 ? null : response.json();
 }

@@ -8,7 +8,8 @@ param(
     [switch]$DraftEditorOnly,
     [switch]$LiveEditingOnly,
     [switch]$SeekerFormOnly,
-    [switch]$DiscoveryOnly
+    [switch]$DiscoveryOnly,
+    [switch]$LogoutOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -151,6 +152,11 @@ try {
     if (-not $code) { throw "Recruiter sign-in code was not delivered" }
     Set-InputAndSubmit "#code" $code
     Wait-JavaScript "document.querySelector('.new-chat') !== null" "recruiter workspace"
+
+    if ($LogoutOnly) {
+        . "$PSScriptRoot/logout-check.ps1"
+        return
+    }
 
     if ($AdminOnly) {
         . "$PSScriptRoot/admin-workspace-check.ps1"

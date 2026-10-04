@@ -12,7 +12,13 @@ still reaches the backend through HTTPS and enforces application authentication.
 
 Private routes require an expiring `Authorization: Bearer <token>` session.
 The backend stores a token hash, rejects unknown/expired tokens, and revokes the
-session on logout. A login code is short-lived and single-use, not an API token.
+session immediately on successful logout. Tokens otherwise expire after the
+configured `AUTH_SESSION_HOURS` (24 by default). Other active sessions are separate.
+If the logout request fails, the UI keeps the session and asks the user to retry;
+an already expired/revoked token is safely cleared locally. A login code is
+short-lived and single-use, not an API token. Code consumption and new session
+creation share one transaction; simultaneous requests cannot redeem it twice,
+and wrong guesses increment the attempt count atomically.
 Approved recruiters access their own hiring chats/jobs and submitted applicants;
 the approved configured admin can manage all hiring chats and applications.
 Guest sessions access only their own candidate chat and application. Recruiter
@@ -23,11 +29,21 @@ anonymous visit counting are intentionally public endpoints. They do not list
 candidate chats or contact details. The staging HTTP Basic password applies to
 the webpage; API authorization remains the backend's responsibility.
 
-**Verified 2026-10-03:** 22 focused isolated tests passed for session expiry,
-approval, login codes, recruiter ownership, guest isolation and admin access.
+**Verified 2026-10-04 (JT-076):** Every private route was exercised with missing,
+forged, expired and logged-out tokens and returned 401. Approval revocation,
+guest posting rejection, ownership, concurrent code redemption and wrong guesses
+passed in disposable SQLite. The frontend build and real local email-code login
+plus browser offline logout, retry and token replay passed. These checks are part
+of 84 focused checks passing across runs, including production settings.
 JT-070 also checked anonymous rejection and valid Bearer access through the
 production proxy locally. This is scoped engineering verification; the live VM
 configuration and real-domain access still need testing before inviting users.
+
+Repeat the browser logout check locally with an approved test recruiter:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -LogoutOnly -RecruiterEmail recruiter@example.com
+```
 
 ## Operator application review
 

@@ -32,9 +32,10 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. JT-069 added editing after publication and
-immediate seeker job examples; all 118 backend tests and the focused browser
-checks passed. JT-070 prepared `prod.docker-compose.yaml` and verified Nginx/HTTPS
+The core hiring loop works locally. Completed work through JT-075 is merged into
+the default branch, `master`, including the editable candidate form, discovery
+and Gemini ratings. JT-076 reviews token access, recruiter approval and logout.
+JT-070 prepared `prod.docker-compose.yaml` and verified Nginx/HTTPS
 in an isolated local stack. Production preparation is authorized; VM deployment
 and the user's final usability sign-off are still pending.
 
@@ -59,6 +60,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   exploratory cutoff plus a work-related connection shows possible roles earlier.
   Scores refresh after every message but percentages appear only after selecting
   a job. The introductory guidance appears once, and raw profile chips are hidden.
+- JT-075 uses Gemini for criterion ratings and short reasons, with backend
+  validation, weights and totals. Saved ratings persist through submission.
+- JT-076 checks every private API route against unusable tokens, preserves
+  approval/ownership checks, makes email codes atomic and verifies logout/retry.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. JT-065 uses the same recruiter workspace for admin, with
   all job-creation chats, owner labels and editing controls. Ordinary recruiters
@@ -102,9 +107,9 @@ verified for a public launch**. Before inviting candidates:
   A local `.env.production` has not been created in this workspace.
 - Issue the real certificate, run the renewal dry-run, verify backups and test
   email-code login plus create/apply/compare on the live domain.
-- Complete the [manual usability check](docs/usability-checklist.md). The user
-  approved and merged work through JT-071 into `master` (`3b9e265`). JT-072's
-  editable seeker form is on `feat/simple-seeker-form`, awaiting merge approval.
+- Complete the [manual usability check](docs/usability-checklist.md) on the live
+  domain before inviting users. The default branch is named `master`; the user
+  approved merging the completed work and this access review on 2026-10-04.
 
 The [production guide](docs/production-operations.md) contains the commands.
 
@@ -113,16 +118,29 @@ The [production guide](docs/production-operations.md) contains the commands.
 | Information or action | Server-side protection |
 | --- | --- |
 | Chats, messages, drafts and job edits | Expiring Bearer token plus chat/job ownership; approved admin can manage hiring chats. |
+| Create or publish a job | Manually approved recruiter, checked on every request; candidates and pending/rejected recruiters cannot post. |
 | Submitted applications and contact details | The candidate's own session, the owning approved recruiter, or the configured approved admin. |
 | Admin-only vacancy-interest totals | Approved recruiter matching backend `ADMIN_EMAIL`, checked on each request. |
 | Public listings, guest entry, code sign-in and health checks | Intentionally public; they do not expose candidate chats or applications. |
 
-Tokens are random, stored as hashes on the backend, checked for expiry, and
-revoked on logout. Email codes are short-lived and single-use; the code itself
+Tokens are random, stored as hashes on the backend, checked for expiry (24 hours
+by default, configured with `AUTH_SESSION_HOURS`), and revoked immediately after
+a successful logout. Only that browser session is revoked; other signed-in
+sessions stay active. If logout cannot reach the server, the UI shows a retry
+message instead of pretending the session was revoked. Email codes are short-lived
+and single-use even under simultaneous verification requests; the code itself
 cannot authorize API calls. Nginx is the only production service with host ports,
 and requests to private API routes still require app authentication through it.
 The staging webpage password is an extra webpage gate, not the API's data guard.
 See [privacy and access details](docs/privacy-and-safety.md).
+
+**Checked 2026-10-04:** 84 focused backend checks passed across isolated SQLite
+runs after fixing the atomic update's SQLite timezone handling and a test email
+fixture. These include every private route's missing/forged/expired/logged-out
+token rejection, recruiter approval, ownership, concurrent code attempts and
+production settings. Frontend build and actual local email-code login plus
+browser logout failure/retry/replay passed. Production Compose validation confirms
+only Nginx publishes 80/443. No VPS environment or public TLS/SMTP was verified.
 
 ## Existing implementation
 

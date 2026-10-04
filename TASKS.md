@@ -57,16 +57,30 @@ JT-060 usability sign-off remain open; deployment stays paused.
 
 ### JT-076 - Verify access controls before VPS setup
 
-- [ ] Check every private API route rejects missing/invalid/expired/revoked tokens.
-- [ ] Keep creation, editing and publishing limited to approved recruiters and
+- [x] Check every private API route rejects missing/invalid/expired/revoked tokens.
+- [x] Keep creation, editing and publishing limited to approved recruiters and
   their own jobs (with existing approved admin access).
-- [ ] Verify logout revokes the server session and the browser handles failure
+- [x] Verify logout revokes the server session and the browser handles failure
   honestly; email sign-in codes remain single-use under concurrent requests.
-- [ ] Record current VPS prerequisites and remaining live checks. No VPS changes
+- [x] Record current VPS prerequisites and remaining live checks. No VPS changes
   or public launch are authorized by this readiness review.
 
-**Status:** In progress. Completed work through JT-075 is approved for merge.
-Deployment and JT-060 usability acceptance still require the user's decision.
+**Status:** Implemented (2026-10-04). The user's request to commit and merge
+everything into the default branch covers JT-075 and this access review. The
+default is `master`; all historical feature branches were already ancestors of
+the completed feature history. JT-075 was fast-forwarded and pushed at `4efcdbb`.
+Private routes already used opaque bearer sessions and ownership checks; approved
+recruiter status is rechecked on every authenticated request. Logout already
+deleted the server session; the browser now reports failed revocation rather
+than silently clearing a still-valid token. Email code redemption and failed
+attempt counting now use atomic database updates. Eighty-four focused backend
+checks passed across isolated SQLite runs after correcting timezone synchronization
+and a test email fixture; frontend build and local Mailpit/browser logout checks
+passed. Example-only production Compose validation confirmed Nginx-only 80/443,
+private backend/database networks and no other host ports. `.env.production` is
+absent locally. Real VPS DNS/TLS, SMTP, secrets, backup and the live hiring loop
+remain unverified. Ready for a controlled VM setup after those prerequisites;
+public launch and JT-060 acceptance are still pending.
 
 ### JT-075 - Simple Gemini criterion ratings
 
