@@ -3,7 +3,7 @@ Invoke-JavaScript "document.querySelector('.new-chat').click(); true" | Out-Null
 Wait-JavaScript "document.querySelectorAll('.template-choice').length === 3" 'template picker'
 Invoke-JavaScript "document.querySelector('[data-template-id=generic-role]').click(); true" | Out-Null
 Wait-JavaScript "document.querySelector('.draft-sidebar [data-field-state=unanswered]') !== null" 'blank draft'
-Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Job title: Simple Form Check Engineer; Role description: Design and test PCB circuits; Work arrangement: on-site; Location: Durban; Skills: circuit design is required; No experience required; No degree needed. Working hours: 40 hours a week preferred. Applications close on 30 November 2026.'
+Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Company name: Example Circuits; Company location: Durban; Job title: Simple Form Check Engineer; Role description: Design and test PCB circuits; Work arrangement: on-site; Location: Durban; Skills: circuit design is required; No experience required; No degree needed. Working hours: 40 hours a week preferred. Applications close on 30 November 2026.'
 Wait-JavaScript "document.querySelector('[data-field-key=job_title] input[name=value]')?.value.includes('Simple Form Check Engineer') && !document.querySelector('.typing')" 'captured role' 45
 if (-not (Invoke-JavaScript "document.querySelector('[data-field-key=closing_date] input[name=value]')?.value === '2026-11-30'")) { throw 'Chat closing date was not captured' }
 if (Invoke-JavaScript "document.querySelector('.draft-sidebar .draft-state, .draft-sidebar select, .draft-sidebar textarea') !== null") { throw 'Extra field controls remain' }

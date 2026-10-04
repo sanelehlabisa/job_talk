@@ -1,4 +1,6 @@
 import re
+import math
+from copy import deepcopy
 from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import JobPost
@@ -190,6 +192,34 @@ def criterion_score(key: str, requirement: dict, candidate_profile: dict) -> tup
     return score, "The conversation does not yet contain direct evidence for this criterion."
 
 
+def with_comparison_scores(result: dict, *, update_overall: bool = False) -> dict:
+    """Compare excess numeric evidence without rewriting frozen match percentages.
+
+    Only fully met, grounded numeric criteria earn excess credit. A model rating
+    for unrelated/partial evidence cannot become a bonus just because of years.
+    """
+    result = deepcopy(result)
+    total = Decimal('0')
+    weights = Decimal('0')
+    for field in result.get('criteria', {}).values():
+        score = Decimal(str(field.get('score', 0)))
+        value, target = field.get('candidate_value'), field.get('target_value')
+        numeric = all(isinstance(n, (int, float)) and not isinstance(n, bool)
+                      and math.isfinite(n) for n in (value, target))
+        if (field.get('type') == 'number' and numeric and target > 0 and value > target
+                and score == 1 and field.get('evidence') and not field.get('gap')):
+            score = Decimal(str(value)) / Decimal(str(target))
+        field['comparison_score'] = float(score)
+        weight = Decimal(str(field.get('weight', 0)))
+        total += score * weight
+        weights += weight
+    ranking = total / weights if weights else Decimal('0')
+    result['ranking_score'] = float(ranking)
+    if update_overall:
+        result['overall_score'] = float(min(Decimal('1'), ranking).quantize(Decimal('.01'), rounding=ROUND_HALF_UP))
+    return result
+
+
 def match_profiles(candidate_profile: dict, target_profile: dict, job_id: int | None = None, title: str | None = None) -> dict:
     criteria = {}
     rating = saved_rating(candidate_profile, target_profile, job_id, title)
@@ -232,13 +262,13 @@ def match_profiles(candidate_profile: dict, target_profile: dict, job_id: int | 
         (weighted_total / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if total_weight else Decimal("0")
     )
-    return {"criteria": criteria, "overall_score": float(overall), "rating_source": "gemini" if rating else "rules",
-            **({"rating_model": rating["model"]} if rating else {})}
+    return with_comparison_scores({"criteria": criteria, "overall_score": float(overall), "rating_source": "gemini" if rating else "rules",
+            **({"rating_model": rating["model"]} if rating else {})}, update_overall=True)
 
 
 def rank_jobs(candidate_profile: dict, jobs: list[JobPost], limit: int | None = 5) -> list[tuple[JobPost, dict]]:
     ranked = [(job, match_profiles(candidate_profile, job.target_profile, job.id, job.title)) for job in jobs]
-    return sorted(ranked, key=lambda item: item[1]["overall_score"], reverse=True)[:limit]
+    return sorted(ranked, key=lambda item: item[1]["ranking_score"], reverse=True)[:limit]
 
 
 def discovery_overlap(profile: dict, job: JobPost) -> list[str]:

@@ -61,6 +61,31 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+### JT-082 - Company details, experience ranking and small UI polish
+
+- [x] Enlarge the Job Talk mark, capitalize the name, and link the Roventics
+  footer image to its website with a pointer cursor.
+- [x] Ask for company name/base when creating a job; save and show them as job
+  information, never assessment criteria. Publish edits explicitly.
+- [x] Plot fully met numeric criteria above the ideal when evidence exceeds the
+  target. Sort candidates using the uncapped weighted score, keep the displayed
+  overall score at most 100%, and number the ranked candidate cards.
+- [x] Verify scoring, publication, saved applications and frontend build/browser
+  behavior. Preserve existing local data and record actual LLM checks separately.
+
+**Status:** Complete on `feat/company-ranking-polish` (2026-10-04), awaiting merge
+approval. Disposable SQLite checks passed for company publication/context,
+uncapped ranking, draft editing, live edits, closing dates, AI ratings and the
+existing flow. Older assertions were updated for company questions and the new
+comparison values; their focused reruns passed. Frontend production build passed.
+The local browser verified the 48px logo, capitalized name, footer link/pointer,
+approved admin login, #1–#5 cards and saved experience plotted at 150%. Existing
+five jobs and five developer applications were preserved, including their scores.
+Actual Gemini separately captured Example Circuits based in Durban with a Cape
+Town work location from one paragraph; this made no database changes. Older jobs
+without company details remain readable without fabricated employer information.
+See the short JT-082 manual checklist; JT-060 user acceptance remains pending.
+
 ### JT-081 - Use the supplied JobTalk logo
 
 - [x] Rename the supplied PNG to `jobtalk-logo.png` and use it in the shared app

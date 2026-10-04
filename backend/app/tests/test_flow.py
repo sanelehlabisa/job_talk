@@ -827,6 +827,7 @@ def test_typed_number_criterion_scores_candidate_value_against_target():
         "candidate_value": 2,
         "target_value": 4,
         "score": 0.5,
+        "comparison_score": 0.5,
         "weight": 0.9,
         "evidence": "The candidate reported two years of plumbing experience.",
         "reason": "The candidate reports 2 years against a target of 4 years.",
@@ -1695,11 +1696,11 @@ def test_trade_worker_can_find_and_apply_to_trade_role():
         criteria = recommendation["criteria"]
         assert {"welding", "forklift_operation", "experience"} <= criteria.keys()
         weighted = sum(
-            (Decimal(str(item["score"])) * Decimal(str(item["weight"])) for item in criteria.values()),
+            (Decimal(str(item["comparison_score"])) * Decimal(str(item["weight"])) for item in criteria.values()),
             Decimal("0"),
         )
         total_weight = sum((Decimal(str(item["weight"])) for item in criteria.values()), Decimal("0"))
-        expected = (weighted / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        expected = min(Decimal("1"), weighted / total_weight).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         assert Decimal(str(recommendation["match_score"])) == expected
         refreshed = client.get(
             f"/api/chats/{candidate_chat['id']}/recommendations", headers=candidate_headers

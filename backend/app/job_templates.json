@@ -1,5 +1,7 @@
 {
   "fields": {
+    "company_name": {"label": "Company name", "type": "text", "scope": "metadata", "description": "The company hiring for this role."},
+    "company_location": {"label": "Company location", "type": "text", "scope": "metadata", "description": "Where the company is based, separate from where applicants will work."},
     "job_title": {"label": "Job title", "type": "text", "scope": "metadata", "description": "The name of this role."},
     "role_description": {"label": "Role description", "type": "text", "scope": "metadata", "description": "The work the person will do."},
     "working_arrangement": {"label": "Work arrangement", "type": "text", "weight": 0.5, "description": "Remote, hybrid, or on-site work."},

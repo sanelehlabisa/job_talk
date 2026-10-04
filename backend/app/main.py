@@ -48,7 +48,7 @@ from .services.job_templates import (
     JobDraft, new_job_draft, starter_templates, apply_draft_updates,
     draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
     finish_draft, remove_draft_field, form_field_update, ESSENTIAL_FIELDS,
-    draft_from_published_job, draft_changes_live_job,
+    draft_from_published_job, draft_changes_live_job, COMPANY_FIELDS,
 )
 from .settings import get_settings
 
@@ -540,7 +540,7 @@ def create_chat(
                 else (
                     f"Let's describe your role using the {draft['label']} starter. "
                     "The suggestions below are examples, not requirements. "
-                    "Tell me the job title and what the person will do."
+                    "Which company is hiring, and where is the company based? You can describe the role too."
                     if draft
                     else "Tell me about the role and the person you need to hire."
                 )
@@ -937,7 +937,11 @@ def publish_job(
         job.description = fields["role_description"]["target"]
         job.target_profile = draft_profile(job.draft)
         closing = fields.get("closing_date", {})
-        job.draft = {**job.draft, "published_closing_date": closing.get("target") if closing.get("state") == "confirmed" else None}
+        job.draft = {**job.draft,
+                     "published_closing_date": closing.get("target") if closing.get("state") == "confirmed" else None,
+                     "published_company": {key: fields.get(key, {}).get("target")
+                                           if fields.get(key, {}).get("state") == "confirmed" else None
+                                           for key in COMPANY_FIELDS}}
     job.target_profile = normalize_target_profile(job.target_profile)
     if was_published and previous_version != job.criteria_version:
         # Tag older records once; their submitted evidence and scores stay intact.
@@ -1224,7 +1228,7 @@ def list_applications(
         outputs.sort(
             key=lambda item: (
                 item.earlier_requirements,
-                -float(item.match_result.get("overall_score", 0)),
+                -float(item.match_result.get("ranking_score", item.match_result.get("overall_score", 0))),
                 item.created_at,
                 item.id,
             )

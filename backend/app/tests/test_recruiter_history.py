@@ -40,7 +40,7 @@ def test_natural_language_fields_accept_spelling_repairs_and_still_require_actua
     assert "experience" not in draft_profile(saved)
     assert "60%" in fields["education"]["target"]
     assert fields["skills"]["state"] == "confirmed"
-    assert "hours" in draft_question(saved)
+    assert "company" in draft_question(saved)
     assert fields["working_hours"]["state"] == fields["availability"]["state"] == "unanswered"
 
 
@@ -113,5 +113,5 @@ def test_api_recovers_rejected_earlier_details_from_its_own_chat(monkeypatch):
         assert PARAGRAPH in [m["content"] for m in captured[-1]["messages"] if m["role"] == "user"]
         assert saved["chat"]["job_post"]["title"] == "Graduate Electronic Engineer"
         assert "experience" not in saved["chat"]["profile"]
-        assert "hours" in saved["assistant_message"]["content"]
+        assert "company" in saved["assistant_message"]["content"]
         assert client.get(f"/api/chats/{chat['id']}", headers=headers).json() == saved["chat"]

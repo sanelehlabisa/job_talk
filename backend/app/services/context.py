@@ -13,6 +13,8 @@ class ContextJob(TypedDict):
     id: int
     title: str
     criteria: dict
+    company_name: NotRequired[str]
+    company_location: NotRequired[str]
 
 
 class ChatContext(TypedDict):
@@ -38,6 +40,8 @@ def build_chat_context(
             {
                 "id": job.id,
                 "title": job.title,
+                **({"company_name": job.company_name} if job.company_name else {}),
+                **({"company_location": job.company_location} if job.company_location else {}),
                 "criteria": deepcopy(job.target_profile or {}),
             }
             if job

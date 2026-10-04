@@ -34,6 +34,15 @@ Types, units, importance and descriptions remain in the backend contract; do not
 reintroduce separate controls or duplicate text. Closing date is optional job
 metadata, excluded from applicant scoring.
 
+New recruiter drafts ask first for the hiring company name and company base.
+Keep these as non-scoring job metadata, separate from the work location. Save
+them in draft JSON and expose changes to candidates only after publication.
+
+For fully met numeric criteria with direct evidence, compare values above the
+target without capping the plot. Rank candidates by the uncapped weighted
+comparison score; cap the displayed overall match at 100%. Number current
+candidate cards and preserve previously submitted score snapshots.
+
 Use the same label/value layout for the seeker's application answers. Keep one
 editable answer per published criterion, with the requirement as an input hint.
 Chat and direct edits update the same candidate profile. Clearing an answer does

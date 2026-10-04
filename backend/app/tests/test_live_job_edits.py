@@ -127,6 +127,11 @@ def test_legacy_job_and_application_are_preserved_when_editing(monkeypatch):
         original = client.get(path, headers=owner).json()
         assert original['job_draft'] and not original['has_unpublished_changes']
         assert client.put(path + '/draft/field', headers=owner, json={'key': 'experience', 'label': 'Experience', 'value': '3 years of experience'}).status_code == 200
+        assert client.post(f"/api/jobs/{live['id']}/publish", headers=owner).status_code == 400
+        for key, label, value in (('company_name', 'Company name', 'Example Works'),
+                                  ('company_location', 'Company location', 'Durban')):
+            assert client.put(path + '/draft/field', headers=owner,
+                              json={'key': key, 'label': label, 'value': value}).status_code == 200
         assert client.post(f"/api/jobs/{live['id']}/publish", headers=owner).status_code == 200
         saved = client.get(f"/api/applications?job_id={live['id']}", headers=owner).json()[0]
         assert saved['earlier_requirements']

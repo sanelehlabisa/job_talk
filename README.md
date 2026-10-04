@@ -47,6 +47,13 @@ and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
+- JT-082 asks for company name and base in new recruiter drafts and shows them
+  to applicants. Company information is separate from scored requirements.
+  Candidate cards are numbered and sorted by the uncapped weighted comparison;
+  extra experience can plot above the ideal while the overall match stays at
+  most 100%. Saved application percentages remain unchanged. The larger **Job
+  Talk** logo and linked Roventics footer credit complete this small UI update.
+
 - JT-057 adds three fixed templates and separate saved drafts. JT-058 implements
   validated field updates, explicit not-required answers, and a live **Who you're
   looking for** summary. JT-064 verified a developer draft, correction and

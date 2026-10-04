@@ -38,6 +38,7 @@ class JobDraft(BaseModel):
     source: VacancySource | None = None
     removed_keys: list[str] = Field(default_factory=list)
     published_closing_date: str | None = None
+    published_company: dict[str, str | None] | None = None
 
 
 class DraftUpdate(BaseModel):
@@ -56,6 +57,8 @@ class DraftUpdate(BaseModel):
 
 
 ALIASES = {
+    "company_name": ("company name", "company", "employer", "business name"),
+    "company_location": ("company location", "company is based", "company based", "headquarters"),
     "job_title": ("job title", "title", "role", "hire", "hiring", "need"),
     "role_description": ("description", "responsibilities", "duties", "will", "build", "repair", "maintain"),
     "working_arrangement": ("remote", "hybrid", "on-site", "onsite", "on site", "work arrangement"),
@@ -69,7 +72,8 @@ ALIASES = {
     "closing_date": ("closing date", "application deadline", "applications close", "deadline"),
 }
 
-ESSENTIAL_FIELDS = {"job_title", "role_description", "working_arrangement", "location"}
+COMPANY_FIELDS = {"company_name", "company_location"}
+ESSENTIAL_FIELDS = {"job_title", "role_description", "working_arrangement", "location"} | COMPANY_FIELDS
 
 
 def parse_closing_date(value: str) -> str | None:
@@ -145,7 +149,7 @@ def informational_only(key: str, label: str, target, description: str) -> bool:
 def remove_draft_field(draft: dict, key: str) -> dict:
     result = JobDraft.model_validate(draft)
     if key in ESSENTIAL_FIELDS:
-        raise ValueError("Keep the role, description, work arrangement and location rules.")
+        raise ValueError("Keep the company details, role, description, work arrangement and location rules.")
     if key != "closing_date" and not any(field.key == key for field in result.fields):
         raise ValueError("Field not found.")
     result.fields = [field for field in result.fields if field.key != key]
@@ -225,6 +229,8 @@ def draft_can_publish(draft: dict) -> bool:
         not draft_gaps(draft)
         and all(fields[k].state == "confirmed" and fields[k].target
                 for k in ("job_title", "role_description", "working_arrangement"))
+        and all(fields[k].state == "confirmed" and fields[k].target
+                for k in COMPANY_FIELDS if k in fields)
         and any(k not in {"working_arrangement", "location", "working_hours", "availability"}
                 for k in draft_profile(draft))
     )
@@ -238,6 +244,8 @@ def draft_question(draft: dict) -> str:
         return "What is one skill, qualification, or experience requirement applicants should demonstrate?"
     field = gaps[0]
     questions = {
+        "company_name": "Which company is hiring, and where is the company based?",
+        "company_location": "Where is the company based? This can differ from the job's work location.",
         "job_title": "What is the job title?",
         "role_description": "What work will this person do?",
         "working_arrangement": "Is this role remote, hybrid, or on-site?",
@@ -310,13 +318,13 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                 continue
             field = DraftField(key=update.key, label=update.label, type=update.type,
                                weight=.85, description="Details not confirmed.")
-        if field.key == "closing_date":
+        if field.key == "closing_date" or field.key in COMPANY_FIELDS:
             field.scope, field.weight = "metadata", 0
         # The model maps language to known fields; literal field labels are not
         # required. Exact user quotes, explicit exclusions, types and quantities
         # remain validated here. The guided parser still uses _mentions.
         if update.state == "not_required":
-            if field.key in {"job_title", "role_description", "working_arrangement"}:
+            if field.key in {"job_title", "role_description", "working_arrangement"} | COMPANY_FIELDS:
                 continue
             if not _explicit_exclusion(field, source, expected):
                 continue
@@ -367,6 +375,8 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                 if field.key == "job_title" and (not isinstance(target, str) or len(target) > 200):
                     continue
                 if field.key == "job_title" and not _title_supported(target, source):
+                    continue
+                if field.key in COMPANY_FIELDS and not _title_supported(target, source):
                     continue
             if field.key == "closing_date" and update.state == "confirmed":
                 parsed_date = parse_closing_date(str(target))
@@ -434,6 +444,10 @@ def fallback_draft_updates(draft: dict, text: str) -> list[DraftUpdate]:
             exclusion = _explicit_exclusion(field, clause, expected)
             if exclusion and (mentioned or labelled):
                 state = "not_required"
+            elif field.key in COMPANY_FIELDS:
+                if not labelled:
+                    continue  # Guided mode uses explicit labels; the model handles free text.
+                target = labelled.group(1)
             elif field.key == "job_title":
                 _, details = update_employer_profile({}, clause)
                 target = labelled.group(1) if labelled else details.get("title")
@@ -450,6 +464,8 @@ def fallback_draft_updates(draft: dict, text: str) -> list[DraftUpdate]:
                 if not target:
                     continue
             elif field.key == "location":
+                if not labelled and re.search(r"\b(company|headquarters|employer)\b", clause, re.I):
+                    continue  # Company base alone does not establish a work location.
                 target = labelled.group(1) if labelled else _location(clause)
                 if not target and re.search(r"\b(anywhere|worldwide|unrestricted)\b", clause, re.I):
                     target = clause
@@ -528,13 +544,17 @@ def draft_from_published_job(job) -> dict:
     fields = {field["key"]: field for field in draft["fields"]}
     for field in fields.values():
         field["state"] = "unanswered" if field["key"] in ESSENTIAL_FIELDS else "not_required"
-    for key, value in (("job_title", job.title), ("role_description", job.description)):
+    for key, value in (("job_title", job.title), ("role_description", job.description),
+                       ("company_name", job.company_name), ("company_location", job.company_location)):
+        if not value:
+            continue
         fields[key].update(target=value, state="confirmed", description=value, source_quote=value)
     for key, requirement in normalize_target_profile(job.target_profile).items():
         fields[key] = DraftField(**{**{k: v for k, v in requirement.items() if k in DraftField.model_fields},
                                     "state": "confirmed", "importance": "preferred" if requirement.get("optional") else "required"}).model_dump()
     draft["fields"] = list(fields.values())
     draft["published_closing_date"] = job.closing_date
+    draft["published_company"] = {"company_name": job.company_name, "company_location": job.company_location}
     return draft
 
 
@@ -547,4 +567,6 @@ def draft_changes_live_job(job) -> bool:
     return (fields["job_title"]["target"] != job.title
             or fields["role_description"]["target"] != job.description
             or normalize_target_profile(draft_profile(job.draft)) != normalize_target_profile(job.target_profile)
+            or any((fields.get(key, {}).get("target") if fields.get(key, {}).get("state") == "confirmed" else None)
+                   != getattr(job, key) for key in COMPANY_FIELDS)
             or (closing.get("target") if closing.get("state") == "confirmed" else None) != job.closing_date)

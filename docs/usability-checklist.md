@@ -16,6 +16,27 @@ stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
 flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
 
+## Company and ranking check (JT-082)
+
+1. Check the larger **Job Talk** mark. Hover the footer Roventics image for the
+   pointer cursor and click it to open `roventics.com`.
+2. Start a recruiter chat: name a company based in Durban hiring for Cape Town.
+   Check both locations, publish, and verify the company details as a candidate.
+3. Compare equivalent applicants with two and four years against a two-year
+   target. The latter should plot at 200% for experience and rank higher; the
+   overall match must stay at most 100%. Cards should show #1, #2, and so on.
+4. Edit company details after publishing. Candidates should see the old values
+   until **Publish changes**. Existing applications must retain their saved scores.
+
+Actual Gemini check (2026-10-04): one paragraph correctly captured **Example
+Circuits**, company base **Durban**, and work location **Cape Town**, without
+saving test data. This focused check does not replace full usability acceptance.
+
+Engineering checks passed: disposable SQLite publication/ranking regressions,
+frontend production build, and local browser branding/link, admin code login,
+#1–#5 numbering and a 150% experience point above the ideal. Existing saved
+applications retained their original overall percentages.
+
 ## Current local workspace (JT-080, 2026-10-04)
 
 Open `http://localhost:3000` and choose recruiter sign-in using the approved

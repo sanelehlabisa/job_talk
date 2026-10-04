@@ -63,6 +63,11 @@ When experience is stated in years, use a number target with unit years; written
 numbers such as 'one year' mean 1. Preserve written numbers in descriptions.
 Skill targets may be true with a concrete description; experience may be text,
 such as a practical project. Do not require years for every skill or tool.
+Capture company_name and company_location as text job information, never applicant
+criteria. Ask which company is hiring and where it is based first if unknown.
+Keep company_location separate from the job's location/work arrangement. A company
+base alone does not establish where the candidate must work. Do not invent a name
+or address. Capture company details even when mixed with other answers.
 Capture job_title and role_description separately; polish a concise role description
 from stated duties. Use text for location, working_hours, availability, education,
 tools and working_arrangement. For working_arrangement set target to exactly
@@ -188,6 +193,7 @@ def _provider_input(
             {
                 "id": job["id"],
                 "title": job["title"][:200],
+                **{key: job[key] for key in ("company_name", "company_location") if job.get(key)},
                 "criteria": _compact_mapping(job["criteria"], item_limit=24),
             }
             if job

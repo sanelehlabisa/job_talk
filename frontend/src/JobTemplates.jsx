@@ -55,7 +55,7 @@ export function JobTemplatePicker({ templates, busy, onSelect, onCancel, isAdmin
   );
 }
 
-const essentialFields = new Set(["job_title", "role_description", "working_arrangement", "location"]);
+const essentialFields = new Set(["company_name", "company_location", "job_title", "role_description", "working_arrangement", "location"]);
 
 function fieldValue(field) {
   if (field.key === "closing_date") return field.target || "";

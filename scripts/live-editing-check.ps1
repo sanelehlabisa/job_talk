@@ -7,7 +7,7 @@ try {
     Wait-JavaScript "document.querySelector('[data-template-id=generic-role]') !== null" 'template picker'
     Invoke-JavaScript "document.querySelector('[data-template-id=generic-role]').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.composer') !== null" 'new chat'
-    Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Job title: Live Editing Check Technician. Role description: Design and test PCB circuits. Work arrangement: on-site. Location: Durban. Skills: circuit design is required. No experience required. No degree needed.'
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Company name: Example Circuits; Company location: Durban; Job title: Live Editing Check Technician. Role description: Design and test PCB circuits. Work arrangement: on-site. Location: Durban. Skills: circuit design is required. No experience required. No degree needed.'
     Wait-JavaScript "document.querySelector('[data-field-key=job_title] input[name=value]')?.value.includes('Live Editing Check Technician') && !document.querySelector('.typing')" 'captured role' 45
     Invoke-JavaScript "[...document.querySelectorAll('.template-draft > button')].find(b => b.textContent === 'Done').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.publish-bar button') !== null && !document.querySelector('.typing')" 'publish readiness'

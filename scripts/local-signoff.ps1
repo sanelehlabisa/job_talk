@@ -223,7 +223,7 @@ try {
         Write-Output "Screenshots: $OutputDirectory"
         return
     }
-    $roleText = "Job title: Browser Signoff Welder; Role description: The person will repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
+    $roleText = "Company name: Example Workshop; Company location: Cape Town; Job title: Browser Signoff Welder; Role description: The person will repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" $roleText
     Wait-JavaScript "document.querySelector('.publish-bar') !== null" "publish-ready role" 45
     if (Invoke-JavaScript "document.querySelector('.error-notice') !== null") { throw "Role creation displayed an error" }

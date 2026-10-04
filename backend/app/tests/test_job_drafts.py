@@ -20,6 +20,8 @@ def proposal(key, source, target=None, *, state="confirmed", kind="text", import
 
 def developer_updates():
     return [
+        proposal("company_name", "Company name: Example Works", "Example Works"),
+        proposal("company_location", "Company location: Durban", "Durban"),
         proposal("job_title", "Junior Software Developer", "Junior Software Developer"),
         proposal("role_description", "Build and test small web apps", "Build and test small web apps"),
         proposal("working_arrangement", "Hybrid in Cape Town", "hybrid"),
@@ -167,7 +169,7 @@ def test_template_provider_receives_saved_states_and_returns_strict_proposals(mo
             pass
 
         def json(self):
-            return {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps({"updates": [developer_updates()[5].model_dump()]})}]}]}
+            return {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps({"updates": [next(u for u in developer_updates() if u.key == "education").model_dump()]})}]}]}
 
     def post(url, **kwargs):
         captured.update(kwargs["json"])
@@ -178,7 +180,7 @@ def test_template_provider_receives_saved_states_and_returns_strict_proposals(mo
     turn = generate_turn(context, "employer", "No degree needed", "Next question", Settings(_env_file=None, ai_provider="openai", openai_api_key="test"))
     assert turn.template_updates[0].state == "not_required"
     payload = json.loads(captured["input"])
-    assert len(payload["job_draft"]["fields"]) == 11
+    assert len(payload["job_draft"]["fields"]) == 13
     assert all("suggestion" not in f for f in payload["job_draft"]["fields"])
     schema = captured["text"]["format"]["schema"]
     assert schema["required"] == ["updates"]
@@ -208,7 +210,8 @@ def test_short_clarifications_reuse_values_and_preserve_importance():
 def test_plumber_and_generic_can_finish_with_labelled_guided_answers():
     for template, skills in (("plumber", "Plumbing required; Pipe fitting required; Tools: pipe cutters required"),
                              ("generic-role", "Skills: repair workshop gates required; No tools needed")):
-        text = ("Job title: Maintenance Worker; Role description: The person will repair pipes; "
+        text = ("Company name: Example Repairs; Company location: Cape Town; "
+                "Job title: Maintenance Worker; Role description: The person will repair pipes; "
                 "Work arrangement: on-site; Location: Cape Town; No degree needed; "
                 "Working hours: weekdays; Start availability: immediately; Experience: two years; " + skills)
         draft = new_job_draft(template)

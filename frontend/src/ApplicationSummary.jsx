@@ -50,8 +50,9 @@ export function ApplicationSummary({ fields, job, profile, matchScore, ratingSou
   return (
     <details className="template-draft application-summary" open>
       <summary>Your application</summary>
+      {(job.company_name || job.company_location) && <p className="company-details">{job.company_name || "Company"}{job.company_location && ` · Based in ${job.company_location}`}</p>}
       {(!closed || submitted) && <div className="application-match" aria-live="polite">
-        <div><span>{submitted ? "Submitted match" : "Match so far"}</span><strong>{busy ? "Updating…" : Number.isFinite(matchScore) ? `${Math.round(matchScore * 100)}%` : "Unavailable"}</strong></div>
+        <div><span>{submitted ? "Submitted match" : "Match so far"}</span><strong>{busy ? "Updating…" : Number.isFinite(matchScore) ? `${Math.round(Math.min(1, matchScore) * 100)}%` : "Unavailable"}</strong></div>
         <small>{ratingSource === "gemini" ? "AI estimate" : "Rule-based estimate"} from {submitted ? "submitted" : "saved"} answers. You can review and correct your answers.</small>
       </div>}
       <p>{submitted ? "Your submitted answers are saved." : closed ? "This job is no longer accepting applications." : "Edit an answer or describe it in chat. An honest skill gap is a valid answer."}</p>

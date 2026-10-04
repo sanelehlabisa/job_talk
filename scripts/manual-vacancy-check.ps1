@@ -6,7 +6,7 @@ $vacancyGuestHeaders = $null
 $vacancyJobId = $null
 $stamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 $sourceUrl = "https://example.com/jobtalk-check/$stamp"
-$sourceText = "Job title: Curated Check Welder; Role description: Repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
+$sourceText = "Company name: Fictional Workshop; Company location: Cape Town; Job title: Curated Check Welder; Role description: Repair workshop gates and frames; Skills: Welding is required; Tools: Welding equipment is required; Experience: two years of welding experience; Work arrangement: on-site; Location: Cape Town; Working hours: weekdays; Start availability: immediately; No degree needed"
 
 try {
     Wait-JavaScript "document.querySelector('.chat-list-label')?.textContent.includes('ALL HIRING') && document.querySelector('.chat-shell') !== null" "approved owner navigation"

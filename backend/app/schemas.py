@@ -2,7 +2,7 @@ import unicodedata
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from .services.criteria import normalize_target_profile
 from .services.job_templates import JobDraft
@@ -107,6 +107,8 @@ class JobOut(ORMModel):
     description: str
     target_profile: dict
     published: bool
+    company_name: str | None = None
+    company_location: str | None = None
     source: VacancySourcePublic | None = None
     closing_date: str | None = None
     criteria_version: str
@@ -123,6 +125,7 @@ class CriterionScoreOut(BaseModel):
     candidate_value: str | int | float | bool | None = None
     target_value: str | int | float | bool | None = None
     score: float
+    comparison_score: float = 0
     weight: float
     evidence: str
     reason: str
@@ -194,6 +197,12 @@ class ApplicationOut(ORMModel):
     submitted: bool
     created_at: datetime
     earlier_requirements: bool = False
+
+    @model_validator(mode="after")
+    def include_comparison(self):
+        from .services.matching import with_comparison_scores
+        self.match_result = with_comparison_scores(self.match_result)
+        return self
 
 
 class FeedbackCreate(BaseModel):

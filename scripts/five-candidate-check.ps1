@@ -47,7 +47,7 @@ try {
     $draft = Get-ScenarioChat
     $scenarioJob = $draft.job_post.id
     $scenarioChat = $draft.id
-    Send-ScenarioMessage "The job title is $scenarioTitle. The person will build and test Python REST APIs for a booking service using FastAPI and PostgreSQL."
+    Send-ScenarioMessage "Company name: Example Works. Company location: Cape Town. The job title is $scenarioTitle. The person will build and test Python REST APIs for a booking service using FastAPI and PostgreSQL."
     Send-ScenarioMessage 'The job is in Cape Town, South Africa. Hybrid work is required, with two days per week at the office.'
     Send-ScenarioMessage 'Require three years of Python backend development experience. Python API development is a required skill. FastAPI and PostgreSQL are required tools.'
     Send-ScenarioMessage 'Correction: require two years of Python backend development experience, not three years. Working hours are 40 hours per week on weekdays. No degree or qualification is required. The start date is flexible.'
@@ -174,7 +174,7 @@ try {
     const plot=[...document.querySelectorAll('.plot-candidate')].find(p=>p.getAttribute('aria-label')===name+' score line');
     const titles=[...plot.querySelectorAll('title')].map(t=>t.textContent);
     for(const [key,value] of Object.entries(app.match_result.criteria).slice(0,8)) {
-      const expected=value.gap==='missing' || !value.evidence ? name+': no direct evidence for '+key.replaceAll('_',' ') : name+': '+key.replaceAll('_',' ')+' '+Math.round(value.score*100)+'%';
+      const expected=value.gap==='missing' || !value.evidence ? name+': no direct evidence for '+key.replaceAll('_',' ') : name+': '+key.replaceAll('_',' ')+' '+Math.round((value.comparison_score ?? value.score)*100)+'%';
       if(!titles.includes(expected)) throw new Error('Plot differs from saved criterion score');
     }
   }

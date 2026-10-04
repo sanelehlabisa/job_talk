@@ -11,12 +11,14 @@ from app.services.matching import is_recommended
 
 
 PLUMBER = (
+    "Company name: Example Plumbing; Company location: Cape Town; "
     "Job title: Plumber; Role description: Repair residential pipes; Work arrangement: on-site; "
     "Location: Cape Town; Experience: two years of plumbing experience; Plumbing required; "
     "Pipe fitting required; Tools: pipe cutters required; No degree needed; "
     "Working hours: weekdays; Start availability: immediately"
 )
 SHOP_ASSISTANT = (
+    "Company name: Example Shop; Company location: Durban; "
     "Job title: Shop Assistant; Role description: Help customers choose products; "
     "Work arrangement: on-site; Location: Durban; Experience: one year of customer service; "
     "Skills: customer service is required; No tools needed; No degree needed; "
@@ -35,7 +37,7 @@ def test_template_roles_stay_separate_and_three_applicants_use_the_published_con
             assert role["can_publish"], role["job_draft"]
             assert client.post(f"/api/jobs/{role['job_post']['id']}/publish", headers=recruiter).status_code == 200
             assert "education" not in role["job_post"]["target_profile"]
-            roles.append(role)
+            roles.append(client.get(f"/api/chats/{chat['id']}", headers=recruiter).json())
         plumber, shop = roles
         assert not {"plumbing", "pipe_fitting", "tools"} & set(shop["job_post"]["target_profile"])
         assert shop["job_post"]["target_profile"]["experience"]["target"] == 1

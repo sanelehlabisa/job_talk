@@ -122,6 +122,21 @@ class JobPost(Base):
     def source(self) -> dict | None:
         return (self.draft or {}).get("source")
 
+    def _company_detail(self, key: str) -> str | None:
+        draft = self.draft or {}
+        if self.published or (self.chat and self.chat.status == "closed"):
+            return (draft.get("published_company") or {}).get(key)
+        return next((field["target"] for field in draft.get("fields", [])
+                     if field["key"] == key and field["state"] == "confirmed"), None)
+
+    @property
+    def company_name(self) -> str | None:
+        return self._company_detail("company_name")
+
+    @property
+    def company_location(self) -> str | None:
+        return self._company_detail("company_location")
+
     @property
     def closing_date(self) -> str | None:
         if self.published and "published_closing_date" in (self.draft or {}):

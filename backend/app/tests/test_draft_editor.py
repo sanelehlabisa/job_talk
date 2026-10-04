@@ -37,7 +37,7 @@ def test_done_drops_only_blank_optional_fields_and_never_restores_from_history()
     assert "working_hours" in draft_profile(restored)
     assert "working_hours" not in restored["removed_keys"]
     empty = finish_draft(new_job_draft("generic-role"))
-    assert {f["key"] for f in empty["fields"]} == {"job_title", "role_description", "working_arrangement", "location"}
+    assert {f["key"] for f in empty["fields"]} == {"company_name", "company_location", "job_title", "role_description", "working_arrangement", "location"}
     assert not draft_can_publish(empty)
 
 

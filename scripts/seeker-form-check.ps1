@@ -54,7 +54,7 @@ try {
     Wait-JavaScript "document.querySelector('[data-template-id=generic-role]') !== null" 'template picker'
     Invoke-JavaScript "document.querySelector('[data-template-id=generic-role]').click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('.composer') !== null" 'new fictional job'
-    Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Job title: Seeker Form Check Developer. Role description: Build and test Python APIs. Work arrangement: on-site. Location: Cape Town. Skills: Python API development is required. Experience: two years of Python backend experience required. Working hours: 40 hours a week. No degree needed. No specific tools required. Start immediately.'
+    Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Company name: Example Software; Company location: Cape Town; Job title: Seeker Form Check Developer. Role description: Build and test Python APIs. Work arrangement: on-site. Location: Cape Town. Skills: Python API development is required. Experience: two years of Python backend experience required. Working hours: 40 hours a week. No degree needed. No specific tools required. Start immediately.'
     Wait-JavaScript "document.querySelector('.publish-bar button') !== null && !document.querySelector('.typing')" 'publishable fictional role' 45
     $formJobId = Invoke-JavaScript @'
 (async () => {

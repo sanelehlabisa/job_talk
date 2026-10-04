@@ -23,7 +23,8 @@ button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #d46f3c; outline-offset: 3px; }
 
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-.brand-mark { width: 37px; height: 37px; display: block; flex-shrink: 0; }
+.brand-mark { width: 48px; height: 48px; display: block; flex-shrink: 0; object-fit: contain; }
+a img { cursor: pointer; }
 .primary { border: 0; background: var(--green); color: white; padding: 12px 18px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-weight: 600; transition: .2s ease; }
 .primary:hover { background: var(--green-dark); transform: translateY(-1px); }
 .primary:disabled { opacity: .65; cursor: default; transform: none; }
@@ -74,7 +75,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .error { color: #b64537; font-size: 12px; margin-top: 8px; }
 .login-page footer { color: #87928b; font-size: 11px; position: relative; z-index: 1; }
 .brand-credit { display: flex; align-items: center; gap: 7px; }
-.brand-credit img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+.brand-credit img { width: 28px; height: 28px; object-fit: contain; display: block; }
+.brand-credit .brand-credit-logo { margin-left: 0; flex-shrink: 0; cursor: pointer; }
+.company-details { color: var(--green); font-size: 12px; line-height: 1.5; }
 .brand-credit a, .privacy-link { color: var(--green); }
 .brand-credit a { margin-left: 9px; }
 

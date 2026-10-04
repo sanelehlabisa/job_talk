@@ -159,7 +159,14 @@ valid targets. Draft fields use these states:
 "No degree needed" resolves qualifications as not required. "That's fine" alone
 cannot remove an unclear requirement. Preferred requirements remain confirmed
 criteria with backend-owned importance, distinct from not-required fields.
-Title, description, and source metadata do not become scoring criteria.
+Title, description, company details and source metadata do not become scoring criteria.
+
+JT-082 starts new recruiter drafts with company name and company location. Both
+must be confirmed before publication. The company base is separate from where
+the candidate will work. Store both in existing draft JSON, snapshot them on
+Publish, and show the published values on job cards and the application form.
+Include them in the candidate's authorized model context. Older jobs without
+company details remain readable; do not invent their employer information.
 
 Publication requires a clear title and role description, arrangement/location
 rules (including any remote location restriction or explicit lack of one), at
@@ -174,7 +181,7 @@ If polishing is unavailable, a notice says the original wording was saved.
 Numeric targets retain their quantity/unit; weights are never client-controlled.
 
 **Done**, including "ready for publication" in chat, removes unanswered optional
-suggestions. It preserves title, duties, work arrangement, location rules and any
+suggestions. It preserves company details, title, duties, work arrangement, location rules and any
 partially answered requirement needing clarification. Removed keys stay in the
 draft JSON so historical quotes cannot reintroduce them; a new explicit request
 can restore them. An explicit chat request to remove a field also removes it.
@@ -282,12 +289,19 @@ Submission contact review preserves a separately captured job-location answer.
   evidence. All recruiter cards and plot axes use that same saved assessment.
 - Gemini failures, limits and mock/OpenAI modes use the existing rule estimate.
   Both sides label the estimate source; scores remain unverified claims for human review.
-- The overall score is the weighted mean of criterion scores.
+- Criterion ratings remain 0–100. For fully met numeric requirements with direct
+  evidence, `comparison_score` may exceed 1 (four years against two gives 2).
+  Partial ratings, gaps and missing evidence earn no excess credit.
+- `ranking_score` is the uncapped weighted mean of comparison scores. Candidate
+  order uses that value; new overall matches are capped at 100% for display.
+  Existing submissions keep their frozen overall match; the API derives their
+  comparison values from saved evidence without rewriting stored snapshots.
 - Recommendations include at most five jobs above the minimum useful threshold.
 - A recruiter sees at most five leading candidates with contact details, score,
-  evidence, and gaps.
+  evidence, and gaps. Current candidate cards are numbered in ranking order.
 - The parallel-axis view plots the ideal profile and those candidates using the
-  same criteria. Evidence cards remain the readable explanation.
+  same criteria. The ideal stays at 100 and the axis expands for excess numeric
+  evidence. Evidence cards remain the readable explanation.
 - Not-required and unresolved job fields never contribute to the weighted mean
   or plot. Missing candidate evidence remains missing; reported gaps remain gaps.
 - Initial available-job cards and below-threshold roles are not recommendations.

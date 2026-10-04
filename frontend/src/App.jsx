@@ -22,8 +22,8 @@ import { SourceNotice, InterestSummary } from "./JobSources";
 function Brand() {
   return (
     <div className="brand">
-      <img className="brand-mark" src="/branding/jobtalk-logo.png" alt="" width="37" height="37" />
-      <span>job talk</span>
+      <img className="brand-mark" src="/branding/jobtalk-logo.png" alt="" width="48" height="48" />
+      <span>Job Talk</span>
     </div>
   );
 }
@@ -222,6 +222,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
                 <button className="entry-job" type="button" disabled={loading} key={job.id} onClick={() => continueAsSeeker(job.id)}>
                   <span className="entry-job-copy">
                     <strong>{job.title}</strong>
+                    {(job.company_name || job.company_location) && <small className="company-details">{job.company_name || "Company"}{job.company_location && ` · Based in ${job.company_location}`}</small>}
                     <small>{job.description}</small>
                     {job.closing_date && <small>Apply by {job.closing_date} (UTC)</small>}
                     <SourceNotice source={job.source} compact />
@@ -260,7 +261,7 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
         </section>
       </section>
       <footer className="brand-credit">
-        <img src="/branding/roventics-logo.png" alt="" width="22" height="22" />
+        <a className="brand-credit-logo" href="https://roventics.com" target="_blank" rel="noopener noreferrer" aria-label="Visit Roventics (opens in a new tab)"><img src="/branding/roventics-logo.png" alt="" width="28" height="28" /></a>
         <span>A Roventics project</span>
         <a href="/privacy">Privacy &amp; safety</a>
       </footer>
@@ -352,6 +353,7 @@ function Recommendation({ item, number, onSelect, busy }) {
         <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : "Possible role"}</span></div>
       </div>
       <p>{item.explanation}</p>
+      {(item.job.company_name || item.job.company_location) && <p className="company-details">{item.job.company_name || "Company"}{item.job.company_location && ` · Based in ${item.job.company_location}`}</p>}
       <SourceNotice source={item.job.source} compact />
       <div className="job-actions">
         <button className="primary" disabled={busy} onClick={onSelect}>Apply to this job <ChevronRight size={17} /></button>
@@ -409,14 +411,18 @@ function CandidateScorePlot({ applications, targetProfile }) {
   const left = 50;
   const right = width - 38;
   const xAt = (index) => left + ((right - left) * index) / (criteria.length - 1);
-  const yAt = (score) => bottom - Math.max(0, Math.min(1, score)) * (bottom - top);
+  const comparisonScore = (application, key) => application.match_result?.criteria?.[key]?.comparison_score ?? application.match_result?.criteria?.[key]?.score;
+  const maximum = Math.max(1, ...candidates.flatMap((application) => criteria.map(([key]) => comparisonScore(application, key) || 0)));
+  const axisMaximum = Math.ceil(maximum * 2) / 2;
+  const ticks = [...new Set([0, axisMaximum / 2, 1, axisMaximum])].sort((a, b) => a - b);
+  const yAt = (score) => bottom - Math.max(0, Math.min(axisMaximum, score)) / axisMaximum * (bottom - top);
   const idealPoints = criteria.map((_, index) => `${xAt(index)},${yAt(1)}`).join(" ");
 
   return (
     <section className="score-plot" aria-labelledby="score-plot-title">
       <div className="score-plot-heading">
         <div><span>CANDIDATE SHAPE</span><h3 id="score-plot-title">Ideal profile and top candidates</h3></div>
-        <small>Scores are normalized to 0–100. Missing evidence is marked ×.</small>
+        <small>100% is the ideal. Extra experience can extend above it. Missing evidence is marked ×.</small>
       </div>
       <div className="plot-legend">
         <span><i className="ideal-line" />Ideal profile</span>
@@ -426,7 +432,7 @@ function CandidateScorePlot({ applications, targetProfile }) {
       </div>
       <div className="plot-scroll">
         <svg className="parallel-plot" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Parallel coordinates comparison of the ideal job profile and candidate evidence scores">
-          {[0, 0.5, 1].map((score) => (
+          {ticks.map((score) => (
             <g key={score}>
               <line className="plot-grid" x1={left} x2={right} y1={yAt(score)} y2={yAt(score)} />
               <text className="plot-scale" x={left - 10} y={yAt(score) + 3}>{Math.round(score * 100)}</text>
@@ -442,7 +448,7 @@ function CandidateScorePlot({ applications, targetProfile }) {
           <polyline className="ideal-profile" points={idealPoints}><title>Ideal profile: 100 on every criterion</title></polyline>
           {candidates.map((application, candidateIndex) => {
             const points = criteria.map(([key], criterionIndex) => {
-              const score = application.match_result?.criteria?.[key]?.score;
+              const score = comparisonScore(application, key);
               const evidence = application.candidate_profile?.[key]?.evidence;
               return evidence && Number.isFinite(score)
                 ? { x: xAt(criterionIndex), y: yAt(score), key, score }
@@ -520,8 +526,6 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
   const current = applications.filter((item) => !item.earlier_requirements);
   const earlier = applications.filter((item) => item.earlier_requirements);
   const visible = [...(status === "closed" ? current.slice(0, 5) : current), ...earlier];
-  let previousScore = null;
-  let previousRank = 0;
 
   return (
     <section className="candidate-comparison">
@@ -541,15 +545,13 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
           const profile = application.candidate_profile || {};
           const details = profile.candidate_details || {};
           const criteria = Object.entries(application.match_result?.criteria || {});
-          const score = Math.round((application.match_result?.overall_score || 0) * 100);
+          const score = Math.round(Math.min(1, application.match_result?.overall_score || 0) * 100);
           const contact = details.preferred_contact || "Contact not provided";
           const contactHref = contact.includes("@") ? `mailto:${contact}` : `tel:${contact.replace(/[^+\d]/g, "")}`;
-          if (score !== previousScore) previousRank = index + 1;
-          previousScore = score;
           return (
             <article className="candidate-card" key={application.id}>
               <div className="candidate-card-head">
-                <div className="candidate-rank">{status === "closed" && !application.earlier_requirements ? `#${previousRank}` : <UserRound size={17} />}</div>
+                <div className="candidate-rank" aria-label={application.earlier_requirements ? "Earlier requirements" : `Rank ${index + 1}`}>{!application.earlier_requirements ? `#${index + 1}` : <UserRound size={17} />}</div>
                 <div><h3>{details.name || "Candidate"}</h3><a href={contactHref}>{contact}</a></div>
                 <div className="score"><strong>{score}%</strong><span>{application.earlier_requirements ? "original match" : application.match_result?.rating_source === "gemini" ? "AI estimate" : "rule estimate"}</span></div>
               </div>
@@ -581,7 +583,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
         })}
       </div>}
       {!!visible.length && jobId && <FeedbackPrompt kind="recruiter" contextId={jobId} />}
-      {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates for the current requirements; equal scores share a rank. Earlier applications remain available for review.</p>}
+      {status === "closed" && applications.length > 0 && <p className="shortlist-note">Recruitment is closed. Showing up to five candidates for the current requirements, ordered by their weighted score before the 100% display cap. Earlier applications remain available for review.</p>}
     </section>
   );
 }
