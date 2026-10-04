@@ -74,6 +74,11 @@ passed, the new PNG loads as `image/png`, and no runtime references to the old
 filenames remain. The user approved merging this ticket into `master`, including
 removal of the Roventics SVG and its footer reference, on 2026-10-04.
 
+**Supplied-logo follow-up (2026-10-04):** The user provided the proper Roventics
+PNG. Renamed it to `roventics-logo.png` and added it beside the footer credit on
+`fix/roventics-footer-logo`. JobTalk remains the app logo and favicon. Frontend
+build and local PNG loading passed; this follow-up awaits merge approval.
+
 ### JT-080 - Clean the local admin testing workspace
 
 - [x] Push completed code before touching local data and back up the active database.

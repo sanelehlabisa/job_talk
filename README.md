@@ -795,6 +795,7 @@ The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). I
 
 [`AGENTS.md`](AGENTS.md) records product boundaries, AI behavior, access controls,
 and completion checks. Chat participants use matching circular robot/person
-icons; a text credit to Roventics appears in the footer. Job Talk is the primary product name.
+icons; the supplied `roventics-logo.png` accompanies the Roventics footer credit.
+Job Talk is the primary product name.
 The supplied `frontend/public/branding/jobtalk-logo.png` is shared by the app's
 brand header and browser favicon. The old JobTalk and Roventics SVGs have been removed.
