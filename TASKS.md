@@ -30,8 +30,10 @@ application form, discovery and Gemini criterion ratings.
 Current user priority: **JT-078**, one environment file and private backend
 transport, and **JT-079**, the five-candidate browser exercise, are implemented
 and checked. Return to the user's **JT-060** manual usability acceptance.
-JT-077 was merged and pushed at `7d0e9e5` with user approval. New work remains
-on a feature branch until its merge is approved.
+JT-077 was merged and pushed at `7d0e9e5` with user approval. The user approved
+merging JT-078/JT-079/JT-080 through `6fb4134` into `master` on 2026-10-04,
+including the single environment file, private backend transport, browser checks
+and cleaned admin workspace notes. JT-060 manual acceptance remains pending.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.

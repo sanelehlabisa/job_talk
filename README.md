@@ -32,7 +32,7 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. Completed work through JT-077 is merged into
+The core hiring loop works locally. Completed work through JT-080 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
 JT-077 adds production Nginx origin/host checks, request limits and security headers.
