@@ -6,6 +6,11 @@ from .criteria import normalize_target_profile
 
 
 MIN_RECOMMENDATION_SCORE = 0.5
+MIN_DISCOVERY_SCORE = 0.15
+
+# Discovery may offer a lightly related role before a complete application exists.
+# Shared location/hours alone must not turn an unrelated vacancy into a suggestion.
+DISCOVERY_LOGISTICS = {"location", "working_arrangement", "working_hours", "availability", "education", "relocation"}
 
 
 def _tokens(value: str) -> set[str]:
@@ -221,9 +226,35 @@ def match_profiles(candidate_profile: dict, target_profile: dict) -> dict:
     return {"criteria": criteria, "overall_score": float(overall)}
 
 
-def rank_jobs(candidate_profile: dict, jobs: list[JobPost]) -> list[tuple[JobPost, dict]]:
+def rank_jobs(candidate_profile: dict, jobs: list[JobPost], limit: int | None = 5) -> list[tuple[JobPost, dict]]:
     ranked = [(job, match_profiles(candidate_profile, job.target_profile)) for job in jobs]
-    return sorted(ranked, key=lambda item: item[1]["overall_score"], reverse=True)[:5]
+    return sorted(ranked, key=lambda item: item[1]["overall_score"], reverse=True)[:limit]
+
+
+def discovery_overlap(profile: dict, job: JobPost) -> list[str]:
+    """Find work-related words shared with this real role, without adding evidence."""
+    candidate_text = " ".join(
+        str(item.get("evidence", "")) for key, item in profile.items()
+        if key not in DISCOVERY_LOGISTICS and item.get("assessment") != "gap"
+        and item.get("state") != "needs_clarification"
+    )
+    requirements = normalize_target_profile(job.target_profile)
+    role_text = " ".join([job.title, *(
+        f"{field['label']} {field.get('target', '')} {field['description']}"
+        for key, field in requirements.items() if key not in DISCOVERY_LOGISTICS
+    )])
+    generic = GENERIC_REQUIREMENT_TOKENS | {
+        "i", "my", "me", "you", "your", "am", "job", "jobs", "looking", "want",
+        "skills", "skill", "tools", "tool", "knowledge", "understanding", "years.",
+        "general", "junior", "senior", "basic", "good", "practical", "using", "use",
+        "build", "built", "develop", "development", "graduate", "qualification",
+    }
+    def terms(text):
+        text = re.sub(r"\bfull[ -]?stack\b", "fullstack software", text, flags=re.I)
+        text = re.sub(r"\btype\s+script\b", "typescript", text, flags=re.I)
+        text = re.sub(r"\bpostgres\b", "postgresql", text, flags=re.I)
+        return {word.strip(".") for word in _tokens(text) if re.search(r"[a-z]", word)}
+    return sorted((terms(candidate_text) & terms(role_text)) - generic)
 
 
 def is_recommended(result: dict) -> bool:

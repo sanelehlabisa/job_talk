@@ -29,6 +29,7 @@ from .services.conversation import (
     apply_ai_role_updates,
     can_publish,
     candidate_reply,
+    discovery_reply,
     employer_reply,
     expected_candidate_criterion,
     expected_employer_skill,
@@ -39,7 +40,7 @@ from .services.conversation import (
 from .services.context import build_chat_context
 from .services.candidate_application import application_fields, apply_candidate_updates, reuse_discovery_answers, edit_application_answer
 from .services.criteria import normalize_target_profile
-from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match
+from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match, discovery_overlap, MIN_DISCOVERY_SCORE
 from .services.ai import generate_reply, generate_turn, guided_reply
 from .services.email import send_recruiter_login_code
 from .services.job_templates import (
@@ -822,6 +823,7 @@ def send_message(
         )
 
     context = build_chat_context(chat)
+    recommendations = []
     if chat.intent == "candidate":
         target_profile = context["job"]["criteria"] if context["job"] else None
         reply = candidate_reply(
@@ -839,11 +841,17 @@ def send_message(
                 item.get("assessment") == "gap" and item != candidate_profile_before.get(key)
                 for key, item in chat.profile.items()
             ) else "unclear" if chat.profile == candidate_profile_before and expected_criterion else None
-        reply = candidate_reply(chat.profile, target_profile, candidate_answer_status)
-        if turn.candidate_updates is None:
-            reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"])
         if target_profile is not None:
             chat.profile = {key: value for key, value in chat.profile.items() if key in target_profile}
+        reply = candidate_reply(chat.profile, target_profile, candidate_answer_status)
+        recommendations = recommendations_for_chat(chat, db)
+        if chat.target_job_id is None:
+            reply = discovery_reply(chat.profile, [
+                {"title": item.job.title, "explanation": item.explanation, "available_example": item.available_example}
+                for item in recommendations
+            ])
+        if turn.candidate_updates is None:
+            reply = guided_reply(reply, [m.content for m in chat.messages if m.sender == "assistant"])
     if template_turn:
         pass  # The question reflects validated saved fields, never unaccepted AI claims.
     elif interpret_employer_answer:
@@ -868,7 +876,6 @@ def send_message(
     db.refresh(assistant_message)
     chat = get_chat_or_404(db, chat_id, current_user)
 
-    recommendations = recommendations_for_chat(chat, db) if chat.intent == "candidate" else []
     return schemas.MessageResponse(
         chat=serialize_chat(chat), assistant_message=assistant_message, recommendations=recommendations
     )
@@ -997,12 +1004,14 @@ def recommendations_for_chat(chat: models.Chat, db: Session):
             ),
         ).order_by(models.JobPost.created_at, models.JobPost.id)
     ).all()
-    ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications])
+    ranked_jobs = rank_jobs(chat.profile, [job for job in jobs if job.accepting_applications], limit=None)
     examples = False
     if chat.target_job_id is None:
         has_context = any(isinstance(item, dict) and (item.get("evidence") or item.get("value") is not None)
                           for item in chat.profile.values())
-        matches = [item for item in ranked_jobs if has_context and is_recommended(item[1])][:2]
+        matches = [item for item in ranked_jobs if has_context
+                   and item[1]["overall_score"] >= MIN_DISCOVERY_SCORE
+                   and discovery_overlap(chat.profile, item[0])][:2]
         examples = not bool(matches)
         ranked_jobs = matches or ranked_jobs[:2]
     return [
@@ -1010,7 +1019,10 @@ def recommendations_for_chat(chat: models.Chat, db: Session):
             job=schemas.JobOut.model_validate(job),
             match_score=result["overall_score"],
             recommended=not examples and is_recommended(result),
-            explanation=job.description if examples else summarize_match(result),
+            explanation=(job.description if examples else
+                         "Related to what you shared about " + ", ".join(discovery_overlap(chat.profile, job)[:3])
+                         + ". Review the requirements before applying."
+                         if chat.target_job_id is None else summarize_match(result)),
             criteria={} if examples else result["criteria"],
             available_example=examples,
         )

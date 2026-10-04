@@ -18,6 +18,25 @@ API succeeds.
 
 ## Quick local walkthrough
 
+### Numbered discovery suggestions (JT-074)
+
+1. Choose **Find a different job**. See entry guidance and numbered available-job
+   examples. Describe your background; the intro and raw profile chips disappear.
+2. Add skills or correct an answer. Check the reply names the same jobs in the
+   same order as the sidebar, with an explanation and no discovery percentages.
+3. Choose a job to apply. **Match so far** remains on that application's form.
+
+**Engineering checks (2026-10-04):** 26 focused backend checks passed across runs
+after correcting one test's assumption about the separately passed current user
+message. Covered partial matches below 50%, searching beyond the first five jobs,
+score recalculation, corrections, no matches, closed jobs and application controls.
+Frontend build passed. `scripts/local-signoff.ps1 -DiscoveryOnly` replayed the
+user's two messages with configured Gemini: the real Junior Software Developer
+role scored 0.37 then 0.49 and was named in both replies/cards. No provider fallback
+warning appeared. Numbering, hidden discovery percentages, no repeated intro/chips,
+phone width and reload passed. Only the new test guest was deleted; existing jobs
+were read-only. This focused live case does not replace broader usability sign-off.
+
 ### Logo and visible match score (JT-073)
 
 Check that the browser tab uses the app's chat-bubble logo. Open a job as a

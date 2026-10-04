@@ -52,7 +52,8 @@ try {
     if (Invoke-JavaScript 'document.documentElement.scrollWidth > innerWidth') { throw 'Phone discovery overflows horizontally' }
     Set-Viewport 1200 800 $false
     Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'I have three years of circuit design experience. I design and test PCB circuits, live in Durban and can work on-site.'
-    Wait-JavaScript "!document.querySelector('.typing') && document.querySelectorAll('.message-wrap.user').length === 1 && document.querySelector('.discovery-sidebar .score') !== null" 'context-based suggestions' 45
+    Wait-JavaScript "!document.querySelector('.typing') && document.querySelectorAll('.message-wrap.user').length === 1 && document.querySelector('.discovery-heading')?.textContent === 'Possible roles'" 'context-based suggestions' 45
+    if (Invoke-JavaScript "document.querySelector('.discovery-empty, .discovery-sidebar .score, .discovery-sidebar .criteria-row') !== null") { throw 'Discovery still displays introduction or percentages after matching' }
     Save-Screenshot 'discovery-matches-desktop.png'
     if (Invoke-JavaScript "document.querySelector('.error-notice, .draft-error') !== null") { throw 'UI displayed an error' }
     # Delete only the newly created test guest and its conversation.

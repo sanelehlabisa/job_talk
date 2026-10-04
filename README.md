@@ -55,6 +55,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
 - JT-073 adds a shared chat-bubble logo/browser icon and **Match so far** above
   the application form. The backend score refreshes after chat replies and saved
   edits; submitted applications show their original saved match percentage.
+- JT-074 makes discovery replies name real numbered job suggestions. A 15%
+  exploratory cutoff plus a work-related connection shows possible roles earlier.
+  Scores refresh after every message but percentages appear only after selecting
+  a job. The introductory guidance appears once, and raw profile chips are hidden.
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. JT-065 uses the same recruiter workspace for admin, with
   all job-creation chats, owner labels and editing controls. Ordinary recruiters
@@ -157,7 +161,8 @@ See [privacy and access details](docs/privacy-and-safety.md).
 - Seeker entry labels its two cards **Available jobs**. **Find a different job**
   opens a discovery chat with guidance and up to two real available-job examples
   immediately. As context arrives it searches all published open jobs and shows
-  useful matches; otherwise examples remain labelled as examples. **Apply
+  up to two numbered possible roles; otherwise examples remain labelled as
+  examples. Chat names these same jobs and explains their relevance. **Apply
   to this job** binds the guest conversation to that role and reuses earlier answers.
 - **Your application** shows the employer's criteria, captured answers, questions
   still needing clarification, and reported gaps. Corrections replace the same

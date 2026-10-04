@@ -221,6 +221,14 @@ refresh and review before submission. Closed jobs cannot be republished.
    Matching uses confirmed text targets and the selected work arrangement, not
    generic starter descriptions. Related discovery evidence can support a
    suggestion without creating a direct answer to that job's criterion.
+   JT-074 uses a separate 0.15 exploratory cutoff and a work-related term in common
+   with the real role. Shared location/hours alone do not justify a suggestion.
+   Search every open job before limiting the results to two; recalculate on each
+   message. Number cards and refer to the same ordered vacancies in the reply.
+   Show entry guidance once, hide raw profile chips and discovery percentages,
+   and retain the score on the selected application. The recruiter recommendation
+   threshold and submitted scores are unchanged. Full-stack search can relate to
+   software roles without inventing a job-specific skill or application answer.
 3. On explicit job selection, the application binds to its confirmed criteria.
    Carry forward only evidence from that guest's own discovery chat. Keep opaque,
    expiring tokens and one application per scope; do not expose other chats.

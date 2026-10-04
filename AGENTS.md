@@ -63,6 +63,12 @@ Distinguish an employer's not-required field from a candidate's reported gap.
 Keep initial seeker cards labelled available jobs and search all published open
 jobs before the seeker selects the job-specific application.
 
+Discovery offers up to two numbered possible roles with a low exploratory cutoff
+and a work-related connection; do not reuse the strong-candidate threshold here.
+Recalculate with each message and name the same real vacancies in chat and cards.
+Show introductory guidance only at entry and hide discovery percentages; the
+selected application keeps its backend match score. Never invent a vacancy.
+
 Owner access and manual vacancy entry are implemented in JT-061/JT-062. Use an
 optional backend-only `ADMIN_EMAIL` with approved email-code login and existing
 expiring session tokens; never authorize requests with a reusable login code.

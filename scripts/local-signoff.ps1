@@ -7,7 +7,8 @@ param(
     [switch]$VacancyOnly,
     [switch]$DraftEditorOnly,
     [switch]$LiveEditingOnly,
-    [switch]$SeekerFormOnly
+    [switch]$SeekerFormOnly,
+    [switch]$DiscoveryOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -124,6 +125,10 @@ try {
     Set-Viewport 1200 800 $false
     Invoke-Cdp "Page.navigate" @{ url = "http://localhost:3000/" } | Out-Null
     Wait-JavaScript "document.querySelector('.entry-choice') !== null" "entry screen"
+    if ($DiscoveryOnly) {
+        . "$PSScriptRoot/discovery-check.ps1"
+        return
+    }
     Invoke-JavaScript "[...document.querySelectorAll('.entry-choice')].find(button => button.textContent.includes('hiring')).click(); true" | Out-Null
     Wait-JavaScript "document.querySelector('#email') !== null" "recruiter email form"
     $mailBefore = (Invoke-RestMethod -Uri "http://127.0.0.1:8025/api/v1/messages" -TimeoutSec 5).total

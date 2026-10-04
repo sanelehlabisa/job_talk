@@ -371,6 +371,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .discovery-sidebar .job-card { padding: 13px; }
 .discovery-sidebar .job-card-top { align-items: flex-start; }
 .discovery-sidebar .job-card h3 { overflow-wrap: anywhere; }
+.discovery-heading { font-size: 14px; color: var(--green); margin: 2px 0 14px; }
 
 @media (max-width: 800px) {
   .chat-workspace.with-draft { flex-direction: column; overflow-y: auto; }

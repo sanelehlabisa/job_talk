@@ -344,20 +344,15 @@ function JobReadiness({ job }) {
   );
 }
 
-function Recommendation({ item, onSelect, busy }) {
-  const score = Math.round(item.match_score * 100);
+function Recommendation({ item, number, onSelect, busy }) {
   return (
     <article className="job-card">
       <div className="job-card-top">
-        <div className="job-logo">{item.job.title.slice(0, 1)}</div>
-        <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : item.recommended ? "Strong match" : "Possible role · add details to improve the match"}</span></div>
-        {!item.available_example && <div className="score"><strong>{score}%</strong><span>match</span></div>}
+        <div className="job-logo" aria-label={`Job ${number}`}>{number}</div>
+        <div><h3>{item.job.title}</h3><span>{item.available_example ? "Available job · example" : "Possible role"}</span></div>
       </div>
       <p>{item.explanation}</p>
       <SourceNotice source={item.job.source} compact />
-      <div className="criteria-row">
-        {Object.entries(item.criteria || {}).slice(0, 4).map(([key, value]) => <span key={key}>{key.replaceAll("_", " ")} {Math.round(value.score * 100)}%</span>)}
-      </div>
       <div className="job-actions">
         <button className="primary" disabled={busy} onClick={onSelect}>Apply to this job <ChevronRight size={17} /></button>
       </div>
@@ -692,7 +687,7 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
             </div>
           )}
           {sending && <div className="message-wrap assistant"><div className="avatar assistant-avatar" role="img" aria-label="Job Talk assistant"><Bot size={16} strokeWidth={2.2} aria-hidden="true" /></div><div className="typing"><i /><i /><i /></div></div>}
-          {!chat.job_draft && !chat.target_job && <ProfileChips profile={chat.profile} />}
+          {chat.intent !== "candidate" && !chat.job_draft && !chat.target_job && <ProfileChips profile={chat.profile} />}
           {chat.intent === "employer" && chat.job_post && !chat.job_draft && <JobReadiness job={chat.job_post} />}
           {chat.intent === "employer" && chat.job_post && chat.status !== "draft" && <CandidateComparison applications={applications} status={chat.status} targetProfile={chat.job_post.target_profile} jobId={chat.job_post.id} onCloseJob={onCloseJob} />}
           <div ref={bottomRef} />
@@ -703,8 +698,9 @@ function ChatView({ chat, recommendations, applications, isAdmin, onSend, onDraf
         {submitted && applications[0]?.id && <FeedbackPrompt kind="candidate" contextId={applications[0].id} />}
       </ApplicationSummary></aside>}
       {chat.intent === "candidate" && !chat.target_job_id && <aside className="draft-sidebar discovery-sidebar" aria-label="Job suggestions">
-        <section className="discovery-empty" role="status"><strong>{!recommendations.length ? "No open jobs right now" : recommendations.some((item) => !item.available_example) ? "Matching jobs" : Object.keys(chat.profile || {}).length ? "No useful match yet" : "Available jobs"}</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs as you chat.</p>{recommendations.some((item) => item.available_example) && <p>These are available-job examples. Keep chatting to narrow your search, or choose one to apply.</p>}</section>
-        {recommendations.map((item) => <Recommendation key={item.job.id} item={item} busy={selecting || sending} onSelect={() => selectJob(item.job.id)} />)}
+        {!chat.messages.some((message) => message.sender === "user") ? <section className="discovery-empty"><strong>Find a job</strong><p>Describe the work you can do, your experience and location. We search all published, open jobs as you chat.</p>{recommendations.length > 0 && <p>These are available-job examples. Keep chatting to narrow your search, or choose one to apply.</p>}</section>
+          : <h3 className="discovery-heading">{!recommendations.length ? "No open jobs right now" : recommendations.some((item) => !item.available_example) ? "Possible roles" : "Available jobs"}</h3>}
+        {recommendations.map((item, index) => <Recommendation key={item.job.id} item={item} number={index + 1} busy={selecting || sending} onSelect={() => selectJob(item.job.id)} />)}
       </aside>}
       </div>
       {chat.can_publish && <div className="publish-bar"><div><strong>{chat.job_post?.published ? "Your edits are ready" : "Your role is ready for final review"}</strong><span>{chat.job_post?.published ? "Publish changes to update the live post." : "Check the criteria above, then publish it explicitly."}</span></div><button className="primary" disabled={sending || editingDraft} onClick={onPublish}>{chat.job_post?.published ? "Publish changes" : "Publish job"} <ArrowRight size={17} /></button></div>}

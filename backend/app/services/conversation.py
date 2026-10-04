@@ -886,5 +886,25 @@ def candidate_reply(
     return "I’ve updated your profile. I’ll show matching published jobs here as they become available."
 
 
+def discovery_reply(profile: dict, suggestions: list[dict]) -> str:
+    """Name only the same database results returned to the discovery cards."""
+    if not suggestions:
+        return "There are no open jobs available right now. Please check again later."
+    matches = any(not item["available_example"] for item in suggestions)
+    listing = "\n".join(
+        f"{index}. {item['title']}" + (f" — {item['explanation']}" if matches else "")
+        for index, item in enumerate(suggestions, 1)
+    )
+    if matches:
+        return ("These open jobs may be worth exploring based on what you've shared:\n"
+                + listing + "\nChoose a job card to review its requirements and apply, or tell me more to refine the suggestions.")
+    if not profile.get("experience", {}).get("evidence") or not profile.get("location", {}).get("evidence"):
+        return ("These jobs are available, but I don't have a useful match for you yet:\n"
+                + listing + "\n" + candidate_reply(profile))
+    return ("I checked the open jobs, but none is closely related to your background yet. "
+            "These are available-job examples:\n" + listing
+            + "\nYou can review a job card, or tell me another kind of work you'd consider.")
+
+
 def can_publish(profile: dict, title: str) -> bool:
     return not missing_job_details(profile, title)

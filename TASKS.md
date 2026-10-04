@@ -26,7 +26,7 @@ scrapers, template management, or deployment work.
 
 The user approved merging the completed history through JT-071 (`fae157a`)
 into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
-Current user priority: **JT-073**, a chat logo/favicon and a visible candidate match score.
+Current user priority: **JT-074**, useful discovery replies and simple numbered job suggestions.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -53,6 +53,31 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-074 - Useful discovery replies and numbered possible roles
+
+- [x] Show discovery guidance once at entry; number job cards and remove
+  discovery percentages/profile chips. Keep the selected application's score.
+- [x] Recalculate against all open published jobs after each answer, with a low
+  exploratory cutoff and a work-related connection. Keep recruiter scoring and
+  the strong-candidate recommendation threshold unchanged.
+- [x] Name the real numbered suggestions in chat; state when no useful match or
+  no open vacancy exists instead of repeating the generic profile-update reply.
+- [x] Check multi-turn discovery, corrections, no matches, closed vacancies and
+  UI behavior. Record actual LLM checks separately. Deployment remains paused.
+
+**Status:** Implemented (2026-10-04) on `feat/simple-seeker-form`. The repeated
+profile-update sentence came from the deterministic discovery reply, not a model
+claim about live vacancies. Discovery also reused the stricter 0.50 threshold.
+It now builds replies from the exact card results and uses 0.15 plus a work-related
+connection, preserving recruiter scoring. Twenty-six focused backend checks
+passed across runs (one test's context assumption was corrected); frontend build
+and the discovery browser check passed. With configured Gemini and no fallback
+warnings, the user's two messages found the real Junior Software Developer role:
+its recalculated score moved from 0.37 to 0.49. Chat named the role both times;
+discovery hid percentages. Desktop/phone checks covered numbering, intro/chip
+removal and reload. Only the new test guest was deleted; existing jobs were read
+only. Master merge, deployment and JT-060 manual acceptance remain pending.
 
 ### JT-073 - Chat logo and candidate match score
 
