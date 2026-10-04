@@ -1,6 +1,6 @@
 # Manual usability check
 
-Status: **Focused Gemini checks passed; broader scenarios and user acceptance pending (2026-10-03).** This is
+Status: **Five-candidate Gemini browser exercise passed; user acceptance pending (2026-10-04).** This is
 the acceptance checklist for JT-057 through JT-062. JT-057/JT-058/JT-059 have
 implementation checks recorded in the recruiter and candidate test notes.
 JT-061 owner access and JT-062 manual vacancies passed backend/local browser
@@ -15,6 +15,61 @@ Use fictional people and an approved test recruiter. Run the existing local
 stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
 flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
+
+## Five-candidate browser exercise (JT-079)
+
+Run with the local app and Mailpit running, using fictional data only:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-signoff.ps1 -FiveCandidates
+```
+
+The browser signs in with an emailed code, creates the role over several chat
+turns, corrects experience from three years to two, reviews it and publishes.
+Five separate candidates search, chat, review contact/consent and submit: two
+experienced Python/FastAPI/PostgreSQL developers, one beginner with skill gaps,
+a plumber and a chef. Unrelated candidates deliberately use the public job link;
+that must not be reported as a discovery recommendation. The recruiter then
+checks all five cards, relevant top candidates, evidence, scores and the plot.
+The check saves fictional screenshots/results in its temporary output folder,
+closes its published test job and deletes only its new guest sessions afterward.
+
+**Actual Gemini run (2026-10-04):** Approved email-code login, stepwise job
+creation, experience correction, no-degree exclusion, review/publication, all
+five submissions and the recruiter comparison passed. The visible scores,
+saved criterion keys, contact details and plot values agreed and survived refresh.
+
+| Fictional applicant | Background | Found the job in discovery | Submitted estimate |
+| --- | --- | --- | --- |
+| Alex | Four years, Python/FastAPI/PostgreSQL | Yes | 100% |
+| Bongi | Three years, Python/FastAPI/PostgreSQL | Yes | 100% |
+| Casey | One year, Python/Flask; missing required tools | Yes | 66% |
+| Dumi | Plumber, no software experience | No | 42% |
+| Erin | Chef, no software experience | No | 27% |
+
+All five saved estimates used `gemini-3.5-flash-lite`; Alex and Bongi ranked first
+and second. Nonzero scores for unrelated applicants include shared nontechnical
+requirements such as hours and availability; they were not recommended in discovery.
+These are model estimates for this run, not verified hiring decisions or fixed
+expected percentages. An earlier exploratory run hit a rating-validation fallback;
+that result was labelled as a rule estimate. Twenty-seven focused backend tests
+separately checked draft/history/editing and application validation. The browser
+exercise exposed and fixed descriptive hybrid answers being discarded and an
+explicit rejection of hybrid work remaining unanswered instead of a recorded gap.
+Test guests were deleted and test jobs closed. Phone usability still needs the
+manual check below; a captured phone screenshot alone does not establish usability.
+
+Manual acceptance remains yours:
+
+1. Log in using a code from Mailpit; describe a role across several messages.
+2. Correct one requirement, review the form and explicitly publish.
+3. Apply as a relevant person and an unrelated person in separate sessions;
+   verify discovery, honest gaps, consent and explicit submission.
+4. As recruiter, confirm the best candidates, contact details, evidence and plot
+   agree with what those applicants actually said. Refresh and check phone width.
+
+Follow-up messaging is deferred until requested. Scripted checks do not replace
+this manual sign-off, and model/fallback results must be reported separately.
 
 ## Quick local walkthrough
 

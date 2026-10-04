@@ -2,7 +2,7 @@
 set -eu
 
 compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
-env_file=${ENV_FILE:-.env.production}
+env_file=${ENV_FILE:-.env}
 
 compose() {
     docker compose --env-file "$env_file" -f "$compose_file" "$@"

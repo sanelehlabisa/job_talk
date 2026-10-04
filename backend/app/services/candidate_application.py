@@ -130,6 +130,17 @@ def apply_candidate_updates(profile: dict, criteria: dict | None, updates: list[
         if not set(re.findall(r"\d+", update.evidence)).issubset(source_numbers):
             continue
         value = update.value
+        if update.key == "working_arrangement" and update.state == "captured":
+            # Gemini may correctly capture the preferred alternative while the
+            # same quote explicitly rejects the employer's required arrangement.
+            # Keep that answer as a resolved gap instead of discarding it.
+            denied_modes = re.findall(
+                r"\b(?:not|no|cannot|can't|do not want|don't want)\s+(?:do |work |accept )?(remote|hybrid|on[ -]?site)\b",
+                source,
+            )
+            denied_modes = {"on-site" if mode.startswith("on") else mode for mode in denied_modes}
+            if str(requirement.get("target", "")).casefold() in denied_modes:
+                update = update.model_copy(update={"state": "gap"})
         if update.state == "gap":
             explicit_gap = _criterion_denied(update.source_quote, update.key, requirement)
             if not explicit_gap and not (update.key == expected and re.search(r"\b(?:no|none|don't|cannot|can't|haven't|never)\b", source)):

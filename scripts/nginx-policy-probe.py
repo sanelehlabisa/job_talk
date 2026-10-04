@@ -6,6 +6,7 @@ import json
 import os
 import re
 import ssl
+import socket
 import sys
 import time
 
@@ -16,6 +17,16 @@ assert make_url(os.environ["DATABASE_URL"]).database == "jt077_policy_test"
 DOMAIN = "jobtalk.roventics.com"
 ORIGIN = f"https://{DOMAIN}"
 BASIC = "Basic " + base64.b64encode(b"staging:policy-staging-password").decode()
+
+# Even a process inside the backend container cannot use a TCP API listener.
+for host in ("127.0.0.1", "backend"):
+    try:
+        with socket.create_connection((host, 8000), timeout=2):
+            raise AssertionError("Production backend unexpectedly accepts TCP")
+    except ConnectionRefusedError:
+        pass
+assert os.path.exists("/run/jobtalk/api.sock"), "Private backend socket missing"
+print("PASS: backend uses a local socket; TCP API connections are refused")
 
 
 def request(path, expected, method="GET", headers=None, payload=None, tls=True, paced=True):

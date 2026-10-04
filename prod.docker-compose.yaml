@@ -6,9 +6,9 @@ services:
     image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env.production}
-      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env.production}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - job_talk_data:/var/lib/postgresql/data
     expose:
@@ -39,20 +39,23 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
+    volumes:
+      - backend_socket:/run/jobtalk
     environment:
       APP_ENV: production
-      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env.production}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env.production}
-      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env.production}
-      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
-      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in .env.production}
-      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env.production}
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env}
+      # Only Nginx shares this socket; trust its sanitized forwarded headers.
+      FORWARDED_ALLOW_IPS: "*"
+      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in .env}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env.production}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env.production}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP_USERNAME in .env}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      EMAIL_FROM: ${EMAIL_FROM:?Set EMAIL_FROM in .env.production}
+      EMAIL_FROM: ${EMAIL_FROM:?Set EMAIL_FROM in .env}
       RECRUITER_CODE_TTL_MINUTES: ${RECRUITER_CODE_TTL_MINUTES:-10}
       RECRUITER_CODE_MAX_ATTEMPTS: ${RECRUITER_CODE_MAX_ATTEMPTS:-5}
       RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS: ${RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS:-60}
@@ -60,10 +63,10 @@ services:
       DEMO_DATA_RETENTION_DAYS: ${DEMO_DATA_RETENTION_DAYS:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       SEED_DEMO_JOBS: "false"
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.production}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
-      SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:?Set SESSION_TOKEN_PEPPER in .env.production}
+      SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:?Set SESSION_TOKEN_PEPPER in .env}
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
@@ -75,24 +78,19 @@ services:
     command:
       - uvicorn
       - app.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
+      - --uds
+      - /run/jobtalk/api.sock
       - --proxy-headers
       - --forwarded-allow-ips
-      - ${FORWARDED_ALLOW_IPS:-*}
-    expose:
-      - "8000"
+      - "*"
     networks:
-      - proxy_backend
       - database
       - outbound
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/api/ready', headers={'Host': os.environ['APP_DOMAIN']}); urllib.request.urlopen(request, timeout=3)"]
+      test: ["CMD", "python", "-m", "app.socket_healthcheck"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -115,7 +113,7 @@ services:
       args:
         VITE_API_URL: /api
         VITE_DEV_MAILBOX_URL: ""
-        VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:?Set SUPPORT_EMAIL in .env.production}
+        VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:?Set SUPPORT_EMAIL in .env}
     restart: unless-stopped
     init: true
     read_only: true
@@ -155,9 +153,10 @@ services:
     init: true
     read_only: true
     environment:
-      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
       CERTIFICATE_RELOAD_SECONDS: ${CERTIFICATE_RELOAD_SECONDS:-3600}
     volumes:
+      - backend_socket:/run/jobtalk:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
       - ${STAGING_HTPASSWD_PATH:-./secrets/nginx/.htpasswd}:/etc/nginx/auth/.htpasswd:ro
@@ -172,7 +171,6 @@ services:
       - "443:443"
     networks:
       - edge
-      - proxy_backend
       - proxy_frontend
     depends_on:
       backend:
@@ -239,8 +237,6 @@ services:
 
 networks:
   edge:
-  proxy_backend:
-    internal: true
   proxy_frontend:
     internal: true
   database:
@@ -248,6 +244,7 @@ networks:
   outbound:
 
 volumes:
+  backend_socket:
   job_talk_data:
   letsencrypt:
   certbot_www:

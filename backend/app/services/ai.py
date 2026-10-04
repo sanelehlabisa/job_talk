@@ -65,7 +65,8 @@ Skill targets may be true with a concrete description; experience may be text,
 such as a practical project. Do not require years for every skill or tool.
 Capture job_title and role_description separately; polish a concise role description
 from stated duties. Use text for location, working_hours, availability, education,
-tools and working_arrangement. Arrangement is remote, hybrid or on-site. Remote
+tools and working_arrangement. For working_arrangement set target to exactly
+remote, hybrid or on-site; keep office days and other details in description. Remote
 does not imply worldwide: capture explicit location restrictions or unrestricted
 location. Flexible start dates and hours are valid text answers.
 Closing date is optional job metadata, using key closing_date and a text target
@@ -107,6 +108,8 @@ for text criteria. A skill does not always require years. Missing evidence remai
 missing; unclear answers use needs_clarification and null value. 'That's fine' or
 an unrelated answer produces no updates. 'I don't have that skill' is a resolved
 gap for the current question: use gap and null, without modifying the job.
+If a candidate explicitly rejects the job's required work arrangement, record
+working_arrangement as a gap with the exact quote, even if they prefer another mode.
 Before a job is selected, extract only stated background with stable keys and
 readable labels (experience, location, availability and named skills/tools).
 Use working_arrangement for remote/hybrid/on-site preferences, location for the

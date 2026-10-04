@@ -126,6 +126,10 @@ The primary experiment must support this sequence:
 - Keep public ports bound to localhost in the development stack.
 - Treat the backend and database as private services in production. Only the
   HTTPS reverse proxy may publish host ports.
+- Production FastAPI binds only to the Unix socket shared with Nginx. Do not add
+  a backend TCP listener or mount that socket into other application services.
+  This prevents direct network access; public proxy URLs still require normal
+  authentication/authorization for private operations.
 - Keep production API origin checks, request limits and security headers in
   Nginx. Browser headers are not client authentication; preserve backend token,
   approval and ownership checks. Never add a shared secret to frontend code.
@@ -176,7 +180,10 @@ feature branch does not by itself approve merging it.
 Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
-Production uses `docker compose --env-file .env.production -f
+Production uses `docker compose --env-file .env -f
 prod.docker-compose.yaml ...`. Only Nginx publishes 80/443; port 80 redirects to
 HTTPS once a certificate exists. Use an isolated project and disposable volumes
 for production checks, never the running development project or its database.
+Use one `.env` per installation and one `.env.example`. Set VM values in its
+`.env`; preserve the local development credentials and database. Candidate follow-up
+messaging is deferred until explicitly requested.

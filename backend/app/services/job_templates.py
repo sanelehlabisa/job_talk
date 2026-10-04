@@ -331,9 +331,15 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
         else:
             target = update.target
             if field.key == "working_arrangement" and isinstance(target, str):
-                target = target.strip().casefold()
-                if target in {"onsite", "on site"}:
-                    target = "on-site"
+                # Models may include useful details (e.g. two office days).
+                # Keep those in description, but store the canonical arrangement.
+                pattern = r"\b(remote|hybrid|on[ -]?site)\b"
+                canonical = lambda value: "on-site" if value.startswith("on") else value
+                proposed_modes = {canonical(m) for m in re.findall(pattern, target.casefold())}
+                quoted_modes = {canonical(m) for m in re.findall(pattern, source.casefold())}
+                if len(proposed_modes) != 1 or (quoted_modes and not proposed_modes.issubset(quoted_modes)):
+                    continue  # Ambiguous choices or invented arrangements need clarification.
+                target = proposed_modes.pop()
             supporting_source = source
             if field.target == target and field.type == update.type and field.source_quote:
                 supporting_source = field.source_quote + " " + source

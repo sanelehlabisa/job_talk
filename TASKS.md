@@ -27,8 +27,11 @@ scrapers, template management, or deployment work.
 The user approved merging all completed history through JT-075 (`4f3b95c`)
 into the default branch, `master`, on 2026-10-04. This includes the simplified
 application form, discovery and Gemini criterion ratings.
-Current user priority: **JT-077**, production proxy request policies. The user
-approved committing, pushing and merging this work into `master` on 2026-10-04.
+Current user priority: **JT-078**, one environment file and private backend
+transport, and **JT-079**, the five-candidate browser exercise, are implemented
+and checked. Return to the user's **JT-060** manual usability acceptance.
+JT-077 was merged and pushed at `7d0e9e5` with user approval. New work remains
+on a feature branch until its merge is approved.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -55,6 +58,65 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-078 - One environment file and Nginx-only backend transport
+
+- [x] Keep only `.env.example`; both Compose stacks/operator scripts use `.env`.
+  Document local versus VM values and preserve existing local secrets/data.
+- [x] Remove the production backend TCP listener. Share one Unix socket only
+  between FastAPI and Nginx; probe readiness through that socket.
+- [x] Verify direct TCP attempts fail while proxy login, guest sessions, tokens,
+  logout, headers and limits still work in an isolated production stack.
+- [x] Explain that an IP restriction cannot distinguish browser traffic from
+  outside clients using the public proxy. Keep approval/ownership/token checks.
+
+**Status:** Implemented (2026-10-04). Single-file environment commands and
+development Compose validation passed. Isolated production images/startup,
+socket readiness, TCP refusal, proxy code-login/guest/auth/logout and Nginx
+request policies passed using disposable data. The test socket and database
+volumes were removed afterward. Local environment values were preserved; only
+missing deployment settings were added. No public deployment was performed.
+
+### JT-079 - Browser hiring loop with five fictional candidates
+
+- [x] Sign in as an approved recruiter using a real local email code; keep the
+  issued token private. Create a job step by step through chat, review and publish.
+- [x] Use five separate guest sessions: two strong relevant candidates, one
+  partial match, and two unrelated candidates. Check discovery using background
+  descriptions: relevant seekers find the real job; unrelated seekers should
+  not receive it as a personalised recommendation. Initial examples are distinct.
+- [x] Apply through chat, review saved evidence/contact/consent, then explicitly
+  submit all five. Unrelated people may deliberately apply through the public link.
+- [x] Recruiter sees the submitted details, score reasons and comparison plot;
+  best relevant candidates rank ahead of unrelated candidates. Verify criteria
+  keys and stored scores agree with the visible comparison and survive refresh.
+- [x] Record actual Gemini versus fallback results separately, use only fictional
+  data, and close/delete only fixtures created by this check. Keep the user's
+  usability sign-off separate from automation and provide a short manual checklist.
+
+**Status:** Engineering checks passed (2026-10-04). Uses the existing browser check runner and
+local inbox; no accounts for candidates or additional infrastructure. Candidate
+follow-up messaging is deferred until the user explicitly asks for it.
+The first actual Gemini run exposed a rejected descriptive work arrangement:
+"Hybrid with two days per week at the office" did not equal the canonical enum.
+Normalization now preserves the description and stores `hybrid`; ambiguous modes
+still need clarification. Twenty-one focused draft/history/editor checks passed.
+An initial rerun published successfully. A second live reproduction showed Gemini
+capturing `on-site` from "not hybrid" while validation discarded the answer.
+An explicit rejection of the required mode now becomes a resolved, zero-scored
+gap, with the requirement unchanged. Six candidate tests passed.
+The final browser run passed approved email-code login, stepwise creation,
+correction/publication, discovery, five submissions, recruiter details, saved
+scores/criteria, plot values and refresh. All five submitted ratings came from
+actual `gemini-3.5-flash-lite`: strong candidates 100%/100%, partial 66%, unrelated
+42%/27%. Both strong candidates and the partial candidate discovered the job;
+neither unrelated candidate received it as a recommendation. Unrelated applicants
+used its public link deliberately. The strong candidates ranked first and second.
+Earlier exploratory runs included one rejected rating that used the labelled
+rule-based fallback; this is not a claim that every model response succeeds.
+The test guests were deleted and its published job closed; existing user data
+was preserved. Phone usability and the user's JT-060 sign-off remain manual.
+See [the result table and checklist](docs/usability-checklist.md#five-candidate-browser-exercise-jt-079).
 
 ### JT-077 - Harden the production proxy without breaking app access
 
@@ -105,8 +167,8 @@ attempt counting now use atomic database updates. Eighty-four focused backend
 checks passed across isolated SQLite runs after correcting timezone synchronization
 and a test email fixture; frontend build and local Mailpit/browser logout checks
 passed. Example-only production Compose validation confirmed Nginx-only 80/443,
-private backend/database networks and no other host ports. `.env.production` is
-absent locally. Real VPS DNS/TLS, SMTP, secrets, backup and the live hiring loop
+private backend/database networks and no other host ports. Production settings
+were not configured locally. Real VPS DNS/TLS, SMTP, secrets, backup and the live hiring loop
 remain unverified. Ready for a controlled VM setup after those prerequisites;
 public launch and JT-060 acceptance are still pending.
 
@@ -220,7 +282,7 @@ This feature awaits merge approval; deployment and JT-060 acceptance stay paused
 **Status:** Implemented (2026-10-03). Both Compose files validate quietly. All 11
 local environment assignments were preserved exactly; secrets stay ignored.
 The 22 focused auth/ownership/admin/guest tests passed in disposable SQLite.
-Production `.env.production` is not present locally. Domain choice is
+The production environment was not configured locally at that check. Domain choice is
 confirmed; DNS, VM secrets, SMTP, real TLS/renewal, backups and the live hiring
 flow remain unverified. The user subsequently approved the master merge; deployment
 and JT-060 usability acceptance remain pending.

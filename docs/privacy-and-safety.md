@@ -7,7 +7,8 @@ Use that inbox for privacy, abuse, access, and deletion reports.
 ## API access boundary
 
 Production is planned for `https://jobtalk.roventics.com`. Only Nginx exposes
-host ports 80/443. FastAPI and PostgreSQL have no public host ports; `/api/`
+host ports 80/443. FastAPI uses only a local Unix socket shared with Nginx;
+it has no TCP listener. PostgreSQL has no public host port; `/api/`
 still reaches the backend through HTTPS and enforces application authentication.
 
 The production proxy also rejects foreign browser origins and Fetch Metadata
@@ -80,7 +81,7 @@ least daily on the VM to enforce it; `DEMO_DATA_RETENTION_DAYS` defaults to 30 a
 cannot exceed 30:
 
 ```bash
-docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.data_retention purge-guests --confirm
+docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.data_retention purge-guests --confirm
 ```
 
 The command removes the guest user, session, conversation, messages, application,
@@ -97,13 +98,13 @@ After the session is gone, verify a request using the application reference and
 the contact detail already stored on that application. Then run:
 
 ```bash
-docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.data_retention delete-application APPLICATION_ID --confirm
+docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.data_retention delete-application APPLICATION_ID --confirm
 ```
 
 An unused recruiter access request can be removed with:
 
 ```bash
-docker compose --env-file .env.production -f prod.docker-compose.yaml exec backend python -m app.recruiters delete recruiter@company.com
+docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters delete recruiter@company.com
 ```
 
 That command refuses to delete a recruiter who has hiring records. Review and

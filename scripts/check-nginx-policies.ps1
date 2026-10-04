@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("jobtalk-policy-" + [guid]::NewGuid().ToString('N'))
 $project = 'jt_policy_' + [guid]::NewGuid().ToString('N').Substring(0, 12)
-$imageTag = 'jt077-policy-check'
+$imageTag = 'jt078-policy-check'
 $compose = @('--env-file', "$fixture/test.env", '-p', $project,
     '-f', "$repo/prod.docker-compose.yaml", '-f', "$fixture/override.yaml")
 
@@ -48,6 +48,9 @@ services:
       POSTGRES_USER: job_talk
       POSTGRES_PASSWORD: isolated-policy-database-password
   backend:
+    # Test client needs to reach the proxy; production has no shared TCP network.
+    networks:
+      - edge
     environment:
       JOBTALK_POLICY_CHECK: '1'
       DATABASE_URL: postgresql+psycopg://job_talk:isolated-policy-database-password@postgres:5432/jt077_policy_test
@@ -61,6 +64,7 @@ services:
   proxy:
     ports: !override []
     volumes: !override
+      - 'backend_socket:/run/jobtalk:ro'
       - '$($fixture.Replace('\', '/'))/certificates:/etc/letsencrypt:ro'
       - '$($fixture.Replace('\', '/'))/challenges:/var/www/certbot:ro'
       - '$($fixture.Replace('\', '/'))/htpasswd:/etc/nginx/auth/.htpasswd:ro'

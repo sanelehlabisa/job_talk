@@ -10,7 +10,7 @@ backup_path=$1
 target_database=$2
 allow_primary=${3:-}
 compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
-env_file=${ENV_FILE:-.env.production}
+env_file=${ENV_FILE:-.env}
 
 case "$target_database" in
     ''|*[!A-Za-z0-9_]*)

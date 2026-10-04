@@ -31,6 +31,25 @@ def guest(client, job_id=None):
     return client.get("/api/chats", headers=headers).json()[0], headers
 
 
+def test_rejected_arrangement_is_a_resolved_gap_even_if_model_captures_alternative():
+    text = "I only want on-site work, not hybrid office work."
+    criteria = {"working_arrangement": {"label": "Work arrangement", "type": "text",
+        "target": "hybrid", "weight": .5, "description": "Hybrid with two office days"}}
+    original = deepcopy(criteria)
+    answer = proposal("working_arrangement", text, "on-site")
+    profile = apply_candidate_updates({}, criteria, [answer], text, [])
+    assert profile["working_arrangement"]["assessment"] == "gap"
+    assert profile["working_arrangement"]["value"] is None
+    assert application_fields(profile, criteria)[0]["state"] == "gap"
+    assert match_profiles(profile, criteria)["criteria"]["working_arrangement"]["score"] == 0
+    assert criteria == original
+    # A willingness statement is still captured, not treated as a rejection.
+    willing = "I don't mind hybrid work."
+    accepted = apply_candidate_updates({}, criteria,
+        [proposal("working_arrangement", willing, "hybrid")], willing, [])
+    assert accepted["working_arrangement"]["assessment"] == "claimed"
+
+
 def test_discovery_finds_third_job_then_collects_corrects_and_submits(monkeypatch):
     create_published_job(email="first@example.com", title="Welder")
     create_published_job(email="second@example.com", title="Driver", target_profile={"driving": {"type": "skill", "target": True, "weight": 1, "description": "Driving"}})

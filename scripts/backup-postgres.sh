@@ -2,7 +2,7 @@
 set -eu
 
 compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
-env_file=${ENV_FILE:-.env.production}
+env_file=${ENV_FILE:-.env}
 backup_dir=${BACKUP_DIR:-./backups/postgres}
 retention_days=${BACKUP_RETENTION_DAYS:-7}
 

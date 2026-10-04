@@ -33,6 +33,28 @@ def developer_updates():
     ]
 
 
+def test_descriptive_arrangement_is_saved_without_repeating_the_question():
+    source = "Hybrid work is required, with two days per week at the office."
+    update = proposal("working_arrangement", source, "Hybrid with two days per week at the office")
+    draft = apply_draft_updates(new_job_draft("generic-role"), [update], source)
+    field = next(f for f in draft["fields"] if f["key"] == "working_arrangement")
+    assert field["state"] == "confirmed"
+    assert field["target"] == "hybrid"
+    assert field["description"] == source
+    assert draft_profile(draft)["working_arrangement"]["source_quote"] == source
+    # Keep existing AI interpretation of equivalent wording without literal modes.
+    indirect = "Work at the employer's office every day."
+    inferred = apply_draft_updates(new_job_draft("generic-role"),
+        [proposal("working_arrangement", indirect, "on-site")], indirect)
+    assert next(f for f in inferred["fields"] if f["key"] == "working_arrangement")["target"] == "on-site"
+    # Neither a choice between two modes nor an unsupported mode is confirmation.
+    for text, target in (("Remote or hybrid, undecided", "Remote or hybrid"),
+                         ("On-site work is required", "Hybrid with two office days")):
+        result = apply_draft_updates(new_job_draft("generic-role"),
+            [proposal("working_arrangement", text, target)], text)
+        assert next(f for f in result["fields"] if f["key"] == "working_arrangement")["state"] == "unanswered"
+
+
 def test_template_chat_applies_multiple_fields_corrects_and_publishes(monkeypatch):
     updates = developer_updates()
     captured = []

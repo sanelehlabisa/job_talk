@@ -16,12 +16,12 @@ COPY docker-entrypoint.sh .
 
 RUN addgroup --system jobtalk \
     && adduser --system --ingroup jobtalk jobtalk \
+    && mkdir -p /run/jobtalk \
+    && chown jobtalk:jobtalk /run/jobtalk \
     && chown -R jobtalk:jobtalk /app \
     && chmod +x /app/docker-entrypoint.sh
 
 USER jobtalk
 
-EXPOSE 8000
-
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--uds", "/run/jobtalk/api.sock"]

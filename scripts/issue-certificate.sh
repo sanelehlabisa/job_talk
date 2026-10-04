@@ -2,7 +2,7 @@
 set -eu
 
 compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
-env_file=${ENV_FILE:-.env.production}
+env_file=${ENV_FILE:-.env}
 
 read_env_value() {
     sed -n "s/^$1=//p" "$env_file" | tail -n 1 | tr -d '\r'

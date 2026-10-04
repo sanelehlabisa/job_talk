@@ -10,6 +10,5 @@ secrets/
 .env
 .env.*
 !.env.example
-!.env.production.example
 .vscode/
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-env_file=${ENV_FILE:-.env.production}
+env_file=${ENV_FILE:-.env}
 compose_file=${COMPOSE_FILE:-prod.docker-compose.yaml}
 expected_ip=${EXPECTED_PUBLIC_IP:-}
 
@@ -34,7 +34,7 @@ for key in \
     JOB_TALK_IMAGE_TAG APP_DOMAIN PUBLIC_ORIGIN ALLOWED_HOSTS CORS_ORIGINS \
     TLS_EMAIL STAGING_HTPASSWD_PATH SMTP_HOST SMTP_USERNAME SMTP_PASSWORD \
     EMAIL_FROM SUPPORT_EMAIL POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
-    DATABASE_URL SESSION_TOKEN_PEPPER
+    SESSION_TOKEN_PEPPER
 do
     require_value "$key"
 done

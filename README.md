@@ -36,6 +36,11 @@ The core hiring loop works locally. Completed work through JT-077 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
 JT-077 adds production Nginx origin/host checks, request limits and security headers.
+JT-078 now uses one `.env` file and a private Nginx/backend Unix socket. JT-079
+passed a browser run with an approved recruiter and five fictional candidates
+using actual Gemini. Relevant candidates discovered the job and ranked above
+unrelated applicants; saved scores and the comparison plot agreed. See the
+[results and manual checklist](docs/usability-checklist.md#five-candidate-browser-exercise-jt-079).
 JT-070 prepared `prod.docker-compose.yaml` and verified Nginx/HTTPS
 in an isolated local stack. Production preparation is authorized; VM deployment
 and the user's final usability sign-off are still pending.
@@ -107,9 +112,10 @@ Ready for a controlled VM setup once its environment is configured; **not yet
 verified for a public launch**. Before inviting candidates:
 
 - Point `jobtalk.roventics.com` to the VM and allow Nginx ports 80/443.
-- Prepare ignored `.env.production` with strong database/session secrets, working
+- Prepare ignored `.env` with strong database/session secrets, working
   SMTP, the selected LLM key, monitored contact addresses and `ADMIN_EMAIL`.
-  A local `.env.production` has not been created in this workspace.
+  The local `.env` is configured for development; configure the VM's `.env`
+  separately using the production values in the guide.
 - Issue the real certificate, run the renewal dry-run, verify backups and test
   email-code login plus create/apply/compare on the live domain.
 - Complete the [manual usability check](docs/usability-checklist.md) on the live
@@ -444,8 +450,12 @@ creating duplicates.
 
 ## Production environment contract
 
-Copy `.env.production.example` to an ignored VM environment file and replace
-every placeholder. FastAPI refuses to start in `APP_ENV=production` unless:
+Use one ignored `.env` per installation; `.env.example` is the only example.
+Both Compose files and operator scripts read `.env`. Its defaults are for local
+development. On the VM set production domain, secrets, SMTP and release settings
+as described in [production operations](docs/production-operations.md#prepare-a-release).
+Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
+`POSTGRES_PASSWORD`. FastAPI refuses to start in `APP_ENV=production` unless:
 
 - `PUBLIC_ORIGIN` is the HTTPS root of `APP_DOMAIN`;
 - `ALLOWED_HOSTS` contains the configured subdomain;
@@ -460,6 +470,11 @@ database storage. Keep it out of frontend build arguments and browser code.
 
 Production Compose also requires `SUPPORT_EMAIL`. Set it to the monitored address
 shown on the privacy and safety page before building the frontend.
+Production FastAPI listens only on a Unix socket shared with Nginx, with no TCP
+listener. The frontend and other containers cannot connect directly to the API.
+Nginx's public `/api/` route still accepts outside clients; private actions always
+require backend tokens and permissions. An IP allowlist cannot prove that a
+request came from our browser app.
 The backend and development example now default `AI_MAX_OUTPUT_TOKENS` to 3000
 to allow a whole template's structured updates in one response. Existing `.env`
 overrides are retained; raise an older 1000-token value to 3000 and recreate the

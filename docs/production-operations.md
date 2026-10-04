@@ -1,11 +1,13 @@
 # Production Compose operations
 
-**Target:** `https://jobtalk.roventics.com`. The production environment example
-already sets this domain, HTTPS origin, allowed host and CORS origin. DNS, trusted
+**Target:** `https://jobtalk.roventics.com`. The single `.env.example` includes
+development defaults and notes for the VM's `.env`. DNS, trusted
 TLS, real SMTP and the live hiring flow have not yet been verified on the VM.
 
-The production package keeps PostgreSQL, FastAPI, and the built frontend on
-private Compose networks. Only the Nginx proxy publishes host ports 80 and 443.
+The production package keeps PostgreSQL and the built frontend on private
+Compose networks. FastAPI listens only on `/run/jobtalk/api.sock`, a Unix socket
+in a volume mounted by the backend and Nginx. There is no backend TCP listener.
+Only the Nginx proxy publishes host ports 80 and 443.
 Run every command from the release directory on the VM.
 
 The file is **`prod.docker-compose.yaml`**. Port **80** is the HTTP entry point;
@@ -15,16 +17,26 @@ return 503 so sign-in never runs over plain HTTP.
 
 The default project name is `job_talk_prod`, keeping production containers and
 volumes separate from development. If upgrading an older production installation
-named `job_talk`, set `COMPOSE_PROJECT_NAME=job_talk` in its `.env.production` to
+named `job_talk`, set `COMPOSE_PROJECT_NAME=job_talk` in its `.env` to
 retain its existing volumes. Do not run that older project beside development.
 
 ## Prepare a release
 
 1. Check out the exact Git commit to deploy and confirm the working tree is clean.
-2. Copy `.env.production.example` to `.env.production` and replace every secret
-   and email placeholder; retain the chosen `jobtalk.roventics.com` domain fields.
+2. On the VM, copy `.env.example` to `.env` if `.env` does not already exist.
+   Edit that one file; never overwrite an existing environment file or copy
+   development credentials to production. Set `APP_ENV=production`,
+   `APP_DOMAIN=jobtalk.roventics.com`,
+   `PUBLIC_ORIGIN=https://jobtalk.roventics.com`,
+   `ALLOWED_HOSTS=jobtalk.roventics.com` and
+   `CORS_ORIGINS=https://jobtalk.roventics.com`.
+   Replace the database password (at least 16 random URL-safe characters),
+   session pepper (at least 32 random characters), SMTP host/port/user/password,
+   `EMAIL_FROM`, `SUPPORT_EMAIL` and `TLS_EMAIL`. Use TLS for real SMTP as required
+   by your provider. Keep the selected Gemini key backend-only. Compose builds
+   `DATABASE_URL` from the database fields; do not maintain a second URL.
    Sections group release, database, backend, authentication, email, LLM, frontend
-   and Nginx/TLS settings. Keep development `.env` local. Set `JOB_TALK_IMAGE_TAG`
+   and Nginx/TLS settings. Keep your computer's `.env` for development. Set `JOB_TALK_IMAGE_TAG`
    to the full Git commit SHA. The
    preflight rejects a tag that differs from the checked-out commit so all three
    application images share the reviewed release identity.
@@ -67,14 +79,14 @@ Compose configuration.
 printing it, because resolved output contains secrets:
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml config --quiet
+docker compose --env-file .env -f prod.docker-compose.yaml config --quiet
 ```
 
 Build the three application images. All receive the same immutable release tag;
 only `/api` is compiled into the browser bundle.
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml build backend frontend proxy
+docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
 ```
 
 ## Issue and renew TLS certificates
@@ -106,9 +118,9 @@ normal Compose shutdown.
 ## Start and verify
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml up -d
-docker compose --env-file .env.production -f prod.docker-compose.yaml ps
-APP_DOMAIN=$(sed -n 's/^APP_DOMAIN=//p' .env.production | tr -d '\r')
+docker compose --env-file .env -f prod.docker-compose.yaml up -d
+docker compose --env-file .env -f prod.docker-compose.yaml ps
+APP_DOMAIN=$(sed -n 's/^APP_DOMAIN=//p' .env | tr -d '\r')
 curl --fail --silent --show-error "https://$APP_DOMAIN/api/ready"
 ```
 
@@ -119,8 +131,8 @@ ps`, only the proxy may show published host ports, specifically `80->80` and
 
 The lightweight `/api/health` endpoint confirms the process is alive.
 `/api/ready` also executes a database query and is used by the backend
-container health check. The internal probe sends `Host: APP_DOMAIN` so it passes
-the same allowed-host checks as public traffic without adding a public backend port.
+container health check. The internal probe uses the Unix socket and sends
+`Host: APP_DOMAIN`, without adding a backend network listener.
 
 **Local verification (2026-10-03):** The production images and isolated Compose
 stack passed startup, HTTP bootstrap, certificate-watcher activation, 80-to-443
@@ -132,8 +144,11 @@ issuance and `renew --dry-run` on the VM after configuring the real domain.
 
 ## Proxy request policies (JT-077)
 
-FastAPI has no published host port. Internet requests reach it only through
-Nginx's `/api/` route. Public endpoints remain callable by outside clients;
+FastAPI has no TCP listener, even inside its container. Nginx connects through
+the shared Unix socket using its [Unix upstream support](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server).
+Only the backend and proxy mount that socket volume; the frontend, database and
+certificate services do not. The host administrator/Docker daemon remains trusted.
+Internet requests reach FastAPI through Nginx's `/api/` route. Public endpoints remain callable by outside clients;
 private data and actions require the backend's scoped session token, recruiter
 approval and ownership checks. Neither CORS nor a header copied from the
 frontend can prove which program sent a request.
@@ -182,14 +197,18 @@ CSP behavior or the user's end-to-end usability acceptance.
 handling against the disposable PostgreSQL database and activation of both rate
 limit zones. Nine backend access-boundary tests passed separately in SQLite.
 Connection and timeout settings were syntax-checked; no load test was performed.
+JT-078 repeated the production checks with the socket transport: readiness,
+login and logout worked through Nginx, while TCP requests to backend port 8000
+were refused from inside its own container. No external services mount the
+socket. Use `.env` for all commands below.
 
 ## Logs and routine commands
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml logs --tail=200 backend proxy certbot-renew
-docker compose --env-file .env.production -f prod.docker-compose.yaml restart proxy
-docker compose --env-file .env.production -f prod.docker-compose.yaml stop
-docker compose --env-file .env.production -f prod.docker-compose.yaml start
+docker compose --env-file .env -f prod.docker-compose.yaml logs --tail=200 backend proxy certbot-renew
+docker compose --env-file .env -f prod.docker-compose.yaml restart proxy
+docker compose --env-file .env -f prod.docker-compose.yaml stop
+docker compose --env-file .env -f prod.docker-compose.yaml start
 ```
 
 Do not run `docker compose config` without `--quiet` in shared terminals or CI
@@ -205,10 +224,10 @@ logs because it expands environment secrets.
 5. Recreate the services and wait for readiness:
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml config --quiet
-docker compose --env-file .env.production -f prod.docker-compose.yaml build backend frontend proxy
-docker compose --env-file .env.production -f prod.docker-compose.yaml up -d
-docker compose --env-file .env.production -f prod.docker-compose.yaml ps
+docker compose --env-file .env -f prod.docker-compose.yaml config --quiet
+docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
+docker compose --env-file .env -f prod.docker-compose.yaml up -d
+docker compose --env-file .env -f prod.docker-compose.yaml ps
 ```
 
 The backend entrypoint applies Alembic migrations before starting Uvicorn. A
@@ -221,7 +240,7 @@ Set `JOB_TALK_IMAGE_TAG` back to the previously recorded tag and recreate the
 application services:
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml up -d --no-build backend frontend proxy
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --no-build backend frontend proxy
 ```
 
 This assumes the previous tagged images remain on the VM and the database
@@ -232,7 +251,7 @@ backward compatible.
 ## Shut down
 
 ```sh
-docker compose --env-file .env.production -f prod.docker-compose.yaml down
+docker compose --env-file .env -f prod.docker-compose.yaml down
 ```
 
 This keeps the named PostgreSQL and certificate volumes. Using `down -v`
