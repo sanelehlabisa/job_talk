@@ -61,6 +61,17 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+### JT-081 - Use the supplied JobTalk logo
+
+- [x] Rename the supplied PNG to `jobtalk-logo.png` and use it in the shared app
+  brand component and browser favicon.
+- [x] Delete the superseded JobTalk SVG; retain the Roventics footer image in use.
+- [x] Build the frontend and verify the renamed PNG and favicon link are served.
+
+**Status:** Complete on `fix/jobtalk-logo` (2026-10-04). Frontend production build
+passed, the new PNG loads as `image/png`, and no runtime references to the old
+filename remain. Merge into `master` awaits approval.
+
 ### JT-080 - Clean the local admin testing workspace
 
 - [x] Push completed code before touching local data and back up the active database.

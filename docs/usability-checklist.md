@@ -132,7 +132,7 @@ were read-only. This focused live case does not replace broader usability sign-o
 
 ### Logo and visible match score (JT-073)
 
-Check that the browser tab uses the app's chat-bubble logo. Open a job as a
+Check that the browser tab uses the same JobTalk logo as the app. Open a job as a
 candidate and check **Match so far** above the form. Save an answer, correct it
 in chat, then report a gap; the score should reflect the saved evidence. After
 submission, **Submitted match** uses the saved application score.

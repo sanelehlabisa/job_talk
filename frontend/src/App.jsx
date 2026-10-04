@@ -22,7 +22,7 @@ import { SourceNotice, InterestSummary } from "./JobSources";
 function Brand() {
   return (
     <div className="brand">
-      <img className="brand-mark" src="/branding/jobtalk.svg" alt="" width="37" height="37" />
+      <img className="brand-mark" src="/branding/jobtalk-logo.png" alt="" width="37" height="37" />
       <span>job talk</span>
     </div>
   );
