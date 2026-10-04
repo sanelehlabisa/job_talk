@@ -16,6 +16,21 @@ stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
 flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
 
+## Current local workspace (JT-080, 2026-10-04)
+
+Open `http://localhost:3000` and choose recruiter sign-in using the approved
+`ADMIN_EMAIL` in your local `.env`. Get the new sign-in code from
+`http://localhost:8025`. Admin uses the same recruiter workspace and sees all jobs.
+
+After the authorized cleanup, five jobs remain: Welder and Forklift Operator,
+Junior Electrician, Delivery Driver, Junior Software Developer, and Graduate
+Electronic Engineer. Open **Junior Software Developer** for five saved applicants
+and the comparison plot. Demo Amina, Demo Ben and Demo Lebo are fictional examples
+with saved Gemini estimates of 100%, 90% and 25%; the two earlier applications and
+their original scores were preserved. You can also create a fresh job and apply
+from a separate browser session. This fixture preparation does not replace your
+manual usability acceptance.
+
 ## Five-candidate browser exercise (JT-079)
 
 Run with the local app and Mailpit running, using fictional data only:

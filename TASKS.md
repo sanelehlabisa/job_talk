@@ -59,6 +59,26 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+### JT-080 - Clean the local admin testing workspace
+
+- [x] Push completed code before touching local data and back up the active database.
+- [x] Remove only verified duplicate drafts/automated test jobs, preserving useful
+  jobs and existing candidate applications.
+- [x] Keep five jobs and prepare five developer applications for manual comparison.
+- [x] Check approved admin email-code login and the cleaned workspace in the browser.
+
+**Status: Complete (2026-10-04).** Admin browser email-code login passed; all five
+jobs and the five candidate cards/plot were visible. Removed 15 unused test jobs and two unused test recruiter
+accounts. Kept the three trade/demo jobs, Junior Software Developer and the user's
+Graduate Electronic Engineer post. Existing applications were unchanged. Added
+Demo Amina, Demo Ben and Demo Lebo through normal guest/chat/application APIs;
+their saved Gemini estimates are 100%, 90% and 25%. Together with the two existing
+applications, the developer role has five applicants. The unrelated chef's
+combined location/zero-experience answer needed direct form confirmation; retain
+that case for JT-060 language usability checks. No production data was touched.
+The active database backup is ignored by Git at
+`backups/local-cleanup/jobtalk-active-before-cleanup-20261004.dump`.
+
 ### JT-078 - One environment file and Nginx-only backend transport
 
 - [x] Keep only `.env.example`; both Compose stacks/operator scripts use `.env`.

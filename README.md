@@ -96,9 +96,11 @@ separate seeded `job_talk_gemini_test` database; sign in again or use a private
 window. The affected volume is preserved and recovery is pending the user's
 answer. See the [incident record](docs/usability-checklist.md#local-test-data-incident-2026-10-03).
 
-Ready for a local hands-on check: follow the
-[quick walkthrough](docs/usability-checklist.md#quick-local-walkthrough) to create
-a job, submit three fictional applications, and compare them.
+Ready for a local hands-on check: the
+[cleaned admin workspace](docs/usability-checklist.md#current-local-workspace-jt-080-2026-10-04)
+contains five jobs. Open Junior Software Developer for five saved applicants and
+their comparison plot, or follow the
+[quick walkthrough](docs/usability-checklist.md#quick-local-walkthrough) with a new job.
 
 Jobs, criteria, chats, and submitted applications already persist in PostgreSQL
 in the development stack. Protected endpoints already use expiring bearer
