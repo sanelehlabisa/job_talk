@@ -260,7 +260,6 @@ function Entry({ onAuthenticated, showJobsOnOpen = false }) {
         </section>
       </section>
       <footer className="brand-credit">
-        <img src="/branding/roventics-robot.svg" alt="" />
         <span>A Roventics project</span>
         <a href="/privacy">Privacy &amp; safety</a>
       </footer>

@@ -65,12 +65,14 @@ JT-060 usability sign-off remain open; deployment stays paused.
 
 - [x] Rename the supplied PNG to `jobtalk-logo.png` and use it in the shared app
   brand component and browser favicon.
-- [x] Delete the superseded JobTalk SVG; retain the Roventics footer image in use.
+- [x] Delete the superseded JobTalk and Roventics SVGs and remove the old footer
+  image reference and unused image styling.
 - [x] Build the frontend and verify the renamed PNG and favicon link are served.
 
 **Status:** Complete on `fix/jobtalk-logo` (2026-10-04). Frontend production build
 passed, the new PNG loads as `image/png`, and no runtime references to the old
-filename remain. Merge into `master` awaits approval.
+filenames remain. The user approved merging this ticket into `master`, including
+removal of the Roventics SVG and its footer reference, on 2026-10-04.
 
 ### JT-080 - Clean the local admin testing workspace
 

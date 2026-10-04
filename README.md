@@ -32,7 +32,7 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. Completed work through JT-080 is merged into
+The core hiring loop works locally. Completed work through JT-081 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
 JT-077 adds production Nginx origin/host checks, request limits and security headers.
@@ -795,6 +795,6 @@ The ordered implementation and launch backlog lives in [`TASKS.md`](TASKS.md). I
 
 [`AGENTS.md`](AGENTS.md) records product boundaries, AI behavior, access controls,
 and completion checks. Chat participants use matching circular robot/person
-icons; Roventics branding appears in the footer. Job Talk is the primary product name.
+icons; a text credit to Roventics appears in the footer. Job Talk is the primary product name.
 The supplied `frontend/public/branding/jobtalk-logo.png` is shared by the app's
-brand header and browser favicon. The old JobTalk SVG has been removed.
+brand header and browser favicon. The old JobTalk and Roventics SVGs have been removed.

@@ -76,7 +76,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .brand-credit { display: flex; align-items: center; gap: 7px; }
 .brand-credit a, .privacy-link { color: var(--green); }
 .brand-credit a { margin-left: 9px; }
-.brand-credit img { width: 22px; height: 22px; opacity: .65; }
 
 .policy-page { min-height: 100vh; background: var(--cream); padding: 35px 20px; }
 .policy-card { width: min(760px, 100%); margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: clamp(25px, 6vw, 58px); box-shadow: 0 18px 55px rgba(37,59,47,.07); }
