@@ -73,8 +73,9 @@ JT-060 usability sign-off remain open; deployment stays paused.
 - [x] Verify scoring, publication, saved applications and frontend build/browser
   behavior. Preserve existing local data and record actual LLM checks separately.
 
-**Status:** Complete on `feat/company-ranking-polish` (2026-10-04), awaiting merge
-approval. Disposable SQLite checks passed for company publication/context,
+**Status:** Complete on `feat/company-ranking-polish` (2026-10-04). The user
+approved merging this ticket and the supplied Roventics footer logo into `master`.
+Disposable SQLite checks passed for company publication/context,
 uncapped ranking, draft editing, live edits, closing dates, AI ratings and the
 existing flow. Older assertions were updated for company questions and the new
 comparison values; their focused reruns passed. Frontend production build passed.
@@ -102,7 +103,7 @@ removal of the Roventics SVG and its footer reference, on 2026-10-04.
 **Supplied-logo follow-up (2026-10-04):** The user provided the proper Roventics
 PNG. Renamed it to `roventics-logo.png` and added it beside the footer credit on
 `fix/roventics-footer-logo`. JobTalk remains the app logo and favicon. Frontend
-build and local PNG loading passed; this follow-up awaits merge approval.
+build and local PNG loading passed; the user approved its merge with JT-082.
 
 ### JT-080 - Clean the local admin testing workspace
 
