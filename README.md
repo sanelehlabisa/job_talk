@@ -47,6 +47,10 @@ and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
+- JT-083 gives each comparison axis its own saved values and ideal target:
+  years/amounts, Yes/No, or text categories. Scoring weights are labelled as
+  relative multipliers, and match badges are centered. Scores and ranking stay
+  unchanged; text-category positions do not indicate a better or worse match.
 - JT-082 asks for company name and base in new recruiter drafts and shows them
   to applicants. Company information is separate from scored requirements.
   Candidate cards are numbered and sorted by the uncapped weighted comparison;

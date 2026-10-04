@@ -61,6 +61,24 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+### JT-083 - Use each criterion's values in the comparison plot
+
+- [x] Give numeric, Yes/No and text criteria their own axes; keep the ideal
+  target visible and distinguish missing values from explicit answers.
+- [x] Replace misleading weight percentages with relative multipliers and center
+  the overall match percentage and estimate label.
+- [x] Verify mixed values and the local browser/build without changing saved
+  scores, rankings or applications.
+
+**Status:** Complete on `fix/criterion-plot-scales` (2026-10-04), awaiting merge
+approval. Frontend production build and focused mixed-value checks passed:
+independent numeric ranges, above-target experience, zero, Yes/No, explicit gaps,
+missing values and text categories. Desktop/phone browser checks passed against
+the existing five developer applications: two-year ideal and three-year evidence,
+Yes/No axes, readable labels, centered estimate badges and horizontal scrolling.
+Saved percentages and candidate order still match the backend. No database or
+scoring changes, LLM requests, infrastructure or deployment work were needed.
+
 ### JT-082 - Company details, experience ranking and small UI polish
 
 - [x] Enlarge the Job Talk mark, capitalize the name, and link the Roventics

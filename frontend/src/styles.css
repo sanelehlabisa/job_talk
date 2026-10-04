@@ -184,8 +184,8 @@ a img { cursor: pointer; }
 .job-card-top > div:nth-child(2) { flex: 1; }
 .job-card h3 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; font-size: 17px; margin: 0; }
 .job-card-top span { color: #8f9a93; font-size: 9px; }
-.score { width: 52px; height: 52px; background: #ecf5ed; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.score strong { font-size: 13px; color: var(--green); }.score span { font-size: 8px; }
+.score { width: 52px; height: 52px; background: #ecf5ed; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; flex-shrink: 0; text-align: center; }
+.score strong { font-size: 13px; color: var(--green); }.score span { font-size: 8px; width: 100%; line-height: 1.15; }
 .job-card > p { color: #65736b; font-size: 11px; line-height: 1.5; margin: 13px 2px; }
 .criteria-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .criteria-row span { font-size: 8px; color: #65776c; background: #f1f3ee; border-radius: 5px; padding: 5px 7px; text-transform: capitalize; }
@@ -222,11 +222,11 @@ a img { cursor: pointer; }
 .plot-legend .ideal-line { background: repeating-linear-gradient(90deg, #183329 0 4px, transparent 4px 7px); }
 .plot-scroll { overflow-x: auto; }
 .parallel-plot { display: block; min-width: 620px; width: 100%; }
-.plot-grid { stroke: #e6ebe4; stroke-width: 1; }
 .plot-axis { stroke: #cad5ca; stroke-width: 1; }
-.plot-scale { fill: #8b978f; font-size: 8px; text-anchor: end; }
+.plot-scale { fill: #65736b; font-size: 9px; text-anchor: end; stroke: #fbfcf8; stroke-width: 3px; paint-order: stroke; }
 .plot-label { fill: #435a4d; font-size: 8px; font-weight: 700; text-anchor: middle; text-transform: capitalize; }
-.plot-weight { fill: #8b978f; font-size: 7px; text-anchor: middle; }
+.plot-unit { fill: #8b978f; font-size: 8px; text-anchor: middle; }
+.ideal-point { fill: #fbfcf8; stroke: #183329; stroke-width: 2; }
 .ideal-profile { fill: none; stroke: #183329; stroke-dasharray: 5 4; stroke-width: 2; }
 .candidate-profile-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .plot-candidate { cursor: pointer; transition: opacity .18s ease; }

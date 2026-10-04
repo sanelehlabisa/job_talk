@@ -18,6 +18,7 @@ import { api, SESSION_KEY } from "./api";
 import { JobDraftSummary, JobTemplatePicker } from "./JobTemplates";
 import { ApplicationSummary } from "./ApplicationSummary";
 import { SourceNotice, InterestSummary } from "./JobSources";
+import { comparisonAxis } from "./comparisonAxes";
 
 function Brand() {
   return (
@@ -404,25 +405,23 @@ function CandidateScorePlot({ applications, targetProfile }) {
   const candidates = applications.slice(0, 5);
   if (criteria.length < 2 || !candidates.length) return null;
 
-  const width = Math.max(620, criteria.length * 105);
-  const height = 245;
-  const top = 34;
-  const bottom = 174;
-  const left = 50;
-  const right = width - 38;
+  const axes = criteria.map(([key, requirement]) => comparisonAxis(key, requirement, candidates));
+  const width = Math.max(620, criteria.length * 165);
+  const height = 290;
+  const top = 30;
+  const bottom = 220;
+  const left = 135;
+  const right = width - 65;
   const xAt = (index) => left + ((right - left) * index) / (criteria.length - 1);
-  const comparisonScore = (application, key) => application.match_result?.criteria?.[key]?.comparison_score ?? application.match_result?.criteria?.[key]?.score;
-  const maximum = Math.max(1, ...candidates.flatMap((application) => criteria.map(([key]) => comparisonScore(application, key) || 0)));
-  const axisMaximum = Math.ceil(maximum * 2) / 2;
-  const ticks = [...new Set([0, axisMaximum / 2, 1, axisMaximum])].sort((a, b) => a - b);
-  const yAt = (score) => bottom - Math.max(0, Math.min(axisMaximum, score)) / axisMaximum * (bottom - top);
-  const idealPoints = criteria.map((_, index) => `${xAt(index)},${yAt(1)}`).join(" ");
+  const yAt = (axis, value) => bottom - axis.position(value) * (bottom - top);
+  const idealPoints = axes.map((axis, index) => `${xAt(index)},${yAt(axis, axis.target)}`).join(" ");
+  const shorten = (text, limit) => text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 
   return (
     <section className="score-plot" aria-labelledby="score-plot-title">
       <div className="score-plot-heading">
         <div><span>CANDIDATE SHAPE</span><h3 id="score-plot-title">Ideal profile and top candidates</h3></div>
-        <small>100% is the ideal. Extra experience can extend above it. Missing evidence is marked ×.</small>
+        <small>Each axis has its own values. Text categories are unordered. × means no comparable value; hover for details.</small>
       </div>
       <div className="plot-legend">
         <span><i className="ideal-line" />Ideal profile</span>
@@ -431,27 +430,26 @@ function CandidateScorePlot({ applications, targetProfile }) {
         ))}
       </div>
       <div className="plot-scroll">
-        <svg className="parallel-plot" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Parallel coordinates comparison of the ideal job profile and candidate evidence scores">
-          {ticks.map((score) => (
-            <g key={score}>
-              <line className="plot-grid" x1={left} x2={right} y1={yAt(score)} y2={yAt(score)} />
-              <text className="plot-scale" x={left - 10} y={yAt(score) + 3}>{Math.round(score * 100)}</text>
-            </g>
-          ))}
-          {criteria.map(([key, requirement], index) => (
-            <g key={key}>
+        <svg className="parallel-plot" style={{ minWidth: width }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Parallel coordinates comparison of ideal and candidate values, with a separate scale for each criterion">
+          {axes.map((axis, index) => (
+            <g key={axis.key} data-axis-key={axis.key} data-axis-kind={axis.kind}>
               <line className="plot-axis" x1={xAt(index)} x2={xAt(index)} y1={top} y2={bottom} />
-              <text className="plot-label" x={xAt(index)} y={bottom + 25}>{key.replaceAll("_", " ").slice(0, 18)}</text>
-              <text className="plot-weight" x={xAt(index)} y={bottom + 39}>weight {Math.round((requirement.weight || 0.5) * 100)}%</text>
+              {axis.ticks.map((value, tickIndex) => (
+                <g key={tickIndex}>
+                  <line className="plot-axis" x1={xAt(index) - 4} x2={xAt(index) + 4} y1={yAt(axis, value)} y2={yAt(axis, value)} />
+                </g>
+              ))}
+              <text className="plot-label" x={xAt(index)} y={bottom + 32}>{shorten(axis.label, 28)}<title>{axis.label}</title></text>
+              <text className="plot-unit" x={xAt(index)} y={bottom + 47}>{axis.kind === "text" ? "Category" : axis.kind === "boolean" ? "Yes / No" : "Amount"}</text>
             </g>
           ))}
-          <polyline className="ideal-profile" points={idealPoints}><title>Ideal profile: 100 on every criterion</title></polyline>
+          <polyline className="ideal-profile" points={idealPoints}><title>Ideal profile: the recruiter's target on each axis</title></polyline>
+          {axes.map((axis, index) => <circle className="ideal-point" key={axis.key} cx={xAt(index)} cy={yAt(axis, axis.target)} r="5"><title>Ideal: {axis.label} — {axis.format(axis.target)}</title></circle>)}
           {candidates.map((application, candidateIndex) => {
-            const points = criteria.map(([key], criterionIndex) => {
-              const score = comparisonScore(application, key);
-              const evidence = application.candidate_profile?.[key]?.evidence;
-              return evidence && Number.isFinite(score)
-                ? { x: xAt(criterionIndex), y: yAt(score), key, score }
+            const points = axes.map((axis, criterionIndex) => {
+              const value = axis.values[candidateIndex];
+              return value !== null
+                ? { x: xAt(criterionIndex), y: yAt(axis, value), key: axis.key, label: axis.label, value, text: axis.format(value) }
                 : null;
             });
             const segments = [];
@@ -469,7 +467,7 @@ function CandidateScorePlot({ applications, targetProfile }) {
                 key={application.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`${name} score line`}
+                aria-label={`${name} value line`}
                 onClick={() => setSelectedId((current) => current === application.id ? null : application.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -482,18 +480,23 @@ function CandidateScorePlot({ applications, targetProfile }) {
                   <polyline key={segmentIndex} className="candidate-profile-line" style={{ stroke: color }} points={segment.map((point) => `${point.x},${point.y}`).join(" ")} />
                 ))}
                 {points.map((point, criterionIndex) => point ? (
-                  <circle key={point.key} cx={point.x} cy={point.y} r="4" fill={color}>
-                    <title>{name}: {point.key.replaceAll("_", " ")} {Math.round(point.score * 100)}%</title>
+                  <circle key={point.key} data-criterion-key={point.key} data-value={String(point.value)} cx={point.x} cy={point.y} r="4" fill={color}>
+                    <title>{name}: {point.label} — {point.text}</title>
                   </circle>
                 ) : (
-                  <g key={criteria[criterionIndex][0]}>
+                  <g key={criteria[criterionIndex][0]} data-criterion-key={criteria[criterionIndex][0]}>
                     <text className="missing-score" fill={color} x={xAt(criterionIndex) + (candidateIndex - (candidates.length - 1) / 2) * 7} y={bottom + 10}>×</text>
-                    <title>{name}: no direct evidence for {criteria[criterionIndex][0].replaceAll("_", " ")}</title>
+                    <title>{name}: {axes[criterionIndex].label} — {application.match_result?.criteria?.[axes[criterionIndex].key]?.gap === "reported" ? "Reported gap" : "No comparable value"}</title>
                   </g>
                 ))}
               </g>
             );
           })}
+          {axes.map((axis, index) => (
+            <g key={axis.key}>
+              {axis.ticks.map((value, tickIndex) => <text className="plot-scale" key={tickIndex} x={xAt(index) - 8} y={yAt(axis, value) + 3}>{shorten(axis.format(value), 24)}<title>{axis.format(value)}</title></text>)}
+            </g>
+          ))}
         </svg>
       </div>
     </section>
@@ -537,6 +540,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
         {status === "published" && <button className="close-job" type="button" onClick={onCloseJob}>Close recruitment</button>}
       </div>
       <p className="decision-support">Scores organize unverified candidate-provided evidence against this role's weighted criteria. They support recruiter review and are not hiring decisions.</p>
+      <p className="decision-support">Weights are relative multipliers, averaged across the criteria. Yes/No is an answer, not an automatic rejection rule.</p>
       {!!earlier.length && <p className="decision-support">Applications marked Earlier requirements keep their original scores and are excluded from the current comparison plot and ranking.</p>}
       <CandidateScorePlot applications={current} targetProfile={targetProfile} />
       {!visible.length && <div className="candidate-empty">No submitted applications yet. Candidates will appear here in one comparable format.</div>}
@@ -570,7 +574,7 @@ function CandidateComparison({ applications, status, targetProfile, jobId, onClo
                       <div className="criterion-values">
                         <div><small>Candidate</small><strong>{formatCriterionValue(value.candidate_value, value.unit)}</strong></div>
                         <div><small>Role needs</small><strong>{formatCriterionValue(value.target_value, value.unit)}</strong></div>
-                        <div><small>Importance</small><strong>{Math.round(value.weight * 100)}%</strong></div>
+                        <div><small>Weight</small><strong>×{value.weight.toFixed(2)}</strong></div>
                       </div>
                       <p className="criterion-comment">{value.reason}</p>
                       <p className="criterion-evidence"><strong>{reportedGap ? "Reported gap" : missing ? "Evidence gap" : "Evidence"}</strong>{criterionEvidence || "No direct evidence was provided."}</p>
