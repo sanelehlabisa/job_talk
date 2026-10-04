@@ -24,9 +24,10 @@ criteria, two-job entry, discovery chat, and comparison components. Do not rebui
 the app or add infrastructure, accounts for candidates, uploads, billing,
 scrapers, template management, or deployment work.
 
-The user approved merging the completed history through JT-071 (`fae157a`)
-into `master`, including JT-069 published-job editing and JT-070 HTTPS preparation.
-Current user priority: **JT-075**, Gemini ratings of candidate evidence against job criteria.
+The user approved merging all completed history through JT-075 (`4f3b95c`)
+into the default branch, `master`, on 2026-10-04. This includes the simplified
+application form, discovery and Gemini criterion ratings.
+Current user priority: **JT-076**, token protection, logout revocation and VPS readiness.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -53,6 +54,19 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-076 - Verify access controls before VPS setup
+
+- [ ] Check every private API route rejects missing/invalid/expired/revoked tokens.
+- [ ] Keep creation, editing and publishing limited to approved recruiters and
+  their own jobs (with existing approved admin access).
+- [ ] Verify logout revokes the server session and the browser handles failure
+  honestly; email sign-in codes remain single-use under concurrent requests.
+- [ ] Record current VPS prerequisites and remaining live checks. No VPS changes
+  or public launch are authorized by this readiness review.
+
+**Status:** In progress. Completed work through JT-075 is approved for merge.
+Deployment and JT-060 usability acceptance still require the user's decision.
 
 ### JT-075 - Simple Gemini criterion ratings
 
