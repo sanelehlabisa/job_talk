@@ -126,6 +126,9 @@ The primary experiment must support this sequence:
 - Keep public ports bound to localhost in the development stack.
 - Treat the backend and database as private services in production. Only the
   HTTPS reverse proxy may publish host ports.
+- Keep production API origin checks, request limits and security headers in
+  Nginx. Browser headers are not client authentication; preserve backend token,
+  approval and ownership checks. Never add a shared secret to frontend code.
 - Enforce recruiter authentication and ownership. Scope every guest candidate
   request to one unguessable, expiring application token.
 - Check recruiter approval on every private request. Logout must revoke the

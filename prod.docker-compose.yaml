@@ -180,7 +180,7 @@ services:
       frontend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "if [ -f /etc/letsencrypt/live/$${APP_DOMAIN}/fullchain.pem ]; then wget --no-check-certificate --quiet --tries=1 --spider https://127.0.0.1/proxy-health; else wget --quiet --tries=1 --spider http://127.0.0.1/proxy-health; fi"]
+      test: ["CMD-SHELL", "if [ -f /etc/letsencrypt/live/$${APP_DOMAIN}/fullchain.pem ]; then wget --header=\"Host: $${APP_DOMAIN}\" --no-check-certificate --quiet --tries=1 --spider https://127.0.0.1/proxy-health; else wget --header=\"Host: $${APP_DOMAIN}\" --quiet --tries=1 --spider http://127.0.0.1/proxy-health; fi"]
       interval: 15s
       timeout: 5s
       retries: 5

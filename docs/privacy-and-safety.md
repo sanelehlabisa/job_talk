@@ -10,6 +10,12 @@ Production is planned for `https://jobtalk.roventics.com`. Only Nginx exposes
 host ports 80/443. FastAPI and PostgreSQL have no public host ports; `/api/`
 still reaches the backend through HTTPS and enforces application authentication.
 
+The production proxy also rejects foreign browser origins and Fetch Metadata
+sites, including sibling subdomains. This prevents other websites using normal
+browser requests against the app. Outside programs can copy browser headers, so
+this is not proof that a request came from our frontend. Public APIs remain
+public, and every private operation still requires an authorized session.
+
 Private routes require an expiring `Authorization: Bearer <token>` session.
 The backend stores a token hash, rejects unknown/expired tokens, and revokes the
 session immediately on successful logout. Tokens otherwise expire after the
@@ -106,9 +112,14 @@ case rather than bypassing the guard.
 
 ## Abuse and logging
 
-Nginx limits all API traffic to five requests per second per address and limits
-POST, PUT, PATCH and DELETE operations to 30 requests per minute with a small
-burst. The backend also limits recruiter email codes per approved address.
+Nginx limits all API traffic to five requests per second per address (burst 15),
+writes to 30 requests per minute (burst 10), and guest/login requests to ten per
+minute (burst 5). It also caps concurrent API requests at 20 per address and text
+bodies at 128 KiB, rejects unexpected hosts/unused methods, and bounds inactive
+requests. The backend also limits recruiter email codes per approved address.
+HTTPS includes a Content Security Policy, HSTS and framing restrictions; API
+responses are not cached. Proxy access logs exclude query strings and credentials.
+See [production request policies and their isolated check](production-operations.md#proxy-request-policies-jt-077).
 Keep the staging webpage password enabled until the operator is ready to monitor
 the support inbox.
 

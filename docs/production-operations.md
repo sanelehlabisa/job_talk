@@ -130,6 +130,59 @@ disposable self-signed certificate; it does not establish public DNS, a trusted
 certificate, real SMTP delivery, or Let's Encrypt renewal. Run the documented
 issuance and `renew --dry-run` on the VM after configuring the real domain.
 
+## Proxy request policies (JT-077)
+
+FastAPI has no published host port. Internet requests reach it only through
+Nginx's `/api/` route. Public endpoints remain callable by outside clients;
+private data and actions require the backend's scoped session token, recruiter
+approval and ownership checks. Neither CORS nor a header copied from the
+frontend can prove which program sent a request.
+
+The production proxy rejects foreign `Origin` headers (including `null`),
+cross-site and same-site-but-not-same-origin browser requests, unexpected hosts,
+unused API methods, dotfiles and documentation paths. Requests without browser
+metadata remain valid for health probes and command-line clients; they still
+need tokens for private routes. Sibling subdomains do not get browser access.
+These checks use [Fetch Metadata](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Fetch_metadata)
+as an additional browser boundary.
+
+Per client IP, Nginx allows 5 API requests/second (burst 15), 30 writes/minute
+(burst 10), 10 guest/login requests/minute (burst 5), and 20 concurrent API
+requests. Excess traffic returns 429. Text request bodies are limited to 128 KiB;
+header/body inactivity timeouts are 10 seconds. Shared office networks share
+these limits; tune them from observed pilot usage. These controls do not replace
+host/provider protection against a volumetric attack. See Nginx's
+[request limit semantics](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html).
+
+HTTPS responses include HSTS, framing restrictions, nosniff, referrer/permissions
+policies and a Content Security Policy. Scripts and API connections use only
+this origin; styles permit the app's inline styles and Google Fonts. API
+responses use `Cache-Control: no-store`. All headers are at server scope to
+preserve [header inheritance](https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header).
+Forwarded IP/host/scheme headers are set by the proxy rather than accepted from
+the caller. Access logs omit query strings, headers and bodies. Probes using a
+local IP must send `Host: jobtalk.roventics.com`; Compose health checks do so.
+
+Repeat the focused check on a machine with Docker Compose and PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-nginx-policies.ps1
+```
+
+It builds the three production images and uses the real production Compose file
+with a unique project, fresh PostgreSQL volume, self-signed certificate, mock AI
+and fictional mail credentials. No host ports are published, no SMTP/model/ACME
+calls are made, and the fixture is removed afterward. It checks bootstrap,
+HTTPS, staging access, built assets, request rejection, headers, rate limits,
+email-code redemption, guest access and logout revocation through Nginx.
+It does not certify the public domain, trusted TLS, real email delivery, browser
+CSP behavior or the user's end-to-end usability acceptance.
+
+**Verified 2026-10-04:** These proxy checks passed, including real token/code
+handling against the disposable PostgreSQL database and activation of both rate
+limit zones. Nine backend access-boundary tests passed separately in SQLite.
+Connection and timeout settings were syntax-checked; no load test was performed.
+
 ## Logs and routine commands
 
 ```sh

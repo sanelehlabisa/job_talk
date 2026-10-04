@@ -27,7 +27,8 @@ scrapers, template management, or deployment work.
 The user approved merging all completed history through JT-075 (`4f3b95c`)
 into the default branch, `master`, on 2026-10-04. This includes the simplified
 application form, discovery and Gemini criterion ratings.
-Current user priority: **JT-076**, token protection, logout revocation and VPS readiness.
+Current user priority: **JT-077**, production proxy request policies. The user
+approved committing, pushing and merging this work into `master` on 2026-10-04.
 JT-064 Gemini integration is implemented. The local data incident remains open;
 return to **JT-060** acceptance after this change.
 Implementation order: **JT-057 -> JT-058 -> JT-059 -> JT-061 -> JT-062 -> JT-060**.
@@ -54,6 +55,33 @@ this merge does not replace the remaining JT-060 usability sign-off.
 (`a39f333`) and owner access (`b45309c`) into `master`. The recorded implementation
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
+
+### JT-077 - Harden the production proxy without breaking app access
+
+- [x] Keep backend/database ports private; expose only Nginx. Document that
+  public browser APIs cannot authenticate the frontend itself.
+- [x] Reject foreign browser origins/sites, unexpected hosts and unused methods.
+  Limit API/auth traffic, connections, body size and slow requests. Add a browser
+  content policy and disable API response caching.
+- [x] Exercise HTTP bootstrap and HTTPS with valid guest/recruiter tokens,
+  unauthorized requests and logout; preserve existing approval/ownership rules.
+- [x] Record isolated verification and the approved merge workflow.
+
+**Status:** Implemented on `fix/nginx-request-policies` (2026-10-04), with explicit
+user approval to commit, push and merge to `master`. Production images/build and
+Compose port/network validation passed. The isolated production stack passed
+HTTP bootstrap/ACME, HTTPS redirect, staging gate/assets, Nginx syntax, host/origin/
+Fetch Metadata/method/body checks, security headers/no-store, valid guest and
+approved recruiter access, guest job-creation rejection, code redemption and
+logout replay rejection. Both auth/API rate-limit zones returned 429. Fixed a
+timeout directive conflict found during startup verification. Nine focused
+backend access tests also passed in disposable SQLite. The reusable proxy check
+uses fictional credentials, mock AI, a fresh PostgreSQL volume and no host ports;
+test containers/volumes are removed and development records are preserved.
+Connection/timeouts are configured and syntax-checked, not load-tested. Actual
+browser CSP behavior, trusted public TLS, real SMTP, VM deployment and JT-060
+usability acceptance remain pending. No frontend secret or claim of browser-only
+API access: copied headers cannot replace server-side authorization.
 
 ### JT-076 - Verify access controls before VPS setup
 

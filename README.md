@@ -32,9 +32,10 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. Completed work through JT-075 is merged into
+The core hiring loop works locally. Completed work through JT-077 is merged into
 the default branch, `master`, including the editable candidate form, discovery
-and Gemini ratings. JT-076 reviews token access, recruiter approval and logout.
+and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
+JT-077 adds production Nginx origin/host checks, request limits and security headers.
 JT-070 prepared `prod.docker-compose.yaml` and verified Nginx/HTTPS
 in an isolated local stack. Production preparation is authorized; VM deployment
 and the user's final usability sign-off are still pending.
@@ -64,6 +65,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   validation, weights and totals. Saved ratings persist through submission.
 - JT-076 checks every private API route against unusable tokens, preserves
   approval/ownership checks, makes email codes atomic and verifies logout/retry.
+- JT-077 keeps the backend private behind Nginx, rejects foreign browser requests,
+  limits API/auth traffic and adds a browser content policy. Public API URLs remain
+  reachable; private actions require tokens and backend permissions. See the
+  [proxy policies and isolated check](docs/production-operations.md#proxy-request-policies-jt-077).
 - JT-061 implements owner access through backend `ADMIN_EMAIL` and existing
   email-code sessions. JT-065 uses the same recruiter workspace for admin, with
   all job-creation chats, owner labels and editing controls. Ordinary recruiters
