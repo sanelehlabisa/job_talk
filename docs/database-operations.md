@@ -54,14 +54,14 @@ the temporary Compose project and volume.
 
 ## Upgrade and rollback
 
-1. Record the deployed application image tag and current revision with
+1. Record the deployed Git commit and current database revision with
    `alembic current`.
 2. Create and copy a verified backup off the VM.
-3. Pull the new pinned image and start the backend. Its entrypoint runs
+3. Check out the new commit, rebuild the images and start the backend. Its entrypoint runs
    `alembic upgrade head` before Uvicorn.
 4. Check backend logs, `/api/health`, and the recruiter and candidate smoke flow.
 
-To roll back an application-only release, redeploy the previous pinned image.
+To roll back an application-only release, rebuild and deploy the previous Git commit.
 If its schema is compatible, leave the database at the newer revision. For a
 reversible schema change, stop the backend and run the exact documented Alembic
 downgrade before starting the previous image. For a destructive or irreversible

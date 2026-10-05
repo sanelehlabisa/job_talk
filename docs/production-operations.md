@@ -25,21 +25,20 @@ retain its existing volumes. Do not run that older project beside development.
 1. Check out the exact Git commit to deploy and confirm the working tree is clean.
 2. On the VM, copy `.env.example` to `.env` if `.env` does not already exist.
    Edit that one file; never overwrite an existing environment file or copy
-   development credentials to production. Set `APP_ENV=production`,
-   `APP_DOMAIN=jobtalk.roventics.com`,
-   `PUBLIC_ORIGIN=https://jobtalk.roventics.com`,
-   `ALLOWED_HOSTS=jobtalk.roventics.com` and
-   `CORS_ORIGINS=https://jobtalk.roventics.com`.
+   development credentials to production. Set the hostname once:
+   `APP_DOMAIN=jobtalk.roventics.com`. Production Compose selects production mode
+   and derives the HTTPS public origin, allowed hosts and CORS origins.
    Replace the database password (at least 16 random URL-safe characters),
-   session pepper (at least 32 random characters), SMTP host/port/user/password,
-   `EMAIL_FROM`, `SUPPORT_EMAIL` and `TLS_EMAIL`. Use TLS for real SMTP as required
-   by your provider. Keep the selected Gemini key backend-only. Compose builds
+   session pepper (at least 32 random characters), `SMTP_HOST`, `SMTP_PORT`,
+   `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `SUPPORT_EMAIL` and `TLS_EMAIL`.
+   Use `SMTP_SECURE=false` for STARTTLS (usually port 587), or `true` for implicit
+   TLS (usually 465). Authenticated SMTP requires encryption. Keep the selected
+   Gemini key backend-only. Compose builds
    `DATABASE_URL` from the database fields; do not maintain a second URL.
-   Sections group release, database, backend, authentication, email, LLM, frontend
-   and Nginx/TLS settings. Keep your computer's `.env` for development. Set `JOB_TALK_IMAGE_TAG`
-   to the full Git commit SHA. The
-   preflight rejects a tag that differs from the checked-out commit so all three
-   application images share the reviewed release identity.
+   Sections group app, database, sessions, email, AI, local demo and HTTPS
+   settings. Keep your computer's `.env` for development. No image tag or
+   duplicated ports/API URL is needed; Compose names the locally built images.
+   Record the checked-out Git commit when deploying.
 3. Create the private staging password file. `htpasswd` prompts for the password
    so it does not appear in shell history:
 
@@ -71,7 +70,7 @@ also rejects a record that points to another host:
 EXPECTED_PUBLIC_IP=203.0.113.10 ./scripts/production-preflight.sh
 ```
 
-The check rejects example values, inconsistent origin settings, a missing
+The check rejects example values, a missing
 staging password file, unresolved or mismatched DNS, and an invalid production
 Compose configuration.
 
@@ -82,8 +81,8 @@ printing it, because resolved output contains secrets:
 docker compose --env-file .env -f prod.docker-compose.yaml config --quiet
 ```
 
-Build the three application images. All receive the same immutable release tag;
-only `/api` is compiled into the browser bundle.
+Build the three application images from the checked-out commit. The browser
+always uses `/api`; Nginx routes it to the private backend.
 
 ```sh
 docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
@@ -216,10 +215,10 @@ logs because it expands environment secrets.
 
 ## Upgrade
 
-1. Record the current Git commit and `JOB_TALK_IMAGE_TAG`.
+1. Record the current Git commit.
 2. Create and verify a database backup using
    [`database-operations.md`](database-operations.md).
-3. Check out the new commit and set `JOB_TALK_IMAGE_TAG` to that full SHA.
+3. Check out the new commit.
 4. Validate and build the new images.
 5. Recreate the services and wait for readiness:
 
@@ -236,15 +235,16 @@ starting.
 
 ## Roll back
 
-Set `JOB_TALK_IMAGE_TAG` back to the previously recorded tag and recreate the
+Check out the previously recorded Git commit, rebuild it and recreate the
 application services:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml up -d --no-build backend frontend proxy
+docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
+docker compose --env-file .env -f prod.docker-compose.yaml up -d backend frontend proxy
 ```
 
-This assumes the previous tagged images remain on the VM and the database
-schema is backward compatible. Follow the database rollback rules in
+This requires build dependencies to remain available and the database schema
+to be backward compatible. Follow the database rollback rules in
 [`database-operations.md`](database-operations.md) when a migration is not
 backward compatible.
 

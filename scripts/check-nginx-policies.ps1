@@ -18,18 +18,15 @@ New-Item -ItemType Directory -Path "$fixture/certificates/live/jobtalk.roventics
 try {
     # These deliberately fictional credentials are only for disposable containers.
     @"
-JOB_TALK_IMAGE_TAG=$imageTag
 POSTGRES_DB=jt077_policy_test
 POSTGRES_USER=job_talk
 POSTGRES_PASSWORD=isolated-policy-database-password
 DATABASE_URL=postgresql+psycopg://job_talk:isolated-policy-database-password@postgres:5432/jt077_policy_test
 APP_DOMAIN=jobtalk.roventics.com
-PUBLIC_ORIGIN=https://jobtalk.roventics.com
-ALLOWED_HOSTS=jobtalk.roventics.com
-CORS_ORIGINS=https://jobtalk.roventics.com
 SESSION_TOKEN_PEPPER=isolated-policy-session-pepper-more-than-32-characters
 SMTP_HOST=smtp.policy.invalid
-SMTP_USERNAME=policy-check
+SMTP_USER=policy-check
+SMTP_SECURE=false
 SMTP_PASSWORD=isolated-policy-mail-password
 EMAIL_FROM=policy-check@roventics.com
 TLS_EMAIL=policy-check@roventics.com
@@ -48,6 +45,7 @@ services:
       POSTGRES_USER: job_talk
       POSTGRES_PASSWORD: isolated-policy-database-password
   backend:
+    image: job-talk-backend:$imageTag
     # Test client needs to reach the proxy; production has no shared TCP network.
     networks:
       - edge
@@ -61,7 +59,10 @@ services:
       SMTP_HOST: smtp.policy.invalid
     volumes:
       - '$($PSScriptRoot.Replace('\', '/')):/checks:ro'
+  frontend:
+    image: job-talk-frontend:$imageTag
   proxy:
+    image: job-talk-proxy:$imageTag
     ports: !override []
     volumes: !override
       - 'backend_socket:/run/jobtalk:ro'

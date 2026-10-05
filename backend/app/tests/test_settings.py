@@ -18,7 +18,7 @@ def production_settings(**overrides) -> Settings:
         "tls_email": "ops@jobtalk.co.za",
         "smtp_host": "smtp.provider.co.za",
         "smtp_port": 587,
-        "smtp_username": "jobtalk-sender",
+        "smtp_user": "jobtalk-sender",
         "smtp_password": "smtp-secret-2026-long-value",
         "email_from": "login@jobtalk.co.za",
         "demo_recruiter_email": None,

@@ -68,6 +68,27 @@ release. VM deployment and JT-060 user usability acceptance remain pending.
 The combined frontend production build passed before merging; conflicts were
 limited to documentation and resolved by retaining both tickets and checklists.
 
+### JT-085 - Simplify environment and SMTP configuration
+
+- [x] Keep one host setting, `APP_DOMAIN`; derive URLs/origin rules in Compose
+  and use `/api` in both development and production browsers.
+- [x] Remove image tags, duplicate API URLs and port settings from `.env`.
+  Keep service ports in Compose and preserve existing local credentials/data.
+- [x] Expose SMTP host, port, secure flag, user, password and sender. Support
+  Mailpit, STARTTLS and implicit TLS without sending credentials in plain text.
+- [x] Verify both Compose configurations, frontend build and local email/API flow.
+
+**Status:** Complete on `fix/simple-environment` (2026-10-05), awaiting merge approval. The local
+ignored `.env` and example are grouped and simplified; existing credentials and
+AI settings are preserved. Eighteen isolated SMTP/settings checks passed.
+Example-only Compose checks confirmed single-host derivation, SMTP forwarding,
+private backend socket and proxy-only production ports 80/443. The frontend build
+and updated script syntax passed. Local HTTP checks through the frontend's
+`/api` verified readiness, published jobs, a fresh Mailpit login code, recruiter
+token/chats and logout revocation; published jobs were unchanged by the check.
+The backend/frontend were recreated with the new settings. No live SMTP, LLM
+or VM deployment was tested; user usability acceptance remains pending.
+
 ### JT-084 - Automatic form saving, removable fields and help
 
 - [x] Save recruiter/candidate value edits after a short typing pause, with visible

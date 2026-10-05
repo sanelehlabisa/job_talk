@@ -206,3 +206,10 @@ for production checks, never the running development project or its database.
 Use one `.env` per installation and one `.env.example`. Set VM values in its
 `.env`; preserve the local development credentials and database. Candidate follow-up
 messaging is deferred until explicitly requested.
+
+Keep environment setup small: `APP_DOMAIN` is the single public host setting.
+Compose derives origins and sets ports; the browser uses relative `/api` URLs.
+Do not require image tags or duplicated API URLs in `.env`. Email settings are
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`.
+`SMTP_SECURE=false` uses STARTTLS when available; true uses implicit TLS.
+Never send SMTP credentials without encryption. Local Mailpit needs no credentials.

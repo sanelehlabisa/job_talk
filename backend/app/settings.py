@@ -42,9 +42,9 @@ class Settings(BaseSettings):
 
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
-    smtp_username: str | None = None
+    smtp_user: str | None = None
     smtp_password: str | None = None
-    smtp_use_tls: bool = True
+    smtp_secure: bool = False
     email_from: EmailStr | None = None
     recruiter_code_ttl_minutes: int = Field(default=10, ge=5, le=30)
     recruiter_code_max_attempts: int = Field(default=5, ge=3, le=10)
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
         if str(self.tls_email).lower().endswith("@example.com"):
             raise ValueError("TLS_EMAIL must be replaced with a monitored address")
 
-        if not self.smtp_host or not self.smtp_username or not self.smtp_password:
+        if not self.smtp_host or not self.smtp_user or not self.smtp_password:
             raise ValueError("SMTP host and credentials are required in production")
         if is_weak_secret(self.smtp_password, 16):
             raise ValueError("SMTP_PASSWORD must be a strong non-placeholder value")

@@ -47,6 +47,9 @@ and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
+- JT-085 simplifies `.env`: one `APP_DOMAIN`, explicit SMTP settings, and no
+  image tag, duplicated origins, port variables or browser API URL. Compose
+  sets the ports; development Vite and production Nginx both route `/api`.
 - JT-084 adds question-mark help beside form labels and automatic saving after
   a short typing pause. Recruiters can remove template defaults. Removing core
   job details requires restoring them before publication; live posts stay intact.
@@ -313,9 +316,9 @@ passed twice with this setup.
 
 Open [the app](http://localhost:3000), [the API docs](http://localhost:8000/docs),
 or [the Mailpit inbox](http://localhost:8025). All published development ports
-bind to localhost. Change `FRONTEND_PORT`, `BACKEND_PORT`, or
-`MAILPIT_UI_PORT` in `.env` if needed. The browser calls `VITE_API_URL`, which
-defaults to `http://localhost:8000/api`. Demo data persists in the
+bind to localhost. Ports are defined in `dev.docker-compose.yaml`.
+Set `APP_DOMAIN=localhost` in `.env`; Vite forwards the browser's `/api` requests
+to the backend. No separate browser API URL is needed. Demo data persists in the
 `job_talk_data` volume; local email is disposable.
 
 ```bash
@@ -348,7 +351,8 @@ npm ci
 npm run dev
 ```
 
-Open [the Vite app](http://localhost:5173). It calls `http://localhost:8000/api` by default.
+Open [the Vite app](http://localhost:5173). Vite forwards `/api` to the local
+backend on port 8000.
 
 ## Five minute demo
 
@@ -469,10 +473,14 @@ creating duplicates.
 
 Use one ignored `.env` per installation; `.env.example` is the only example.
 Both Compose files and operator scripts read `.env`. Its defaults are for local
-development. On the VM set production domain, secrets, SMTP and release settings
+development. On the VM set the domain, secrets, SMTP and certificate email
 as described in [production operations](docs/production-operations.md#prepare-a-release).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
-`POSTGRES_PASSWORD`. FastAPI refuses to start in `APP_ENV=production` unless:
+`POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;
+production Compose derives the HTTPS origin, allowed hosts and CORS origins.
+It also selects production mode and publishes only Nginx ports 80/443. Images
+build from the checked-out code with Compose-managed names; no image tag goes
+in `.env`. FastAPI validates the derived settings and refuses to start unless:
 
 - `PUBLIC_ORIGIN` is the HTTPS root of `APP_DOMAIN`;
 - `ALLOWED_HOSTS` contains the configured subdomain;
@@ -481,6 +489,11 @@ Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 - SMTP host, credentials, and sender address are non-placeholder values;
 - PostgreSQL uses a non-placeholder password of at least 16 characters; and
 - `SESSION_TOKEN_PEPPER` is a non-placeholder value of at least 32 characters.
+
+Email uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`
+and `EMAIL_FROM`. `SMTP_SECURE=false` supports STARTTLS (usually port 587);
+`true` uses TLS immediately (usually 465). Credentials are sent only over TLS.
+Local Mailpit uses port 1025, `false`, and empty user/password fields.
 
 The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.

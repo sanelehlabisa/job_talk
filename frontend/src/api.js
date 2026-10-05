@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = "/api";
 const SESSION_KEY = "job-talk-session";
 const VISITOR_KEY = "job-talk-visitor";
 

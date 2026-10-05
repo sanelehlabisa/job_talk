@@ -31,8 +31,7 @@ command -v docker >/dev/null 2>&1 || fail "Docker is not installed"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is not available"
 
 for key in \
-    JOB_TALK_IMAGE_TAG APP_DOMAIN PUBLIC_ORIGIN ALLOWED_HOSTS CORS_ORIGINS \
-    TLS_EMAIL STAGING_HTPASSWD_PATH SMTP_HOST SMTP_USERNAME SMTP_PASSWORD \
+    APP_DOMAIN TLS_EMAIL SMTP_HOST SMTP_USER SMTP_PASSWORD \
     EMAIL_FROM SUPPORT_EMAIL POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
     SESSION_TOKEN_PEPPER
 do
@@ -40,11 +39,8 @@ do
 done
 
 domain=$(read_env_value APP_DOMAIN)
-image_tag=$(read_env_value JOB_TALK_IMAGE_TAG)
-public_origin=$(read_env_value PUBLIC_ORIGIN)
-allowed_hosts=$(read_env_value ALLOWED_HOSTS)
-cors_origins=$(read_env_value CORS_ORIGINS)
 htpasswd_path=$(read_env_value STAGING_HTPASSWD_PATH)
+htpasswd_path=${htpasswd_path:-./secrets/nginx/.htpasswd}
 session_pepper=$(read_env_value SESSION_TOKEN_PEPPER)
 ai_provider=$(read_env_value AI_PROVIDER)
 openai_key=$(read_env_value OPENAI_API_KEY)
@@ -52,16 +48,11 @@ gemini_key=$(read_env_value GEMINI_API_KEY)
 
 command -v git >/dev/null 2>&1 || fail "Git is not installed"
 current_commit=$(git rev-parse HEAD 2>/dev/null) || fail "release directory is not a Git checkout"
-test "$image_tag" = "$current_commit" || \
-    fail "JOB_TALK_IMAGE_TAG must equal the checked-out Git commit"
 
 case "$domain" in
     *.*) ;;
     *) fail "APP_DOMAIN must be a fully qualified subdomain" ;;
 esac
-test "$public_origin" = "https://$domain" || fail "PUBLIC_ORIGIN must equal https://$domain"
-test "$allowed_hosts" = "$domain" || fail "ALLOWED_HOSTS must contain only $domain for the first deployment"
-test "$cors_origins" = "$public_origin" || fail "CORS_ORIGINS must equal PUBLIC_ORIGIN"
 test -f "$htpasswd_path" || fail "staging password file $htpasswd_path does not exist"
 test "${#session_pepper}" -ge 32 || fail "SESSION_TOKEN_PEPPER must contain at least 32 characters"
 
@@ -87,6 +78,6 @@ docker compose --env-file "$env_file" -f "$compose_file" config --quiet || \
     fail "production Compose configuration is invalid"
 
 echo "Production preflight passed for $domain."
-echo "Release commit: $image_tag"
+echo "Release commit: $current_commit"
 echo "DNS IPv4: $(echo "$resolved_ips" | paste -sd, -)"
 echo "Next: configure the VM firewall, then run ./scripts/issue-certificate.sh"
