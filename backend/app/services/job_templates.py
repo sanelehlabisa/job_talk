@@ -148,8 +148,6 @@ def informational_only(key: str, label: str, target, description: str) -> bool:
 
 def remove_draft_field(draft: dict, key: str) -> dict:
     result = JobDraft.model_validate(draft)
-    if key in ESSENTIAL_FIELDS:
-        raise ValueError("Keep the company details, role, description, work arrangement and location rules.")
     if key != "closing_date" and not any(field.key == key for field in result.fields):
         raise ValueError("Field not found.")
     result.fields = [field for field in result.fields if field.key != key]
@@ -182,6 +180,8 @@ def _explicit_exclusion(field: DraftField, source: str, expected: str | None) ->
     vocabulary = {word.casefold() for term in terms for word in term.split() if len(word) >= 5}
     def correct_word(match):
         word = match.group().casefold()
+        if word in {"remove", "delete", "drop"}:
+            return word
         close = get_close_matches(word, vocabulary, n=1, cutoff=.8) if len(word) >= 5 else []
         return close[0] if close else word
     source = re.sub(r"[a-zA-Z]+", correct_word, source)
@@ -198,7 +198,9 @@ def draft_gaps(draft: dict) -> list[DraftField]:
     gaps = [f for f in fields if f.state not in {"confirmed", "not_required"}
             and not (f.key == "closing_date" and f.state == "unanswered")]
     arrangement = next((f.target for f in fields if f.key == "working_arrangement"), None)
-    location = next(f for f in fields if f.key == "location")
+    location = next((f for f in fields if f.key == "location"), None)
+    if location is None:
+        return gaps
     unrestricted_location = location.state == "not_required" or re.search(
         r"\b(anywhere|worldwide|unrestricted|no location restrictions)\b",
         str(location.target or ""), re.I,
@@ -225,8 +227,10 @@ def draft_profile(draft: dict) -> dict:
 
 def draft_can_publish(draft: dict) -> bool:
     fields = {f.key: f for f in JobDraft.model_validate(draft).fields}
+    required = (ESSENTIAL_FIELDS - COMPANY_FIELDS) | (COMPANY_FIELDS & (fields.keys() | set(draft.get("removed_keys", []))))
     return (
-        not draft_gaps(draft)
+        required <= fields.keys()
+        and not draft_gaps(draft)
         and all(fields[k].state == "confirmed" and fields[k].target
                 for k in ("job_title", "role_description", "working_arrangement"))
         and all(fields[k].state == "confirmed" and fields[k].target
@@ -237,6 +241,10 @@ def draft_can_publish(draft: dict) -> bool:
 
 
 def draft_question(draft: dict) -> str:
+    present = {field["key"] for field in draft["fields"]}
+    missing = ((ESSENTIAL_FIELDS - COMPANY_FIELDS) | (COMPANY_FIELDS & set(draft.get("removed_keys", [])))) - present
+    if missing:
+        return f"Before publishing, add these job details back: {', '.join(key.replace('_', ' ') for key in sorted(missing))}."
     gaps = draft_gaps(draft)
     if not gaps:
         if draft_can_publish(draft):
@@ -318,20 +326,20 @@ def apply_draft_updates(draft: dict, updates: list[DraftUpdate], text: str,
                 continue
             field = DraftField(key=update.key, label=update.label, type=update.type,
                                weight=.85, description="Details not confirmed.")
-        if field.key == "closing_date" or field.key in COMPANY_FIELDS:
+        if field.key in {"job_title", "role_description", "closing_date"} | COMPANY_FIELDS:
             field.scope, field.weight = "metadata", 0
         # The model maps language to known fields; literal field labels are not
         # required. Exact user quotes, explicit exclusions, types and quantities
         # remain validated here. The guided parser still uses _mentions.
         if update.state == "not_required":
-            if field.key in {"job_title", "role_description", "working_arrangement"} | COMPANY_FIELDS:
-                continue
-            if not _explicit_exclusion(field, source, expected):
-                continue
-            if field.key not in ESSENTIAL_FIELDS and re.search(r"\b(remove|delete|drop)\b", source, re.I):
+            if re.search(r"\b(remove|delete|drop)\b", source, re.I) and _explicit_exclusion(field, source, expected):
                 result.fields = [f for f in result.fields if f.key != field.key]
                 result.removed_keys = list(dict.fromkeys([*result.removed_keys, field.key]))
                 fields.pop(field.key, None)
+                continue
+            if field.key in {"job_title", "role_description", "working_arrangement"} | COMPANY_FIELDS:
+                continue
+            if not _explicit_exclusion(field, source, expected):
                 continue
             field.target, field.unit, field.state = None, None, "not_required"
             field.importance = "unspecified"
@@ -564,8 +572,8 @@ def draft_changes_live_job(job) -> bool:
     from .criteria import normalize_target_profile
     fields = {field["key"]: field for field in job.draft["fields"]}
     closing = fields.get("closing_date", {})
-    return (fields["job_title"]["target"] != job.title
-            or fields["role_description"]["target"] != job.description
+    return (fields.get("job_title", {}).get("target") != job.title
+            or fields.get("role_description", {}).get("target") != job.description
             or normalize_target_profile(draft_profile(job.draft)) != normalize_target_profile(job.target_profile)
             or any((fields.get(key, {}).get("target") if fields.get(key, {}).get("state") == "confirmed" else None)
                    != getattr(job, key) for key in COMPANY_FIELDS)

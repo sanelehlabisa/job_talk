@@ -61,6 +61,27 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+### JT-084 - Automatic form saving, removable fields and help
+
+- [x] Save recruiter/candidate value edits after a short typing pause, with visible
+  errors and explicit retry rather than repeated failed requests.
+- [x] Add question-mark buttons with hover descriptions and click/keyboard help,
+  including candidate contact fields. Reuse existing criterion descriptions.
+- [x] Allow removing every recruiter field, including template defaults; preserve
+  live posts and publication readiness when required metadata is removed.
+- [x] Verify the frontend build and both forms without changing saved applications
+  or bypassing submitted/closed form locks.
+
+**Status:** Complete on `fix/form-field-help` (2026-10-05), awaiting merge approval.
+Frontend build passed. Browser checks with isolated component fixtures verified
+actual typing saves both forms after one second, failed saves retain text without
+retry loops, explicit retry succeeds, default Remove works, and help supports
+hover/click/keyboard/Escape. Submitted/closed locks remain. Disposable SQLite
+checks passed for draft removal/restoration, company metadata, published edits
+and candidate edit permissions; focused reruns resolved older assumptions that
+core fields could not be removed. Existing jobs/applications were untouched.
+No live LLM calls or deployment work. JT-083 remains on its separate plot branch.
+
 ### JT-082 - Company details, experience ranking and small UI polish
 
 - [x] Enlarge the Job Talk mark, capitalize the name, and link the Roventics

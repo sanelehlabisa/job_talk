@@ -16,6 +16,22 @@ stack with `docker compose -f dev.docker-compose.yaml up -d`. Repeat the visible
 flow on desktop and phone size. Record confusing steps as failures even if the
 API succeeds.
 
+## Automatic saving and help (JT-084)
+
+1. Type in a recruiter field and pause for one second. Check saving feedback and
+   refresh after it saves; no Save button is needed. Publication remains explicit.
+2. Hover or click a question mark to read its description. Keyboard Enter opens
+   help and Escape closes it. Try the same on an application answer/contact field.
+3. Remove a default recruiter field. It should stay removed after refresh. If it
+   is a core job detail, restore it before publishing; the live job stays intact.
+4. Edit an applicant answer and wait for automatic saving. An unsuccessful save
+   must retain the typed answer and offer Retry saving. Submitted answers stay frozen.
+
+Checks on 2026-10-05: frontend build; browser component fixtures covering real
+typing, automatic saving, failed save/retry, default removal, accessible help and
+locked states; disposable SQLite removal/restoration and ownership regressions.
+No live LLM verification or writes to existing jobs/applications in this check.
+
 ## Company and ranking check (JT-082)
 
 1. Check the larger **Job Talk** mark. Hover the footer Roventics image for the

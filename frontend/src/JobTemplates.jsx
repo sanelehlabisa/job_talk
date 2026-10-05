@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { FieldLabel } from "./FieldLabel";
+import { useAutoSave } from "./useAutoSave";
 
 const stateLabels = {
   unanswered: "Unanswered",
@@ -55,8 +57,6 @@ export function JobTemplatePicker({ templates, busy, onSelect, onCancel, isAdmin
   );
 }
 
-const essentialFields = new Set(["company_name", "company_location", "job_title", "role_description", "working_arrangement", "location"]);
-
 function fieldValue(field) {
   if (field.key === "closing_date") return field.target || "";
   if (field.state === "not_required") return "Not required";
@@ -69,38 +69,48 @@ export function JobDraftSummary({ draft, locked = false, busy = false, onChange,
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  function edit(value) { setEditing(value); setError(""); onEditingChange?.(value !== null); }
+  function edit(value) { setEditing(value); setError(""); setNotice(""); onEditingChange?.(value !== null); }
   async function change(action, value) {
     setError(""); setNotice("");
     try {
       const result = await onChange(action, value);
-      setNotice(result.notice);
       edit(null);
+      setNotice(result.notice);
     } catch (err) { setError(err.message); }
   }
+  const original = draft.fields.find((field) => field.key === editing?.key);
+  const dirty = editing && (!original || editing.label !== original.label || editing.value !== fieldValue(original));
+  const valid = dirty && editing.label.trim().length >= 2 && (editing.value.trim() || editing.key === "closing_date");
+  const saveNow = useAutoSave(editing, Boolean(valid && !locked), busy, (value) => (
+    value.key === "closing_date" && !value.value.trim()
+      ? change("remove", value.key)
+      : change("save", { key: value.key === "new" ? null : value.key, label: value.label, value: value.value })
+  ));
   function save(event) {
     event.preventDefault();
-    if (!editing || locked || busy) return;
-    change("save", { key: editing.key === "new" ? null : editing.key, label: editing.label, value: editing.value });
+    saveNow();
   }
   const fields = draft.fields.some((field) => field.key === "closing_date") || locked || draft.removed_keys?.includes("closing_date")
     ? draft.fields : [...draft.fields, { key: "closing_date", label: "Closing date", state: "unanswered", target: null }];
   return (
     <details className="template-draft" open>
       <summary>Who you're looking for</summary>
-      <p>{locked ? "Published requirements" : "Edit a value or describe it in chat."}</p>
+      <p>{locked ? "Published requirements" : "Edit a value or describe it in chat. Changes save automatically after you pause typing."}</p>
       <ul>
         {fields.map((field) => (
           <li key={field.key} data-field-key={field.key} data-field-state={field.state}>
             <form className="draft-field-form" onSubmit={save}>
-              {editing?.key === field.key ? <input name="label" aria-label="Field label" value={editing.label} onChange={(event) => edit({ ...editing, label: event.target.value })} minLength="2" maxLength="80" required disabled={busy} /> : <label htmlFor={`draft-value-${field.key}`}>{field.label}{field.key === "closing_date" ? " (optional)" : ""}</label>}
-              <input id={`draft-value-${field.key}`} name="value" aria-label={`${field.label} value`} type={field.key === "closing_date" ? "date" : "text"} value={editing?.key === field.key ? editing.value : fieldValue(field)} maxLength="500" required={editing?.key === field.key} readOnly={locked} disabled={busy || (editing !== null && editing.key !== field.key)} placeholder={field.suggestion != null ? `e.g. ${displayValue(field.suggestion, field.unit)}` : "Enter a value"} title={field.key === "closing_date" ? "Optional last day to apply (UTC)" : stateLabels[field.state]} onChange={(event) => edit({ key: field.key, label: editing?.label || field.label, value: event.target.value })} />
+              <FieldLabel htmlFor={`draft-value-${field.key}`} label={`${field.label}${field.key === "closing_date" ? " (optional)" : ""}`}
+                description={field.key === "closing_date" ? "Optional last day candidates can apply (UTC). Leave it empty if there is no deadline." : field.description && field.description !== "Details not confirmed." ? field.description : `Describe ${field.label.toLowerCase()} for this role.`}>
+                {editing?.key === field.key && <input name="label" aria-label="Field label" value={editing.label} onChange={(event) => edit({ ...editing, label: event.target.value })} minLength="2" maxLength="80" required disabled={busy} />}
+              </FieldLabel>
+              <input id={`draft-value-${field.key}`} name="value" aria-label={`${field.label} value`} type={field.key === "closing_date" ? "date" : "text"} value={editing?.key === field.key ? editing.value : fieldValue(field)} maxLength="500" required={editing?.key === field.key} readOnly={locked} disabled={busy || (editing !== null && editing.key !== field.key)} placeholder={field.suggestion != null ? `e.g. ${displayValue(field.suggestion, field.unit)}` : "Enter a value"} title={field.key === "closing_date" ? "Optional last day to apply (UTC)" : stateLabels[field.state]}
+                onChange={(event) => edit({ key: field.key, label: editing?.label || field.label, value: event.target.value })} />
               {!locked && <div className="draft-actions">{editing?.key === field.key ? <>
-                <button className="primary" type="submit" disabled={busy}><Check size={14} aria-hidden="true" />Save</button><button type="button" disabled={busy} onClick={() => edit(null)}><X size={14} aria-hidden="true" />Cancel</button>
+                <button type="button" disabled={busy} onClick={() => edit(null)}><X size={14} aria-hidden="true" />Cancel</button>
               </> : <>
                 <button type="button" disabled={busy || editing !== null} onClick={() => edit({ key: field.key, label: field.label, value: fieldValue(field) })} aria-label={`Edit ${field.label}`}><Pencil size={14} aria-hidden="true" />Edit</button>
-                {!essentialFields.has(field.key) && <button type="button" disabled={busy || editing !== null} onClick={() => change("remove", field.key)} aria-label={`Remove ${field.label}`}><Trash2 size={14} aria-hidden="true" />Remove</button>}
-              </>}</div>}
+              </>}<button type="button" disabled={busy || (editing !== null && editing.key !== field.key)} onClick={() => { edit(null); change("remove", field.key); }} aria-label={`Remove ${field.label}`}><Trash2 size={14} aria-hidden="true" />Remove</button></div>}
             </form>
           </li>
         ))}
@@ -109,14 +119,16 @@ export function JobDraftSummary({ draft, locked = false, busy = false, onChange,
         {editing?.key === "new" ? <form className="draft-field-form draft-new-field" onSubmit={save}>
           <label>Label<input name="label" value={editing.label} onChange={(event) => edit({ ...editing, label: event.target.value })} minLength="2" maxLength="80" required autoFocus disabled={busy} /></label>
           <label>Value<input name="value" value={editing.value} onChange={(event) => edit({ ...editing, value: event.target.value })} minLength="2" maxLength="500" required disabled={busy} /></label>
-          <div className="draft-actions"><button className="primary" type="submit" disabled={busy}><Check size={14} aria-hidden="true" />Save</button><button type="button" disabled={busy} onClick={() => edit(null)}><X size={14} aria-hidden="true" />Cancel</button></div>
+          <div className="draft-actions"><button type="button" disabled={busy} onClick={() => edit(null)}><X size={14} aria-hidden="true" />Cancel</button></div>
         </form> : <button type="button" disabled={busy || editing !== null} onClick={() => edit({ key: "new", label: "", value: "" })}><Plus size={14} aria-hidden="true" />Add a field</button>}
         <p>Done removes unused fields.</p>
         <button className="primary" type="button" disabled={busy || editing !== null} onClick={() => change("done")}><Check size={14} aria-hidden="true" />Done</button>
       </>}
       {busy && <p role="status">Saving…</p>}
+      {dirty && !valid && <p>Enter a label and value, or remove the field.</p>}
       {notice && <p role="status">{notice}</p>}
       {error && <p className="draft-error" role="alert">{error}</p>}
+      {error && valid && <button type="button" disabled={busy} onClick={saveNow}>Retry saving</button>}
     </details>
   );
 }

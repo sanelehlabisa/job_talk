@@ -60,7 +60,7 @@ def test_natural_new_label_and_age_note_do_not_create_age_scores():
     assert "working_hours" in draft_profile(saved)
 
 
-def test_explicit_chat_removal_keeps_essentials_and_does_not_accept_negation():
+def test_explicit_chat_removal_includes_defaults_and_does_not_accept_negation():
     draft = ready_draft()
     remove = proposal("javascript", "Please remove JavaScript", state="not_required", label="JavaScript")
     saved = apply_draft_updates(draft, [remove], remove.source_quote)
@@ -69,7 +69,55 @@ def test_explicit_chat_removal_keeps_essentials_and_does_not_accept_negation():
     negated = proposal("javascript", "Do not remove JavaScript", state="not_required", label="JavaScript")
     assert apply_draft_updates(draft, [negated], negated.source_quote) == draft
     arrangement = proposal("working_arrangement", "Remove work arrangement", state="not_required")
-    assert apply_draft_updates(draft, [arrangement], arrangement.source_quote) == draft
+    removed = apply_draft_updates(draft, [arrangement], arrangement.source_quote)
+    assert "working_arrangement" not in {field["key"] for field in removed["fields"]}
+    assert not draft_can_publish(removed)
+
+
+def test_all_default_fields_can_be_removed_without_breaking_the_draft():
+    _, headers = authenticate("remove-defaults@example.com", "recruiter")
+    with TestClient(app) as client:
+        chat = client.post("/api/chats", json={"template_id": "generic-role"}, headers=headers).json()
+        for field in chat["job_draft"]["fields"]:
+            response = client.delete(f"/api/chats/{chat['id']}/draft/fields/{field['key']}", headers=headers)
+            assert response.status_code == 200, response.text
+            saved = response.json()["chat"]
+            assert field["key"] not in {f["key"] for f in saved["job_draft"]["fields"]}
+            assert not saved["can_publish"]
+        assert saved["job_draft"]["fields"] == []
+        assert client.get(f"/api/chats/{chat['id']}", headers=headers).status_code == 200
+
+
+def test_removing_and_restoring_published_title_preserves_live_job():
+    from app.tests.test_live_job_edits import publish_ready_job
+    _, headers = authenticate("remove-published-title@example.com", "recruiter")
+    with TestClient(app) as client:
+        chat, job = publish_ready_job(client, headers)
+        public_path = f"/api/public/jobs/{job['id']}"
+        before = client.get(public_path).json()
+        path = f"/api/chats/{chat['id']}/draft"
+        removed = client.delete(path + "/fields/job_title", headers=headers)
+        assert removed.status_code == 200, removed.text
+        assert removed.json()["chat"]["has_unpublished_changes"]
+        assert not removed.json()["chat"]["can_publish"]
+        assert client.post(f"/api/jobs/{job['id']}/publish", headers=headers).status_code == 400
+        assert client.get(public_path).json() == before
+        restored = client.put(path + "/field", headers=headers,
+                              json={"label": "Job title", "value": job["title"]})
+        assert restored.status_code == 200, restored.text
+        assert draft_can_publish(restored.json()["chat"]["job_draft"])
+        assert not restored.json()["chat"]["has_unpublished_changes"]
+        assert "job_title" not in restored.json()["chat"]["job_post"]["target_profile"]
+        assert client.get(public_path).json() == before
+        assert client.delete(path + "/fields/working_arrangement", headers=headers).status_code == 200
+        restored = client.put(path + "/field", headers=headers, json={
+            "label": "Work arrangement", "value": job["target_profile"]["working_arrangement"]["target"],
+        })
+        assert restored.status_code == 200, restored.text
+        keys = {field["key"] for field in restored.json()["chat"]["job_draft"]["fields"]}
+        assert "working_arrangement" in keys and "work_arrangement" not in keys
+        assert draft_can_publish(restored.json()["chat"]["job_draft"])
+        assert client.get(public_path).json() == before
 
 
 def test_form_save_polishes_one_field_and_syncs_profile_and_history(monkeypatch):
@@ -104,7 +152,7 @@ def test_form_save_polishes_one_field_and_syncs_profile_and_history(monkeypatch)
         assert response.status_code == 200, response.text
         assert client.put(path + "/field", headers=headers, json=edit_payload()).status_code == 409
         assert client.delete(path + "/fields/circuit_simulation", headers=headers).status_code == 200
-        assert client.delete(path + "/fields/job_title", headers=headers).status_code == 422
+        assert client.delete(path + "/fields/job_title", headers=headers).status_code == 200
 
 
 def test_form_auth_admin_done_published_edits_and_numeric_validation(monkeypatch):

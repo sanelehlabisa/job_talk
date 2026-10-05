@@ -34,6 +34,13 @@ Types, units, importance and descriptions remain in the backend contract; do not
 reintroduce separate controls or duplicate text. Closing date is optional job
 metadata, excluded from applicant scoring.
 
+Recruiter and candidate field edits save automatically after a short typing pause.
+Show saving/failure feedback and retain failed input for explicit retry. Field
+help is available on hover and click. Recruiters may remove any draft field,
+including template defaults; missing core job details must block publication
+without breaking the editor or changing the live post. Candidate clearing still
+clears their evidence; submitted applications remain frozen.
+
 New recruiter drafts ask first for the hiring company name and company base.
 Keep these as non-scoring job metadata, separate from the work location. Save
 them in draft JSON and expose changes to candidates only after publication.

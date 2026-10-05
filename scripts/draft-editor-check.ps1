@@ -7,7 +7,7 @@ Set-InputAndSubmit "textarea[aria-label='Conversation message']" 'Company name: 
 Wait-JavaScript "document.querySelector('[data-field-key=job_title] input[name=value]')?.value.includes('Simple Form Check Engineer') && !document.querySelector('.typing')" 'captured role' 45
 if (-not (Invoke-JavaScript "document.querySelector('[data-field-key=closing_date] input[name=value]')?.value === '2026-11-30'")) { throw 'Chat closing date was not captured' }
 if (Invoke-JavaScript "document.querySelector('.draft-sidebar .draft-state, .draft-sidebar select, .draft-sidebar textarea') !== null") { throw 'Extra field controls remain' }
-if (Invoke-JavaScript "document.querySelector('[data-field-key=working_hours] p') !== null") { throw 'Working hours still has duplicate descriptions' }
+if (Invoke-JavaScript "document.querySelector('[data-field-key=working_hours] p:not([hidden])') !== null") { throw 'Working hours still has duplicate descriptions' }
 Invoke-JavaScript "[...document.querySelectorAll('.template-draft button')].find(b => b.textContent === 'Add a field').click(); true" | Out-Null
 Wait-JavaScript "document.querySelector('.draft-new-field') !== null" 'two-input add form'
 Invoke-JavaScript @'
@@ -18,7 +18,7 @@ Invoke-JavaScript @'
     input.dispatchEvent(new Event('input', {bubbles:true}));
     await new Promise(resolve => setTimeout(resolve, 0));
   }
-  document.querySelector('.draft-new-field').requestSubmit();
+  // Label and value save automatically after typing pauses.
   return true;
 })()
 '@ | Out-Null
@@ -35,7 +35,7 @@ function Set-DraftValue([string]$key, [string]$value) {
   input.dispatchEvent(new Event('input', {bubbles:true}));
   await new Promise(resolve => setTimeout(resolve, 0));
   if (!document.querySelector('[aria-label="Conversation message"]').disabled) throw new Error('Chat remains editable during a form edit');
-  input.closest('form').requestSubmit();
+  // The edit saves automatically; do not click Save or submit the form.
   return true;
 })()
 "@ | Out-Null

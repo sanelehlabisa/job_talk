@@ -581,8 +581,8 @@ def sync_job_draft(chat: models.Chat, draft: dict):
     if chat.status in {"published", "closed"}:
         return  # Keep the public post intact until Publish changes.
     fields = {field["key"]: field for field in draft["fields"]}
-    job.title = fields["job_title"]["target"] or "Untitled role"
-    job.description = fields["role_description"]["target"] or ""
+    job.title = fields.get("job_title", {}).get("target") or "Untitled role"
+    job.description = fields.get("role_description", {}).get("target") or ""
     job.target_profile = draft_profile(draft)
 
 
@@ -613,6 +613,9 @@ def edit_draft_field(chat_id: int, payload: schemas.DraftFieldEdit,
     chat = editable_draft(db, chat_id, current_user)
     fields = {field["key"]: field for field in chat.job_post.draft["fields"]}
     key = payload.key or re.sub(r"[^a-z0-9]+", "_", payload.label.lower()).strip("_")[:60]
+    if not payload.key:
+        key = next((field.key for template in starter_templates() for field in template.fields
+                    if field.label.casefold() == payload.label.casefold()), key)
     if not payload.key and key in {"deadline", "application_deadline", "applications_close"}:
         key = "closing_date"
     if not re.fullmatch(r"[a-z][a-z0-9_]{0,59}", key):

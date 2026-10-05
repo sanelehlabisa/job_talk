@@ -174,11 +174,17 @@ least one meaningful confirmed assessment criterion, and all remaining fields
 confirmed or explicitly not required. The **Publish** action stays final.
 
 JT-067 lets recruiters edit, add and remove fields directly in the same summary.
-Save sends the current chat and one explicit form edit to AI for polishing, then
+Editing a field automatically sends the current chat and one form edit to AI
+after a short typing pause (JT-084), then
 validates it before updating the saved draft and scoring profile. Form edits are
 recorded in the conversation, so later replies see the recruiter's corrections.
 If polishing is unavailable, a notice says the original wording was saved.
 Numeric targets retain their quantity/unit; weights are never client-controlled.
+
+Every recruiter field can be explicitly removed, including template defaults.
+An incomplete draft remains editable; missing core job details block publication
+and never erase the live post. Field help explains the existing description on
+hover or click. Failed automatic saves keep the input and offer Retry saving.
 
 **Done**, including "ready for publication" in chat, removes unanswered optional
 suggestions. It preserves company details, title, duties, work arrangement, location rules and any

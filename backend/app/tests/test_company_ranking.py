@@ -54,8 +54,9 @@ def test_missing_partial_or_non_numeric_evidence_cannot_earn_excess_credit(chang
 def test_company_details_required_non_scoring_and_published_explicitly():
     empty = finish_draft(new_job_draft('generic-role'))
     assert not draft_can_publish(empty)
-    with pytest.raises(ValueError):
-        remove_draft_field(empty, 'company_name')
+    removed = remove_draft_field(empty, 'company_name')
+    assert 'company_name' not in {field['key'] for field in removed['fields']}
+    assert not draft_can_publish(removed)
     _, headers = authenticate('company-owner@example.com', 'recruiter')
     with TestClient(app) as client:
         initial = client.post('/api/chats', headers=headers, json={'template_id': 'generic-role'}).json()

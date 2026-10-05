@@ -31,7 +31,7 @@ function Save-Answer([string]$key, [string]$value) {
   input.dispatchEvent(new Event('input', {bubbles:true}));
   await new Promise(resolve => setTimeout(resolve, 0));
   if (!document.querySelector('[aria-label="Conversation message"]').disabled) throw new Error('Chat is not locked during editing');
-  input.form.requestSubmit();
+  // The answer saves automatically after typing pauses.
   return true;
 })()
 "@ | Out-Null
@@ -74,7 +74,7 @@ try {
     $formGuestSession = Invoke-JavaScript "sessionStorage.getItem('job-talk-session')"
     Wait-JavaScript "/^\d+%$/.test(document.querySelector('.application-match strong')?.textContent)" 'initial match score'
     $initialMatch = Assert-MatchScore
-    if (Invoke-JavaScript "document.querySelector('.messages .job-card, .messages .application-review, .application-summary .draft-state') !== null || document.querySelector('[data-field-key=working_hours] p') !== null") { throw 'Duplicate application details remain' }
+    if (Invoke-JavaScript "document.querySelector('.messages .job-card, .messages .application-review, .application-summary .draft-state') !== null || document.querySelector('[data-field-key=working_hours] p:not([hidden])') !== null") { throw 'Duplicate application details remain' }
     if (-not (Invoke-JavaScript "document.querySelector('.application-summary button.primary.full')?.disabled")) { throw 'Submit should require consent' }
     Save-Answer 'experience' '1.5 years building Python APIs'
     if ((Assert-MatchScore) -le $initialMatch) { throw 'Saved experience did not improve the initial match score' }

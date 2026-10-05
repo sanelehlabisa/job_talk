@@ -47,6 +47,10 @@ and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
+- JT-084 adds question-mark help beside form labels and automatic saving after
+  a short typing pause. Recruiters can remove template defaults. Removing core
+  job details requires restoring them before publication; live posts stay intact.
+  Failed saves keep your input and show Retry saving.
 - JT-082 asks for company name and base in new recruiter drafts and shows them
   to applicants. Company information is separate from scored requirements.
   Candidate cards are numbered and sorted by the uncapped weighted comparison;
