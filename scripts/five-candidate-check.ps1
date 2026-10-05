@@ -171,11 +171,13 @@ try {
   for(const app of items) {
     if(Object.keys(app.match_result.criteria).sort().join(',')!==keys.join(',')) throw new Error('Saved assessment criteria differ');
     const name=app.candidate_profile.candidate_details.name;
-    const plot=[...document.querySelectorAll('.plot-candidate')].find(p=>p.getAttribute('aria-label')===name+' score line');
-    const titles=[...plot.querySelectorAll('title')].map(t=>t.textContent);
+    const plot=[...document.querySelectorAll('.plot-candidate')].find(p=>p.getAttribute('aria-label')===name+' value line');
     for(const [key,value] of Object.entries(app.match_result.criteria).slice(0,8)) {
-      const expected=value.gap==='missing' || !value.evidence ? name+': no direct evidence for '+key.replaceAll('_',' ') : name+': '+key.replaceAll('_',' ')+' '+Math.round((value.comparison_score ?? value.score)*100)+'%';
-      if(!titles.includes(expected)) throw new Error('Plot differs from saved criterion score');
+      const point=plot.querySelector('[data-criterion-key="'+key+'"]');
+      const binary=typeof chat.job_post.target_profile[key].target==='boolean';
+      const expected=value.gap==='reported' && binary ? false : value.candidate_value;
+      const missing=!value.evidence || value.gap==='missing' || (value.gap==='reported' && !binary) || expected===null;
+      if(missing ? !point?.querySelector('.missing-score') : point?.getAttribute('data-value')!==String(expected).trim()) throw new Error('Plot differs from saved criterion value');
     }
   }
   return true;

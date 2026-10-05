@@ -45,10 +45,13 @@ New recruiter drafts ask first for the hiring company name and company base.
 Keep these as non-scoring job metadata, separate from the work location. Save
 them in draft JSON and expose changes to candidates only after publication.
 
-For fully met numeric criteria with direct evidence, compare values above the
-target without capping the plot. Rank candidates by the uncapped weighted
-comparison score; cap the displayed overall match at 100%. Number current
-candidate cards and preserve previously submitted score snapshots.
+The comparison plot uses each criterion's saved values on its own axis: numeric
+amounts/units, Yes/No, or unordered text categories. Mark the recruiter's target
+on every axis; missing values must not become zero or No. Display scoring weights
+as relative multipliers, not percentages or automatic rejection gates.
+For fully met numeric criteria with direct evidence, ranking can use values above
+the target. Rank by the uncapped weighted comparison score; cap the displayed
+overall match at 100%. Number current candidate cards and preserve submitted scores.
 
 Use the same label/value layout for the seeker's application answers. Keep one
 editable answer per published criterion, with the requirement as an input hint.

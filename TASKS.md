@@ -61,6 +61,13 @@ this merge does not replace the remaining JT-060 usability sign-off.
 checks cover those revisions. Actual LLM acceptance, JT-062 and the user's
 JT-060 usability sign-off remain open; deployment stays paused.
 
+**Merge approval (2026-10-05):** The user requested committing and pushing the
+completed work to `master`. This includes JT-083 plot scales and JT-084 form
+autosaving, field removal and help. Both feature branches are included in this
+release. VM deployment and JT-060 user usability acceptance remain pending.
+The combined frontend production build passed before merging; conflicts were
+limited to documentation and resolved by retaining both tickets and checklists.
+
 ### JT-084 - Automatic form saving, removable fields and help
 
 - [x] Save recruiter/candidate value edits after a short typing pause, with visible
@@ -72,7 +79,7 @@ JT-060 usability sign-off remain open; deployment stays paused.
 - [x] Verify the frontend build and both forms without changing saved applications
   or bypassing submitted/closed form locks.
 
-**Status:** Complete on `fix/form-field-help` (2026-10-05), awaiting merge approval.
+**Status:** Complete on `fix/form-field-help` (2026-10-05), approved for `master`.
 Frontend build passed. Browser checks with isolated component fixtures verified
 actual typing saves both forms after one second, failed saves retain text without
 retry loops, explicit retry succeeds, default Remove works, and help supports
@@ -80,7 +87,25 @@ hover/click/keyboard/Escape. Submitted/closed locks remain. Disposable SQLite
 checks passed for draft removal/restoration, company metadata, published edits
 and candidate edit permissions; focused reruns resolved older assumptions that
 core fields could not be removed. Existing jobs/applications were untouched.
-No live LLM calls or deployment work. JT-083 remains on its separate plot branch.
+No live LLM calls or deployment work. JT-083 is included in the same release.
+
+### JT-083 - Use each criterion's values in the comparison plot
+
+- [x] Give numeric, Yes/No and text criteria their own axes; keep the ideal
+  target visible and distinguish missing values from explicit answers.
+- [x] Replace misleading weight percentages with relative multipliers and center
+  the overall match percentage and estimate label.
+- [x] Verify mixed values and the local browser/build without changing saved
+  scores, rankings or applications.
+
+**Status:** Complete on `fix/criterion-plot-scales` (2026-10-04), approved for
+`master` on 2026-10-05. Frontend production build and focused mixed-value checks passed:
+independent numeric ranges, above-target experience, zero, Yes/No, explicit gaps,
+missing values and text categories. Desktop/phone browser checks passed against
+the existing five developer applications: two-year ideal and three-year evidence,
+Yes/No axes, readable labels, centered estimate badges and horizontal scrolling.
+Saved percentages and candidate order still match the backend. No database or
+scoring changes, LLM requests, infrastructure or deployment work were needed.
 
 ### JT-082 - Company details, experience ranking and small UI polish
 

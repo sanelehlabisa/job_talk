@@ -32,7 +32,7 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. Completed work through JT-082 is merged into
+The core hiring loop works locally. Completed work through JT-084 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
 JT-077 adds production Nginx origin/host checks, request limits and security headers.
@@ -51,6 +51,10 @@ The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track pro
   a short typing pause. Recruiters can remove template defaults. Removing core
   job details requires restoring them before publication; live posts stay intact.
   Failed saves keep your input and show Retry saving.
+- JT-083 gives each comparison axis its own saved values and ideal target:
+  years/amounts, Yes/No, or text categories. Scoring weights are labelled as
+  relative multipliers, and match badges are centered. Scores and ranking stay
+  unchanged; text-category positions do not indicate a better or worse match.
 - JT-082 asks for company name and base in new recruiter drafts and shows them
   to applicants. Company information is separate from scored requirements.
   Candidate cards are numbered and sorted by the uncapped weighted comparison;

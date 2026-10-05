@@ -305,9 +305,14 @@ Submission contact review preserves a separately captured job-location answer.
 - Recommendations include at most five jobs above the minimum useful threshold.
 - A recruiter sees at most five leading candidates with contact details, score,
   evidence, and gaps. Current candidate cards are numbered in ranking order.
-- The parallel-axis view plots the ideal profile and those candidates using the
-  same criteria. The ideal stays at 100 and the axis expands for excess numeric
-  evidence. Evidence cards remain the readable explanation.
+- The parallel-axis view plots saved values against the recruiter's targets on
+  separate scales (JT-083): numbers with units, Yes/No, or unordered text
+  categories. Four years can sit above a two-year ideal. Hover shows full values;
+  missing/unmeasurable values use × and do not become zero or No. An explicit
+  skill gap can appear as No. The plot does not derive values from match scores.
+- Weights are relative multipliers, displayed as e.g. ×0.80. The weighted mean
+  divides by their total; they do not need to sum to 100%. A Yes/No value does not
+  create an automatic rejection rule. Evidence cards explain the separate scores.
 - Not-required and unresolved job fields never contribute to the weighted mean
   or plot. Missing candidate evidence remains missing; reported gaps remain gaps.
 - Initial available-job cards and below-threshold roles are not recommendations.

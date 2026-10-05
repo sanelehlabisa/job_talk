@@ -32,6 +32,22 @@ typing, automatic saving, failed save/retry, default removal, accessible help an
 locked states; disposable SQLite removal/restoration and ownership regressions.
 No live LLM verification or writes to existing jobs/applications in this check.
 
+## Criterion plot values (JT-083)
+
+1. Open the developer job comparison. Experience should show **years** with the
+   ideal at **2 years** and a saved **3-year** applicant above it. A skill axis
+   should show **Yes/No**; text axes show the saved categories and ideal target.
+2. Hover points to read full values. Missing values stay ×; an explicit skill
+   gap can be No. Text-category positions do not rank candidates.
+3. Check **Weight ×0.80** style labels in evidence cards and the centered match
+   percentage/estimate label. Overall scores and candidate order should be unchanged.
+4. On a phone, scroll the plot horizontally to see every axis.
+
+JT-083 engineering checks passed (2026-10-04): frontend build, mixed-value
+transformation checks and desktop/phone browser verification against the five
+saved developer applications. Displayed percentages and order still matched the
+backend. No model calls or changes to saved applications were made.
+
 ## Company and ranking check (JT-082)
 
 1. Check the larger **Job Talk** mark. Hover the footer Roventics image for the
@@ -39,7 +55,7 @@ No live LLM verification or writes to existing jobs/applications in this check.
 2. Start a recruiter chat: name a company based in Durban hiring for Cape Town.
    Check both locations, publish, and verify the company details as a candidate.
 3. Compare equivalent applicants with two and four years against a two-year
-   target. The latter should plot at 200% for experience and rank higher; the
+   target. The latter should plot at 4 years, above the 2-year ideal, and rank higher; the
    overall match must stay at most 100%. Cards should show #1, #2, and so on.
 4. Edit company details after publishing. Candidates should see the old values
    until **Publish changes**. Existing applications must retain their saved scores.
