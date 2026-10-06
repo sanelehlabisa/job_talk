@@ -25,6 +25,11 @@ VM Certbot owns HTTPS. The previous shared Docker edge, cross-project network,
 certificate volumes and renewal watcher are removed. Preserve existing `.env`
 files and other applications. No VPS changes have been made.
 
+**Merge approved 2026-10-06:** The user requested committing and pushing this
+completed work to `master`, including the Roventics card and removal of its
+shared-deployment changes. This approves the repository merges; live DNS,
+certificate setup, VM cutover and public launch checks remain pending below.
+
 ### JT-088 - Keep Job Talk Compose independent
 
 - [x] App-owned frontend, backend, database and small HTTP gateway.
