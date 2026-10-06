@@ -32,12 +32,13 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-**Shared VPS plan (review only, 2026-10-06):**
-[JT-088 through JT-091](TASKS.md#p0---shared-vps-deployment-plan-review-only)
-plan one shared Nginx/TLS owner for Roventics and Job Talk, the Job Talk subdomain
-and a Roventics product link. Implementation is not authorized yet. The current
-standalone Job Talk production proxy still binds 80/443; do not start it beside
-the existing Roventics listener. DNS prerequisite: add `jobtalk` A record pointing
+**Shared VPS implementation (2026-10-06):**
+[JT-088 through JT-091](TASKS.md#p0---shared-vps-deployment)
+provide one shared Nginx/TLS owner for Roventics and Job Talk, the Job Talk subdomain
+and a Roventics product link. Isolated routing, authentication, outage and
+certificate reload checks pass. The VPS cutover and trusted certificate issuance
+remain operator steps in the [runbook](docs/production-operations.md).
+DNS prerequisite: add a `jobtalk` A record pointing
 to `209.74.85.79` at the `roventics.com` DNS provider, after verifying the VPS IP.
 
 The core hiring loop works locally. Completed work through JT-087 is merged into
@@ -499,11 +500,11 @@ Use one ignored `.env` per installation; `.env.example` is the only example.
 Both Compose files and operator scripts read `.env`. The example contains blank
 values; fill them in for your installation. On the VM set the domain, admin email,
 secrets, SMTP and Gemini key
-as described in [production operations](docs/production-operations.md#prepare-a-release).
+as described in [production operations](docs/production-operations.md).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;
 production Compose derives the HTTPS origin, allowed hosts and CORS origins.
-It also selects production mode and publishes only Nginx ports 80/443. Images
+It also selects production mode. Only the separate shared edge publishes 80/443. Images
 build from the checked-out code with Compose-managed names; no image tag goes
 in `.env`. FastAPI validates the derived settings and refuses to start unless:
 
@@ -523,8 +524,9 @@ The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.
 
 Support links use `info@roventics.com`. Certificate registration reuses
-`ADMIN_EMAIL`; there is no separate support or TLS email variable. The staging
-password file is always `secrets/nginx/.htpasswd`; certificate reload is hourly.
+`ADMIN_EMAIL`; there is no separate support or TLS email variable. The shared edge
+uses `secrets/jobtalk.htpasswd`, checks renewal every 12 hours, and checks for
+changed certificates every minute before validating and gracefully reloading Nginx.
 Generate a unique session pepper on each installation, for example with
 `python -c "import secrets; print(secrets.token_urlsafe(48))"`, and save it only
 in the ignored `.env`. Replacing it invalidates existing sessions and login codes.
@@ -552,8 +554,8 @@ VM environment file and recreate only the backend service; users then sign in
 again. The frontend image does not need rebuilding.
 
 To rotate the PostgreSQL password, first take a backup, change the `job_talk`
-database role password in PostgreSQL, update both `POSTGRES_PASSWORD` and the
-URL-encoded password in `DATABASE_URL`, then recreate the backend service. The
+database role password in PostgreSQL, update `POSTGRES_PASSWORD` in `.env`
+(Compose derives `DATABASE_URL`), then recreate the backend service. The
 production commands are in [production operations](docs/production-operations.md).
 
 To rotate the SMTP password, replace `SMTP_PASSWORD` in the VM environment file
@@ -566,15 +568,16 @@ Production Compose/HTTPS preparation is authorized in JT-070. VM deployment
 remains paused pending user acceptance and an explicit deployment request.
 
 [`prod.docker-compose.yaml`](prod.docker-compose.yaml) builds backend
-and frontend images under one Git commit tag. PostgreSQL, FastAPI, and the
-frontend have no host port bindings. The public Nginx proxy is the only service
-that publishes ports, on `80:80` and `443:443`, and it sends `/api/` directly to
-FastAPI while serving the frontend at `/`.
+and frontend images from the checked-out source. PostgreSQL, FastAPI, and the
+frontend have no host port bindings. The independent
+[`deploy/edge-proxy`](deploy/edge-proxy/README.md) package is installed at
+`~/apps/edge-proxy` on the VPS. It owns 80/443 for both apps, sends Job Talk's
+`/api/` to FastAPI's private Unix socket, and sends `/` to its static frontend.
 Open `http://jobtalk.roventics.com` on port 80; after certificate setup it redirects
 to `https://jobtalk.roventics.com` on port 443. The production project is `job_talk_prod`,
 separate from the development containers and data.
 
-The production package keeps the staging webpage behind HTTP basic authentication, obtains
+The shared edge keeps the staging webpage behind HTTP basic authentication, obtains
 TLS certificates through a pinned Certbot container, checks renewal twice a day,
 and reloads changed certificates without restarting Nginx. Exact password,
 certificate, build, start, health, log, upgrade, rollback, and shutdown commands
@@ -583,10 +586,11 @@ API routes use the application's existing Bearer-token, ownership and guest
 scope checks; the webpage password gate does not replace those checks. Public
 API routes remain public through Nginx. Gemini and `ADMIN_EMAIL` are configured
 in the ignored production environment file, never in frontend build arguments.
-Environment files are grouped into database, backend, authentication, email,
-LLM and frontend settings; production also has release and Nginx/TLS sections.
-Local `.env` stays ignored and retains its local settings. Copy the production
-example for the VM; its domain/origin fields already target `jobtalk.roventics.com`.
+Use one `.env` per installation and the single blank `.env.example` as a reference.
+The edge reads the existing VM Job Talk `.env`; it needs no additional environment
+file. Local environment files are unchanged. Persistent edge volumes hold
+certificates outside both app repositories. The runbook stages the edge on
+loopback ports before handing over the existing Roventics public listener.
 
 ## Database migrations and recovery
 

@@ -1,279 +1,259 @@
-# Production Compose operations
+# Shared VPS deployment and renewal
 
-**Shared VPS notice (2026-10-06):** The instructions below describe the existing
-standalone package. Do not use its public proxy/certificate startup commands on
-the VPS while Roventics already owns ports 80/443. The
-[four shared-edge tickets](../TASKS.md#p0---shared-vps-deployment-plan-review-only)
-are a plan for review, not implemented deployment instructions. They move public
-ports and TLS ownership to one VPS edge while preserving both apps and Job Talk's
-private backend socket. No VPS, DNS or certificate changes have been made here.
+Target: `https://jobtalk.roventics.com` alongside the existing `roventics.com`.
+Only the **independent shared edge** owns ports 80/443. Job Talk production now
+contains backend, frontend and PostgreSQL; Roventics' new production file contains
+its frontend/backend. Job Talk's backend remains Unix-socket-only.
 
-**Target:** `https://jobtalk.roventics.com`. The single `.env.example` lists
-settings with blank values to fill in for the VM's `.env`. DNS, trusted
-TLS, real SMTP and the live hiring flow have not yet been verified on the VM.
+The shared package is tracked at `deploy/edge-proxy/` and installed separately at
+`~/apps/edge-proxy/`. Its certificates are in global Docker volumes, not app
+folders. **No existing `.env` is edited by these scripts.** The edge reads the
+existing `~/apps/job_talk/.env` for `APP_DOMAIN` and the admin's ACME email.
 
-The production package keeps PostgreSQL and the built frontend on private
-Compose networks. FastAPI listens only on `/run/jobtalk/api.sock`, a Unix socket
-in a volume mounted by the backend and Nginx. There is no backend TCP listener.
-Only the Nginx proxy publishes host ports 80 and 443.
-Run every command from the release directory on the VM.
+These are **operator commands for the VPS**, not a record of a live deployment.
+Check out the reviewed Job Talk and Roventics feature commits first. Preserve
+local VM changes, especially `.env`, `backend/.env`, `frontend/config.js` and data.
+Docker Compose must support `!override` (used for the loopback preview).
 
-The file is **`prod.docker-compose.yaml`**. Port **80** is the HTTP entry point;
-it redirects to **HTTPS on 443** after certificate setup. Before a certificate
-exists, port 80 serves only ACME challenges and `/proxy-health`; app requests
-return 503 so sign-in never runs over plain HTTP.
+## 1. DNS: perform this at the DNS provider
 
-The default project name is `job_talk_prod`, keeping production containers and
-volumes separate from development. If upgrading an older production installation
-named `job_talk`, set `COMPOSE_PROJECT_NAME=job_talk` in its `.env` to
-retain its existing volumes. Do not run that older project beside development.
+Create this record where `roventics.com` DNS is managed:
 
-## Prepare a release
+| Type | Name | Value |
+| --- | --- | --- |
+| A | jobtalk | 209.74.85.79 |
 
-1. Check out the exact Git commit to deploy and confirm the working tree is clean.
-2. On the VM, copy `.env.example` to `.env` if `.env` does not already exist.
-   Edit that one file; never overwrite an existing environment file or copy
-   development credentials to production. Set the hostname once:
-   `APP_DOMAIN=jobtalk.roventics.com`. Production Compose selects production mode
-   and derives the HTTPS public origin, allowed hosts and CORS origins.
-   Replace the database password (at least 16 random URL-safe characters),
-   session pepper (at least 32 random characters), `SMTP_HOST`, `SMTP_PORT`,
-   `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` and `ADMIN_EMAIL`.
-   Use `SMTP_SECURE=false` for STARTTLS (usually port 587), or `true` for implicit
-   TLS (usually 465). Authenticated SMTP requires encryption. Keep the selected
-   Gemini key backend-only. Compose builds
-   `DATABASE_URL` from the database fields; do not maintain a second URL.
-   Sections group app/admin, database, sessions, SMTP and Gemini
-   settings. Keep your computer's `.env` for development. No image tag or
-   duplicated ports/API URL is needed; Compose names the locally built images.
-   Record the checked-out Git commit when deploying.
-3. Create the private staging password file. `htpasswd` prompts for the password
-   so it does not appear in shell history:
+Confirm that IP belongs to this VPS first. Keep existing apex/`www` records intact.
+Check conflicting AAAA records and any DNS-provider proxy settings. This is not
+an application command or a Linux subdomain-creation command.
 
 ```sh
-mkdir -p secrets/nginx
-chmod 700 secrets/nginx
-htpasswd -cB secrets/nginx/.htpasswd staging
-# Nginx workers must read the mounted hash file; its host directory stays private.
-chmod 644 secrets/nginx/.htpasswd
+getent ahostsv4 jobtalk.roventics.com
 ```
 
-This password gates the staging webpage. `/api/` uses Job Talk's existing
-Bearer-token checks; public API endpoints remain public through Nginx and private
-ones still require an authorized session. Requiring HTTP Basic there would
-conflict with the app's `Authorization: Bearer ...` header. This uses Nginx's
-[per-location authentication override](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic).
-Keep the webpage gate enabled until the public-pilot safety checks pass.
-The staging file uses the fixed path above. Set `ADMIN_EMAIL` to the operator's
-monitored address; certificate registration reuses it. Support links use
-`info@roventics.com`. Compose selects Gemini using `GEMINI_API_KEY` and
-`GEMINI_MODEL`. Never copy development database
-credentials or publish ports for the backend, frontend or PostgreSQL.
+The VM's existing Job Talk environment must have
+`APP_DOMAIN=jobtalk.roventics.com`, its real admin/sender/SMTP/Gemini settings and
+strong database/session secrets. Inspect/edit it yourself if necessary; no script
+copies a template over it. Keep your computer's environment unchanged.
 
-4. After DNS points to the VM, run the preflight without printing resolved
-configuration or secrets. Pass the VM's public IPv4 address so the DNS check
-also rejects a record that points to another host:
+## 2. Inventory, backups and prepare the shared edge
+
+Record the current container names, image IDs, volumes, website/API responses and
+certificate dates. The commands below use the reported `roventics-nginx-1`,
+`roventics-frontend-1` and `roventics-backend-1`; adjust them if inspection differs.
+Review `docker exec roventics-nginx-1 nginx -T` before replacing any config. Back up
+application data using [database operations](database-operations.md). Do not use
+`down -v`, `--remove-orphans`, or stop the full Roventics stack during migration.
 
 ```sh
-EXPECTED_PUBLIC_IP=203.0.113.10 ./scripts/production-preflight.sh
+mkdir -p ~/apps/edge-proxy
+cp -R ~/apps/job_talk/deploy/edge-proxy/. ~/apps/edge-proxy/
+cd ~/apps/edge-proxy
+sh edge.sh init
+mkdir -p secrets backups
+chmod 700 secrets backups
+# Install apache2-utils if htpasswd is not available; it prompts for the password.
+test -f secrets/jobtalk.htpasswd || htpasswd -cB secrets/jobtalk.htpasswd staging
+chmod 644 secrets/jobtalk.htpasswd
 ```
 
-The check rejects example values, a missing
-staging password file, unresolved or mismatched DNS, and an invalid production
-Compose configuration.
-
-5. You can also validate only the resolved Compose configuration without
-printing it, because resolved output contains secrets:
+Connect the **running** Roventics containers without recreating its apps. Skip an
+individual connect command if that container is already on `roventics_edge`.
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml config --quiet
+docker network connect --alias roventics-frontend roventics_edge roventics-frontend-1
+docker network connect --alias roventics-backend roventics_edge roventics-backend-1
+docker network connect roventics_edge roventics-nginx-1
+sh edge.sh preview up -d --build --wait proxy
 ```
 
-Build the three application images from the checked-out commit. The browser
-always uses `/api`; Nginx routes it to the private backend.
+The preview binds only loopback 18080/18443. Missing Job Talk services do not block
+Roventics configuration/reload. Create a backup of the existing active config:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
+docker cp roventics-nginx-1:/etc/nginx/conf.d/default.conf backups/roventics-original.conf
+diff -u backups/roventics-original.conf migration/roventics-acme.conf
 ```
 
-## Issue and renew TLS certificates
-
-After the subdomain points to the VM and inbound port 80 is open, issue the first
-Let's Encrypt certificate:
+**Review the diff first.** The supplied migration config matches the locally
+inspected Roventics routes/rate limit, adds ACME forwarding, and uses unique app
+aliases. If the VPS has other routes or settings, preserve them in the temporary
+config before continuing. Do not blindly replace an unfamiliar live config.
 
 ```sh
-./scripts/issue-certificate.sh
+docker cp migration/roventics-acme.conf roventics-nginx-1:/etc/nginx/conf.d/default.conf
+if docker exec roventics-nginx-1 nginx -t; then
+  docker exec roventics-nginx-1 nginx -s reload
+else
+  docker cp backups/roventics-original.conf roventics-nginx-1:/etc/nginx/conf.d/default.conf
+  echo 'Validation failed; original config restored. Stop here.' >&2
+  exit 1
+fi
 ```
 
-The proxy starts in a limited HTTP bootstrap mode that serves only ACME
-challenges and a health check. The script obtains the certificate, switches the
-proxy to HTTPS, and validates the resulting Nginx configuration.
+This keeps the old listener serving the site, while ACME requests reach the new
+edge. Recheck the existing website and its API before requesting certificates.
 
-The pinned `certbot-renew` service checks for renewal every 12 hours. Nginx
-hashes the mounted certificate each hour by default and reloads gracefully when
-the contents change. These schedules do not need `.env` overrides.
-Run a Let's Encrypt staging renewal test after the real certificate exists:
+## 3. Issue certificates while the old listener stays running
 
 ```sh
-./scripts/renew-certificate.sh --dry-run
+cd ~/apps/edge-proxy
+sh edge.sh preview issue roventics.com
+# If www is currently served and resolves here, use this instead of the line above:
+# sh edge.sh preview issue roventics.com www.roventics.com
 ```
 
-A successful dry run must leave repeated HTTPS readiness requests available.
-The certificate data lives in the `letsencrypt` named volume and remains after a
-normal Compose shutdown.
-
-## Start and verify
+Use separate certificates so Job Talk DNS cannot block Roventics renewal. Once
+Job Talk DNS resolves here:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml up -d
-docker compose --env-file .env -f prod.docker-compose.yaml ps
-APP_DOMAIN=$(sed -n 's/^APP_DOMAIN=//p' .env | tr -d '\r')
-curl --fail --silent --show-error "https://$APP_DOMAIN/api/ready"
+sh edge.sh preview issue jobtalk.roventics.com
 ```
 
-Production startup creates no users or jobs. For the first operator login, run
-the explicit seed command once; it inserts only `ADMIN_EMAIL` if missing:
+Certificates and keys are stored in `roventics_edge_certificates`, shared read-only
+with Nginx. The central account email comes from `ADMIN_EMAIL`. No wildcard or
+extra TLS email variable is needed. ACME uses the running webroot, never stops
+Nginx, and the proxy reloads after validation.
+
+## 4. Start Job Talk privately and test the preview
 
 ```sh
+cd ~/apps/job_talk
+EXPECTED_PUBLIC_IP=209.74.85.79 sh scripts/production-preflight.sh
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --wait
+# Only on first setup; this preserves an existing admin's approval state:
 docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters seed
+cd ~/apps/edge-proxy
+curl --fail --connect-to roventics.com:443:127.0.0.1:18443 https://roventics.com/
+curl --fail --connect-to jobtalk.roventics.com:443:127.0.0.1:18443 https://jobtalk.roventics.com/api/ready
 ```
 
-Existing approval is preserved. Use `python -m app.recruiters approve <email>`
-inside the backend only when intentionally approving that recruiter. The seeded
-admin still signs in with an emailed code; tokens and expiry are stored in the
-existing tables. Create the test job through the app.
+Use `-u staging` with curl for the Job Talk webpage; it prompts for the staging
+password. Do not put passwords in commands. Test the login/create/apply/compare
+flow through an SSH tunnel or the final domain during the controlled handoff.
+The existing Roventics POST `/api/inquiry` sends email: test it only with an
+intentional test message, not an automatic probe. Compare its status/headers and
+frontend behavior to the baseline. Never run this test against real applicant data.
 
-`postgres`, `backend`, and `frontend` must show healthy. The proxy becomes
-healthy only after both application services are healthy. In `docker compose
-ps`, only the proxy may show published host ports, specifically `80->80` and
-`443->443`.
+If old Job Talk proxy/renewal containers exist from a previous deployment, inspect
+and stop those **specific containers** before handoff. The new app file cannot
+start them. Do not delete their volumes or any application database volume.
 
-The lightweight `/api/health` endpoint confirms the process is alive.
-`/api/ready` also executes a database query and is used by the backend
-container health check. The internal probe uses the Unix socket and sends
-`Host: APP_DOMAIN`, without adding a backend network listener.
+## 5. Handoff ports 80/443 (brief planned listener restart)
 
-**Local verification (2026-10-03):** The production images and isolated Compose
-stack passed startup, HTTP bootstrap, certificate-watcher activation, 80-to-443
-redirect, ACME, Nginx syntax, gated frontend, API readiness and scoped guest-token
-access. Only Nginx had published ports. The check used loopback test ports and a
-disposable self-signed certificate; it does not establish public DNS, a trusted
-certificate, real SMTP delivery, or Let's Encrypt renewal. Run the documented
-issuance and `renew --dry-run` on the VM after configuring the real domain.
+A container port-owner change can briefly interrupt connections. Do this only
+when preview, certificate and Roventics checks pass, in your chosen cutover window.
+Keep the old container and backup config for rollback. Do not publish the new
+Roventics product card before the Job Talk URL and public launch are approved.
 
-## Proxy request policies (JT-077)
-
-FastAPI has no TCP listener, even inside its container. Nginx connects through
-the shared Unix socket using its [Unix upstream support](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server).
-Only the backend and proxy mount that socket volume; the frontend, database and
-certificate services do not. The host administrator/Docker daemon remains trusted.
-Internet requests reach FastAPI through Nginx's `/api/` route. Public endpoints remain callable by outside clients;
-private data and actions require the backend's scoped session token, recruiter
-approval and ownership checks. Neither CORS nor a header copied from the
-frontend can prove which program sent a request.
-
-The production proxy rejects foreign `Origin` headers (including `null`),
-cross-site and same-site-but-not-same-origin browser requests, unexpected hosts,
-unused API methods, dotfiles and documentation paths. Requests without browser
-metadata remain valid for health probes and command-line clients; they still
-need tokens for private routes. Sibling subdomains do not get browser access.
-These checks use [Fetch Metadata](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Fetch_metadata)
-as an additional browser boundary.
-
-Per client IP, Nginx allows 5 API requests/second (burst 15), 30 writes/minute
-(burst 10), 10 guest/login requests/minute (burst 5), and 20 concurrent API
-requests. Excess traffic returns 429. Text request bodies are limited to 128 KiB;
-header/body inactivity timeouts are 10 seconds. Shared office networks share
-these limits; tune them from observed pilot usage. These controls do not replace
-host/provider protection against a volumetric attack. See Nginx's
-[request limit semantics](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html).
-
-HTTPS responses include HSTS, framing restrictions, nosniff, referrer/permissions
-policies and a Content Security Policy. Scripts and API connections use only
-this origin; styles permit the app's inline styles and Google Fonts. API
-responses use `Cache-Control: no-store`. All headers are at server scope to
-preserve [header inheritance](https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header).
-Forwarded IP/host/scheme headers are set by the proxy rather than accepted from
-the caller. Access logs omit query strings, headers and bodies. Probes using a
-local IP must send `Host: jobtalk.roventics.com`; Compose health checks do so.
-
-Repeat the focused check on a machine with Docker Compose and PowerShell:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-nginx-policies.ps1
-```
-
-It builds the three production images and uses the real production Compose file
-with a unique project, fresh PostgreSQL volume, self-signed certificate, mock AI
-and fictional mail credentials. No host ports are published, no SMTP/model/ACME
-calls are made, and the fixture is removed afterward. It checks bootstrap,
-HTTPS, staging access, built assets, request rejection, headers, rate limits,
-email-code redemption, guest access and logout revocation through Nginx.
-It does not certify the public domain, trusted TLS, real email delivery, browser
-CSP behavior or the user's end-to-end usability acceptance.
-
-**Verified 2026-10-04:** These proxy checks passed, including real token/code
-handling against the disposable PostgreSQL database and activation of both rate
-limit zones. Nine backend access-boundary tests passed separately in SQLite.
-Connection and timeout settings were syntax-checked; no load test was performed.
-JT-078 repeated the production checks with the socket transport: readiness,
-login and logout worked through Nginx, while TCP requests to backend port 8000
-were refused from inside its own container. No external services mount the
-socket. Use `.env` for all commands below.
-
-## Logs and routine commands
+Before stopping the old listener, prepare its fallback certificate from the
+**new central certificate**, avoiding rollback to the reported expired one:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml logs --tail=200 backend proxy certbot-renew
-docker compose --env-file .env -f prod.docker-compose.yaml restart proxy
-docker compose --env-file .env -f prod.docker-compose.yaml stop
-docker compose --env-file .env -f prod.docker-compose.yaml start
+cd ~/apps/edge-proxy
+umask 077
+proxy_id=$(sh edge.sh preview ps -q proxy)
+docker cp -L "$proxy_id":/etc/letsencrypt/live/roventics.com/fullchain.pem backups/roventics-current.crt
+docker cp -L "$proxy_id":/etc/letsencrypt/live/roventics.com/privkey.pem backups/roventics-current.key
+docker cp backups/roventics-current.crt roventics-nginx-1:/tmp/edge-roventics.crt
+docker cp backups/roventics-current.key roventics-nginx-1:/tmp/edge-roventics.key
+docker exec roventics-nginx-1 chmod 600 /tmp/edge-roventics.key
+docker exec roventics-nginx-1 sed -i 's|/etc/nginx/certs/server.crt|/tmp/edge-roventics.crt|;s|/etc/nginx/certs/server.key|/tmp/edge-roventics.key|' /etc/nginx/conf.d/default.conf
+docker exec roventics-nginx-1 nginx -t
+docker exec roventics-nginx-1 nginx -s reload
 ```
 
-Do not run `docker compose config` without `--quiet` in shared terminals or CI
-logs because it expands environment secrets.
-
-## Upgrade
-
-1. Record the current Git commit.
-2. Create and verify a database backup using
-   [`database-operations.md`](database-operations.md).
-3. Check out the new commit.
-4. Validate and build the new images.
-5. Recreate the services and wait for readiness:
+Verify the old public site now presents the valid certificate. Then hand off:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml config --quiet
-docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
-docker compose --env-file .env -f prod.docker-compose.yaml up -d
-docker compose --env-file .env -f prod.docker-compose.yaml ps
+docker update --restart=no roventics-nginx-1
+docker stop roventics-nginx-1
+sh edge.sh up -d --wait proxy certbot-renew
+curl --fail https://roventics.com/
+curl --fail https://jobtalk.roventics.com/api/ready
+sh edge.sh renew --dry-run
 ```
 
-The backend entrypoint applies Alembic migrations before starting Uvicorn. A
-failed migration leaves the backend unhealthy and prevents the proxy from
-starting.
+Recheck both app flows. Only the shared edge should publish 80/443. Keep the old
+proxy stopped with restart disabled until the migration is accepted. After
+acceptance, manage Roventics app services with its new `prod.docker-compose.yaml`
+and the same `roventics` project identity; this preserves backend private-data
+mounts. Rebuild/deploy its frontend to publish the Job Talk card **after** the app
+is approved for public use and the Job Talk staging gate is removed.
 
-## Roll back
-
-Check out the previously recorded Git commit, rebuild it and recreate the
-application services:
+Once approved, remove the server-level `auth_basic` and `auth_basic_user_file`
+lines in the shared edge's Job Talk HTTPS template, rebuild its proxy, then
+publish the card:
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml build backend frontend proxy
-docker compose --env-file .env -f prod.docker-compose.yaml up -d backend frontend proxy
+cd ~/apps/edge-proxy
+sh edge.sh up -d --build --wait proxy
+cd ~/apps/roventics
+docker compose -f prod.docker-compose.yaml up -d --build frontend
 ```
 
-This requires build dependencies to remain available and the database schema
-to be backward compatible. Follow the database rollback rules in
-[`database-operations.md`](database-operations.md) when a migration is not
-backward compatible.
+Keep the API's token checks and `auth_basic off` locations unchanged. Check the
+public link in a fresh browser session. Disable any older certificate renewal
+cron jobs/services identified during inventory once shared renewal is verified.
 
-## Shut down
+## Renewal and ordinary updates
+
+`certbot-renew` checks every 12 hours. The proxy detects changed certificate/key
+files every minute, runs `nginx -t`, and gracefully reloads only valid changes.
+A failed validation keeps the currently running workers/configuration. No Docker
+socket is mounted into public containers and no app owns certificate storage.
 
 ```sh
-docker compose --env-file .env -f prod.docker-compose.yaml down
+cd ~/apps/edge-proxy
+sh edge.sh renew --dry-run              # verify Let's Encrypt renewal
+sh edge.sh renew                        # manual check; automatic service also runs
+sh edge.sh logs --tail=80 proxy certbot-renew
 ```
 
-This keeps the named PostgreSQL and certificate volumes. Using `down -v`
-permanently deletes the database and certificate volumes and is reserved for an
-intentional, verified teardown.
+Back up the central certificate/ACME account volume securely as well as app data.
+For app updates, build/recreate only that app's services; the edge resolves their
+unique Docker aliases again without needing a proxy restart. For edge updates,
+keep the previous built image/config before rebuilding. Never delete external
+certificate/socket volumes or alter app database volume names during upgrades.
+
+## Rollback
+
+Before handoff: restore the reviewed original proxy config if needed and stop the
+preview edge; application containers/data remain unchanged. Keep a valid current
+certificate in the old listener once issued; do not restore the expired pair.
+
+If the new public listener fails after handoff, restore preview mode to free the
+public ports, then restart the retained old listener with its refreshed certificate:
+
+```sh
+cd ~/apps/edge-proxy
+sh edge.sh preview up -d --wait proxy
+docker start roventics-nginx-1
+docker update --restart=unless-stopped roventics-nginx-1
+```
+
+This is a temporary Roventics fallback while investigating; it does not serve Job
+Talk's UI. Keep the central certificates/renewal data, preserve the old listener's
+ACME-forwarding config and restore the shared listener after fixing it. For later
+edge updates, restore the last tested shared image/config against the same volumes.
+For Job Talk failures alone, revert only its app image/config; do not restore its
+old public proxy stack or disturb Roventics. Database rollback rules remain in
+[database operations](database-operations.md).
+
+## Local verification and sources
+
+Run `powershell -ExecutionPolicy Bypass -File scripts/check-nginx-policies.ps1`
+from Job Talk. It builds the real Job Talk/Roventics frontends, uses a disposable
+Job Talk database and a simulated Roventics API in three isolated Compose projects,
+and publishes no host ports. It does not send email or call AI/ACME. Live DNS,
+trusted certificate issuance, renewal dry-run and real SMTP remain VM checks.
+
+Verified locally on 2026-10-06: both frontends, API forwarding/authentication and
+limits, old-proxy ACME forwarding for both domains, continued Roventics service
+during a Job Talk outage/recreation, rejection of an invalid certificate and
+automatic reload of a valid replacement. Existing app environment hashes were
+unchanged. Real hiring/LLM usability checks remain recorded separately.
+
+Protocol references: [Nginx variable upstreams](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass),
+[Let's Encrypt HTTP-01](https://letsencrypt.org/docs/challenge-types/#http-01-challenge),
+[Certbot webroot and renewal](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates).

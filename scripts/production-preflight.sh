@@ -39,7 +39,6 @@ do
 done
 
 domain=$(read_env_value APP_DOMAIN)
-htpasswd_path=./secrets/nginx/.htpasswd
 session_pepper=$(read_env_value SESSION_TOKEN_PEPPER)
 
 command -v git >/dev/null 2>&1 || fail "Git is not installed"
@@ -49,7 +48,8 @@ case "$domain" in
     *.*) ;;
     *) fail "APP_DOMAIN must be a fully qualified subdomain" ;;
 esac
-test -f "$htpasswd_path" || fail "staging password file $htpasswd_path does not exist"
+docker network inspect roventics_edge >/dev/null 2>&1 || fail "Run the shared edge init command first (roventics_edge network missing)"
+docker volume inspect jobtalk_backend_socket >/dev/null 2>&1 || fail "Run shared edge init first (Job Talk socket volume missing)"
 test "${#session_pepper}" -ge 32 || fail "SESSION_TOKEN_PEPPER must contain at least 32 characters"
 
 resolved_ips=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{ print $1 }' | sort -u || true)
@@ -65,4 +65,4 @@ docker compose --env-file "$env_file" -f "$compose_file" config --quiet || \
 echo "Production preflight passed for $domain."
 echo "Release commit: $current_commit"
 echo "DNS IPv4: $(echo "$resolved_ips" | paste -sd, -)"
-echo "Next: configure the VM firewall, then run ./scripts/issue-certificate.sh"
+echo "Next: start the private app services and follow the shared edge runbook in docs/production-operations.md"

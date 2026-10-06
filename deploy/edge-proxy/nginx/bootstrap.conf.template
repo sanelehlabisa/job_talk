@@ -1,10 +1,10 @@
-server_tokens off;
-client_header_timeout 10s;
-client_body_timeout 10s;
-client_max_body_size 128k;
 log_format jobtalk '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 
 server {
+    server_tokens off;
+    client_header_timeout 10s;
+    client_body_timeout 10s;
+    client_max_body_size 128k;
     listen 80;
     server_name ${APP_DOMAIN};
     keepalive_timeout 20s;

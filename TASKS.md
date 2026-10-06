@@ -17,21 +17,31 @@ production Compose/HTTPS preparation in JT-070. Passing a scripted scenario is
 engineering evidence, not the user's usability approval. Ticket status below
 records implementation checks separately from the pending usability sign-off.
 
-## P0 - Shared VPS deployment plan (review only)
+## P0 - Shared VPS deployment
 
-**Requested 2026-10-06:** Create these four tickets only; implementation and VPS
-changes await review. This plan supersedes the standalone Job Talk proxy/TLS
-deployment approach for the shared VPS. Current Compose/scripts still implement
-that older approach and must not be started there alongside Roventics' public
-Nginx. JT-060 usability acceptance remains separate and pending.
+**Updated 2026-10-06:** Implementation authorized and completed locally; VPS
+execution remains an operator step. Existing `.env` files are preserved. The
+shared edge supersedes Job Talk's standalone proxy/TLS stack. JT-060 usability
+acceptance remains separate and pending. Follow `docs/production-operations.md`
+for DNS, staged issuance, cutover, automatic renewal and rollback commands.
+
+**Local evidence:** `scripts/check-nginx-policies.ps1` passed with three isolated
+Compose projects, actual frontend builds, disposable PostgreSQL, mock AI, a
+Roventics API routing stub and self-signed certificates. Both hosts, API path/query
+and Host forwarding, Job Talk auth/origin/rate policies, missing/recreated app
+containers and rejected/valid certificate reloads passed. The old-proxy ACME
+forwarding path passed for both hostnames, and the automatic watcher served a
+rotated certificate without a manual reload. Both existing app environment files
+were verified unchanged. This does not verify
+the live VPS, real SMTP/Gemini, trusted issuance or the production inquiry email.
 
 **Evidence:** The supplied VPS notes report `roventics-nginx-1` owning 80/443,
 a Roventics certificate expired on 19 September 2026, and missing Job Talk DNS.
 These live conditions have not been independently checked. Local inspection found
 `../roventics/docker-compose.yaml` publishing 80/443 and mounting `nginx/certs`;
 its Nginx sends `/` to `frontend:80` and `/api/` to `backend:8080`, preserving
-the `/api/` prefix. Job Talk also currently publishes 80/443 in its own proxy.
-Confirm deployed configs, certificate dates and DNS before any implementation.
+the `/api/` prefix. Job Talk's production Compose now has only private app services.
+Confirm deployed configs, certificate dates and DNS before executing the cutover.
 
 **Manual prerequisite (DNS provider, not application code):** Create an A record
 with name `jobtalk` under `roventics.com`, value `209.74.85.79`, producing
@@ -44,8 +54,9 @@ Docker network connects it to the required app services using unique aliases.
 Roventics keeps its frontend/backend routing. Job Talk's frontend joins that
 network; its backend retains its Unix socket, shared only with the edge proxy,
 and its database stays private. TLS storage/renewal belongs to the shared edge.
-Proposed shared files live in sibling `edge-proxy/` (`~/apps/edge-proxy/` on the
-VM); final location and existing Docker resource names are confirmed first.
+Shared files are tracked in `deploy/edge-proxy/` and copied to `~/apps/edge-proxy/`
+on the VM. Certificate volumes are external to both app projects. Confirm the
+live resource names against the runbook before using its migration commands.
 
 **Sequence:** JT-088 defines/stages the edge; JT-089 prepares certificates and
 renewal (repair Roventics TLS without waiting for Job Talk DNS); JT-090 attaches
@@ -57,10 +68,10 @@ handoff. JT-091 goes live only after the Job Talk URL works and launch is approv
 **Objective:** One VPS-owned Nginx serves both apps on 80/443 while preserving
 Roventics routes, response behavior and availability.
 
-**Files likely affected:** Proposed `../edge-proxy/compose.yaml`,
-`../edge-proxy/nginx/nginx.conf`, hostname includes and `../edge-proxy/README.md`;
-`../roventics/docker-compose.yaml`, `../roventics/nginx/nginx.conf`;
-Job Talk's `docs/production-operations.md` and `scripts/check-nginx-policies.ps1`.
+**Implemented:** `deploy/edge-proxy/compose.yaml`, hostname configs, migration
+config and instructions; `../roventics/prod.docker-compose.yaml`;
+`docs/production-operations.md` and `scripts/check-nginx-policies.ps1`.
+Roventics' original Compose and Nginx config remain intact for staged migration.
 
 **Implementation steps:**
 
@@ -87,9 +98,9 @@ Job Talk's `docs/production-operations.md` and `scripts/check-nginx-policies.ps1
   competes for them after JT-090.
 - [ ] Roventics `/` and `/api/` pass the recorded baseline, including prefix,
   redirects, host forwarding and rate limiting; `www` behavior is preserved.
-- [ ] Hostnames cannot accidentally route to the other app. Job Talk downtime,
+- [x] In isolation, hostnames cannot accidentally route to the other app. Job Talk downtime,
   container recreation or a missing upstream does not interrupt Roventics.
-- [ ] Nginx syntax and existing Job Talk policy/auth checks pass in isolation;
+- [x] Nginx syntax and existing Job Talk policy/auth checks pass in isolation;
   only the intended services/network and edge/socket mounts are shared.
 
 **Deployment/rollback:** Keep the working Roventics services and volumes intact.
@@ -106,12 +117,11 @@ certificates. Confirm Roventics checks again before attempting Job Talk.
 `roventics.com`, `www.roventics.com` if currently used, and `jobtalk.roventics.com`,
 without stopping Nginx for ACME validation or renewal.
 
-**Files likely affected:** Proposed shared edge Compose, hostname/ACME includes,
-certificate issue/renew scripts and operations notes; existing
-`../roventics/nginx/nginx.conf` certificate mounts; Job Talk's
-`nginx/docker-entrypoint.sh`, `scripts/issue-certificate.sh`,
-`scripts/renew-certificate.sh`, `scripts/production-preflight.sh` and
-`docs/production-operations.md` (move/retire app-specific TLS responsibilities).
+**Implemented:** Shared edge Compose, `edge.sh`, certificate watcher/reload,
+hostname/ACME configs and operations notes. App-specific certificate scripts
+are retired. `scripts/production-preflight.sh` checks shared resource readiness.
+Self-signed bootstrap/rotation and failed reload preservation passed locally;
+trusted issuance and Let's Encrypt renewal dry run remain VPS acceptance checks.
 
 **Implementation steps:**
 
@@ -155,8 +165,8 @@ remain valid, and ensure only one scheduler owns renewal afterward.
 `https://jobtalk.roventics.com` behind the shared edge, with no public Job Talk
 ports or independent proxy/certbot stack. Depends on JT-088/JT-089 and DNS.
 
-**Files likely affected:** `prod.docker-compose.yaml`, existing `nginx/` policy
-templates (move into the shared edge), `scripts/production-preflight.sh`,
+**Implemented:** `prod.docker-compose.yaml`, policy templates moved into
+`deploy/edge-proxy/nginx/`, `scripts/production-preflight.sh`,
 `scripts/check-nginx-policies.ps1`, `scripts/nginx-policy-probe.py`,
 `README.md`, `docs/production-operations.md`, `AGENTS.md`; shared edge Job Talk
 hostname include. Update issuance/renewal references without duplicating scripts.
@@ -181,7 +191,7 @@ hostname include. Update issuance/renewal references without duplicating scripts
 
 **Acceptance criteria:**
 
-- [ ] Job Talk publishes no host ports and starts no certificate/public-proxy
+- [x] Job Talk publishes no host ports and starts no certificate/public-proxy
   services. PostgreSQL and the backend remain unreachable by external TCP.
 - [ ] The subdomain serves the UI and `/api/ready`; relative API routes work
   through the shared edge with correct host/scheme and no route rewriting errors.
@@ -203,9 +213,11 @@ shared edge or delete database/certificate volumes during rollback.
 **Objective:** Show Job Talk in the existing Roventics project cards with a link
 to `https://jobtalk.roventics.com`, using the site's current visual style.
 
-**Files likely affected:** `../roventics/frontend/index.html` (existing
-"Our Current Projects" cards); `../roventics/frontend/css/style.css` only if
-needed. Reuse existing styles/assets; no new page or branding system.
+**Implemented:** `../roventics/frontend/index.html` adds a Job Talk card using
+the existing layout, icons and styles; `../roventics/README.md` documents the
+shared deployment. The built page serves the exact HTTPS link in the isolated
+check. Visual/manual acceptance and publication remain pending; release the
+card only once Job Talk is live and its staging gate is intentionally removed.
 
 **Implementation steps:**
 

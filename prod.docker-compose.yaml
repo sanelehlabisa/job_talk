@@ -116,7 +116,8 @@ services:
     expose:
       - "80"
     networks:
-      - proxy_frontend
+      edge:
+        aliases: [jobtalk-frontend]
     depends_on:
       backend:
         condition: service_healthy
@@ -136,105 +137,16 @@ services:
         reservations:
           memory: 32M
 
-  proxy:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    init: true
-    read_only: true
-    environment:
-      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
-    volumes:
-      - backend_socket:/run/jobtalk:ro
-      - letsencrypt:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
-      - ./secrets/nginx/.htpasswd:/etc/nginx/auth/.htpasswd:ro
-    tmpfs:
-      - /etc/nginx/conf.d:size=1m
-      - /var/cache/nginx:size=16m
-      - /var/run:size=1m
-      - /tmp:size=16m
-    ports:
-      # HTTP enters on 80 and redirects to HTTPS on 443 after certificate setup.
-      - "80:80"
-      - "443:443"
-    networks:
-      - edge
-      - proxy_frontend
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "if [ -f /etc/letsencrypt/live/$${APP_DOMAIN}/fullchain.pem ]; then wget --header=\"Host: $${APP_DOMAIN}\" --no-check-certificate --quiet --tries=1 --spider https://127.0.0.1/proxy-health; else wget --header=\"Host: $${APP_DOMAIN}\" --quiet --tries=1 --spider http://127.0.0.1/proxy-health; fi"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          memory: 32M
-
-  certbot:
-    image: certbot/certbot@sha256:f70ad0adbb7e117f0fe42a63c553f28ea451edabc0148757b6efcd9735acaa20
-    profiles:
-      - certificate-tools
-    volumes:
-      - letsencrypt:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    networks:
-      - edge
-
-  certbot-renew:
-    image: certbot/certbot@sha256:f70ad0adbb7e117f0fe42a63c553f28ea451edabc0148757b6efcd9735acaa20
-    restart: unless-stopped
-    init: true
-    entrypoint:
-      - /bin/sh
-      - -c
-    command:
-      - |
-        trap 'exit 0' TERM INT
-        while :; do
-          certbot renew --webroot --webroot-path /var/www/certbot --quiet
-          sleep 43200 & wait $$!
-        done
-    volumes:
-      - letsencrypt:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    networks:
-      - edge
-    depends_on:
-      proxy:
-        condition: service_started
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "0.20"
-          memory: 128M
-        reservations:
-          memory: 32M
-
 networks:
   edge:
-  proxy_frontend:
-    internal: true
+    external: true
+    name: roventics_edge
   database:
     internal: true
   outbound:
 
 volumes:
   backend_socket:
+    external: true
+    name: jobtalk_backend_socket
   job_talk_data:
-  letsencrypt:
-  certbot_www:

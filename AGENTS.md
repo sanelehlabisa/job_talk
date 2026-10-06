@@ -200,9 +200,16 @@ Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
 Production uses `docker compose --env-file .env -f
-prod.docker-compose.yaml ...`. Only Nginx publishes 80/443; port 80 redirects to
+prod.docker-compose.yaml ...` for the private app services. The independent shared
+edge is tracked in `deploy/edge-proxy/` and installed at `~/apps/edge-proxy`;
+it serves both Roventics and Job Talk. Follow `docs/production-operations.md`
+for the staged handoff; preserve existing app environment files, data and
+Roventics routes. Only the shared Nginx publishes 80/443; port 80 redirects to
 HTTPS once a certificate exists. Use an isolated project and disposable volumes
 for production checks, never the running development project or its database.
+TLS storage and automatic renewal belong to the shared edge, outside app
+directories. Local JT-088 through JT-091 implementation is authorized; live DNS,
+certificate issuance, cutover and public card release still need operator checks.
 Use one `.env` per installation and one `.env.example`. Set VM values in its
 `.env`; preserve the local development credentials and database. Candidate follow-up
 messaging is deferred until explicitly requested.

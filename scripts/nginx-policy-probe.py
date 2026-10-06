@@ -18,6 +18,71 @@ DOMAIN = "jobtalk.roventics.com"
 ORIGIN = f"https://{DOMAIN}"
 BASIC = "Basic " + base64.b64encode(b"staging:policy-staging-password").decode()
 
+
+class EdgeTLS(http.client.HTTPSConnection):
+    def __init__(self, domain=DOMAIN):
+        super().__init__("proxy", 443, timeout=8, context=ssl._create_unverified_context())
+        self.domain = domain
+
+    def connect(self):
+        self.sock = self._context.wrap_socket(
+            socket.create_connection((self.host, self.port), timeout=self.timeout),
+            server_hostname=self.domain,
+        )
+
+
+def roventics_check():
+    for path in ("/", "/api/check?keep=prefix"):
+        conn = EdgeTLS("roventics.com")
+        conn.request("GET", path, headers={"Host": "roventics.com"})
+        response = conn.getresponse()
+        body = response.read().decode()
+        assert response.status == 200, f"Roventics {path} failed: {response.status}"
+        assert response.getheader("Content-Security-Policy") is None, "Job Talk policy leaked into Roventics"
+        if path.startswith("/api/"):
+            assert body == path + "|roventics.com", "Roventics API prefix/query/host changed"
+        else:
+            assert 'https://jobtalk.roventics.com' in body, "Job Talk product card missing"
+        conn.close()
+    conn = http.client.HTTPConnection("proxy", 80, timeout=8)
+    conn.request("GET", "/about.html?x=1", headers={"Host": "roventics.com"})
+    response = conn.getresponse()
+    assert response.status == 301 and response.getheader("Location") == "https://roventics.com/about.html?x=1"
+    response.read()
+    conn.close()
+    print("PASS: Roventics HTML/card, API prefix/query/host and redirect preserved; no Job Talk policy leakage")
+
+
+if "--roventics" in sys.argv:
+    roventics_check()
+    sys.exit(0)
+
+if "--legacy-acme" in sys.argv:
+    for domain in ("roventics.com", DOMAIN):
+        conn = http.client.HTTPConnection("legacy", 80, timeout=8)
+        conn.request("GET", "/.well-known/acme-challenge/check", headers={"Host": domain})
+        response = conn.getresponse()
+        assert response.status == 200 and response.read().strip() == b"policy-challenge"
+        conn.close()
+    print("PASS: existing proxy forwards ACME challenges for both hostnames")
+    sys.exit(0)
+
+if "--watch-certificate" in sys.argv:
+    # A new fixture certificate must reach the listener without a manual reload.
+    with open("/expected-certificate/fullchain.pem") as certificate:
+        expected = ssl.PEM_cert_to_DER_cert(certificate.read())
+    deadline = time.monotonic() + 75
+    while time.monotonic() < deadline:
+        conn = EdgeTLS()
+        conn.connect()
+        actual = conn.sock.getpeercert(binary_form=True)
+        conn.close()
+        if actual == expected:
+            print("PASS: automatic watcher loaded the rotated certificate")
+            sys.exit(0)
+        time.sleep(2)
+    raise AssertionError("Certificate watcher did not update the listener")
+
 # Even a process inside the backend container cannot use a TCP API listener.
 for host in ("127.0.0.1", "backend"):
     try:
@@ -32,8 +97,7 @@ print("PASS: backend uses a local socket; TCP API connections are refused")
 def request(path, expected, method="GET", headers=None, payload=None, tls=True, paced=True):
     if paced:
         time.sleep(0.25)
-    connection = (http.client.HTTPSConnection("proxy", 443, timeout=8,
-                  context=ssl._create_unverified_context()) if tls else
+    connection = (EdgeTLS() if tls else
                   http.client.HTTPConnection("proxy", 80, timeout=8))
     request_headers = {"Host": DOMAIN, **(headers or {})}
     if isinstance(payload, dict):
@@ -63,6 +127,12 @@ if "--bootstrap" in sys.argv:
     request("/.well-known/acme-challenge/check", [200], tls=False)
     wrong_host(tls=False)
     print("PASS: HTTP bootstrap health, ACME, closed app and Host checks")
+    sys.exit(0)
+
+if "--availability" in sys.argv:
+    roventics_check()
+    request("/", [200], headers={"Authorization": BASIC})
+    print("PASS: both HTTPS apps remain available")
     sys.exit(0)
 
 _, headers, _ = request("/", [308], tls=False)
