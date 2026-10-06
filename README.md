@@ -32,14 +32,12 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-**Shared VPS implementation (2026-10-06):**
-[JT-088 through JT-091](TASKS.md#p0---shared-vps-deployment)
-provide one shared Nginx/TLS owner for Roventics and Job Talk, the Job Talk subdomain
-and a Roventics product link. Isolated routing, authentication, outage and
-certificate reload checks pass. The VPS cutover and trusted certificate issuance
-remain operator steps in the [runbook](docs/production-operations.md).
-DNS prerequisite: add a `jobtalk` A record pointing
-to `209.74.85.79` at the `roventics.com` DNS provider, after verifying the VPS IP.
+**Simple VPS setup (2026-10-06):** Each app runs its own Docker Compose stack.
+Job Talk exposes only `127.0.0.1:8081`; Nginx installed on the VM routes
+`jobtalk.roventics.com` to it and manages HTTPS with Certbot. There is no shared
+Docker proxy or cross-project network. See the [server commands](docs/production-operations.md)
+and [deployment tickets](TASKS.md#p0---simple-vps-deployment). Existing environment
+files are unchanged; live DNS and server setup remain operator steps.
 
 The core hiring loop works locally. Completed work through JT-087 is merged into
 the default branch, `master`, including the editable candidate form, discovery
@@ -504,7 +502,7 @@ as described in [production operations](docs/production-operations.md).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;
 production Compose derives the HTTPS origin, allowed hosts and CORS origins.
-It also selects production mode. Only the separate shared edge publishes 80/443. Images
+It also selects production mode. VM Nginx owns public 80/443; the app gateway publishes localhost:8081. Images
 build from the checked-out code with Compose-managed names; no image tag goes
 in `.env`. FastAPI validates the derived settings and refuses to start unless:
 
@@ -524,9 +522,8 @@ The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.
 
 Support links use `info@roventics.com`. Certificate registration reuses
-`ADMIN_EMAIL`; there is no separate support or TLS email variable. The shared edge
-uses `secrets/jobtalk.htpasswd`, checks renewal every 12 hours, and checks for
-changed certificates every minute before validating and gracefully reloading Nginx.
+`ADMIN_EMAIL`; there is no separate support or TLS email variable. Private staging
+uses `secrets/nginx/.htpasswd`. Certbot and its renewal timer run on the VM.
 Generate a unique session pepper on each installation, for example with
 `python -c "import secrets; print(secrets.token_urlsafe(48))"`, and save it only
 in the ignored `.env`. Replacing it invalidates existing sessions and login codes.
@@ -564,33 +561,27 @@ new sign-in codes use the updated SMTP credentials.
 
 ## Production Compose
 
-Production Compose/HTTPS preparation is authorized in JT-070. VM deployment
-remains paused pending user acceptance and an explicit deployment request.
+Job Talk owns its frontend, backend, PostgreSQL and small HTTP gateway in
+[`prod.docker-compose.yaml`](prod.docker-compose.yaml). Only the gateway publishes
+`127.0.0.1:8081`; its `/api/` reaches the backend through a private Unix socket.
+The backend and database have no published TCP ports. The production project
+and database volume remain `job_talk_prod` / `job_talk_prod_job_talk_data`.
 
-[`prod.docker-compose.yaml`](prod.docker-compose.yaml) builds backend
-and frontend images from the checked-out source. PostgreSQL, FastAPI, and the
-frontend have no host port bindings. The independent
-[`deploy/edge-proxy`](deploy/edge-proxy/README.md) package is installed at
-`~/apps/edge-proxy` on the VPS. It owns 80/443 for both apps, sends Job Talk's
-`/api/` to FastAPI's private Unix socket, and sends `/` to its static frontend.
-Open `http://jobtalk.roventics.com` on port 80; after certificate setup it redirects
-to `https://jobtalk.roventics.com` on port 443. The production project is `job_talk_prod`,
-separate from the development containers and data.
+```bash
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --build
+```
 
-The shared edge keeps the staging webpage behind HTTP basic authentication, obtains
-TLS certificates through a pinned Certbot container, checks renewal twice a day,
-and reloads changed certificates without restarting Nginx. Exact password,
-certificate, build, start, health, log, upgrade, rollback, and shutdown commands
-are in [`docs/production-operations.md`](docs/production-operations.md).
-API routes use the application's existing Bearer-token, ownership and guest
-scope checks; the webpage password gate does not replace those checks. Public
-API routes remain public through Nginx. Gemini and `ADMIN_EMAIL` are configured
-in the ignored production environment file, never in frontend build arguments.
-Use one `.env` per installation and the single blank `.env.example` as a reference.
-The edge reads the existing VM Job Talk `.env`; it needs no additional environment
-file. Local environment files are unchanged. Persistent edge volumes hold
-certificates outside both app repositories. The runbook stages the edge on
-loopback ports before handing over the existing Roventics public listener.
+Create the private staging password file before first startup as described in
+[production operations](docs/production-operations.md). Then install the single
+[`nginx/vm-jobtalk.conf`](nginx/vm-jobtalk.conf) site on the VM. Host Nginx forwards
+the entire subdomain to localhost:8081; VM Certbot supplies HTTPS and renewal.
+Other apps manage their own Compose stacks and host Nginx sites independently.
+
+One existing `.env` supplies the app settings. No certificate volume, shared
+network, Docker renewal service or additional environment file is required.
+API routes retain backend Bearer-token, approval and ownership checks. The
+staging webpage password is separate from those checks. Deployment and final
+usability sign-off remain pending operator/user verification.
 
 ## Database migrations and recovery
 

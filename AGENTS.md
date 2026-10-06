@@ -144,7 +144,7 @@ The primary experiment must support this sequence:
 - Prefer a small, understandable implementation over extra infrastructure.
 - Keep public ports bound to localhost in the development stack.
 - Treat the backend and database as private services in production. Only the
-  HTTPS reverse proxy may publish host ports.
+  app gateway may publish a localhost port; VM Nginx owns public 80/443.
 - Production FastAPI binds only to the Unix socket shared with Nginx. Do not add
   a backend TCP listener or mount that socket into other application services.
   This prevents direct network access; public proxy URLs still require normal
@@ -199,17 +199,15 @@ feature branch does not by itself approve merging it.
 Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
-Production uses `docker compose --env-file .env -f
-prod.docker-compose.yaml ...` for the private app services. The independent shared
-edge is tracked in `deploy/edge-proxy/` and installed at `~/apps/edge-proxy`;
-it serves both Roventics and Job Talk. Follow `docs/production-operations.md`
-for the staged handoff; preserve existing app environment files, data and
-Roventics routes. Only the shared Nginx publishes 80/443; port 80 redirects to
-HTTPS once a certificate exists. Use an isolated project and disposable volumes
-for production checks, never the running development project or its database.
-TLS storage and automatic renewal belong to the shared edge, outside app
-directories. Local JT-088 through JT-091 implementation is authorized; live DNS,
-certificate issuance, cutover and public card release still need operator checks.
+Production uses `docker compose --env-file .env -f prod.docker-compose.yaml ...`.
+Each app owns its Compose project. Job Talk's gateway binds only
+`127.0.0.1:8081`; the VM's installed Nginx owns public 80/443 and routes the
+subdomain there. TLS and Certbot renewal belong to the VM. Do not add a shared
+Docker edge, cross-project network or shared certificate volumes. The backend
+socket is shared only with Job Talk's own gateway; the database stays private.
+Follow `docs/production-operations.md`. Preserve existing app environments/data
+and other websites. Live DNS, certificates and VM listener changes are operator
+steps. Use isolated disposable resources for production tests.
 Use one `.env` per installation and one `.env.example`. Set VM values in its
 `.env`; preserve the local development credentials and database. Candidate follow-up
 messaging is deferred until explicitly requested.

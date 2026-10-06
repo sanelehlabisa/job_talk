@@ -1,6 +1,0 @@
-# Rehearse while the existing Roventics Nginx still owns public 80/443.
-services:
-  proxy:
-    ports: !override
-      - "127.0.0.1:18080:80"
-      - "127.0.0.1:18443:443"

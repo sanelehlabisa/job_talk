@@ -1,27 +1,15 @@
 param([switch]$SkipBuild)
-# Three disposable Compose projects. Never reads a real .env or calls ACME/SMTP/AI.
+# Disposable app and a stand-in for VM Nginx. No real .env/AI/SMTP.
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('jobtalk-policy-' + [guid]::NewGuid().ToString('N'))
-$project = 'jt_edge_' + [guid]::NewGuid().ToString('N').Substring(0, 10)
-$bundle = Join-Path $repo 'deploy/edge-proxy'
-$app = @('--env-file', "$fixture/test.env", '-p', "${project}_app", '-f', "$repo/prod.docker-compose.yaml", '-f', "$fixture/app.yaml")
-$edge = @('--env-file', "$fixture/test.env", '-p', "${project}_edge", '-f', "$bundle/compose.yaml", '-f', "$fixture/edge.yaml")
-$rov = @('--env-file', "$fixture/test.env", '-p', "${project}_rov", '-f', "$fixture/roventics.yaml")
-function Compose([string[]]$Files, [string[]]$Arguments) {
-    & docker compose @Files @Arguments
+$project = 'jt_host_' + [guid]::NewGuid().ToString('N').Substring(0, 10)
+$compose = @('--env-file', "$fixture/test.env", '-p', $project, '-f', "$repo/prod.docker-compose.yaml", '-f', "$fixture/test.yaml")
+function Compose([string[]]$Arguments) {
+    & docker compose @compose @Arguments
     if ($LASTEXITCODE -ne 0) { throw "Isolated Compose failed: $($Arguments -join ' ')" }
 }
-function Probe([string]$Mode) {
-    $arguments = @('exec', '-T', '-e', 'PYTHONPATH=/app', 'backend', 'python', '/checks/nginx-policy-probe.py')
-    if ($Mode) { $arguments += $Mode }
-    Compose $app $arguments
-}
-function Certificate([string]$Domain) {
-    & docker run --rm --user 0 --entrypoint sh -v "${fixture}:/fixtures" job-talk-backend:edge-check -c "openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=$Domain -keyout /fixtures/certificates/live/$Domain/privkey.pem -out /fixtures/certificates/live/$Domain/fullchain.pem 2>/dev/null"
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create disposable certificate' }
-}
-New-Item -ItemType Directory -Path "$fixture/certificates/live/jobtalk.roventics.com", "$fixture/certificates/live/roventics.com", "$fixture/challenges/.well-known/acme-challenge" -Force | Out-Null
+New-Item -ItemType Directory -Path $fixture | Out-Null
 try {
     @"
 POSTGRES_DB=jt077_policy_test
@@ -36,129 +24,70 @@ EMAIL_FROM=policy-check@roventics.com
 ADMIN_EMAIL=policy-check@roventics.com
 GEMINI_API_KEY=
 "@ | Set-Content -Encoding ASCII "$fixture/test.env"
+    $fixtureMount = $fixture.Replace('\', '/')
     @"
 services:
   backend:
-    image: job-talk-backend:edge-check
-    networks: [database, outbound, edge]
+    image: job-talk-backend:host-check
+    networks: [database, outbound, web]
     environment:
       JOBTALK_POLICY_CHECK: '1'
       AI_PROVIDER: mock
       GEMINI_API_KEY: ''
     volumes:
       - '$($PSScriptRoot.Replace('\', '/')):/checks:ro'
-      - '$($fixture.Replace('\', '/'))/certificates/live/jobtalk.roventics.com:/expected-certificate:ro'
   frontend:
-    image: job-talk-frontend:edge-check
-networks:
-  edge:
-    external: false
-    name: ${project}_network
-volumes:
-  backend_socket:
-    external: false
-    name: ${project}_socket
-"@ | Set-Content -Encoding ASCII "$fixture/app.yaml"
-    @"
-services:
-  proxy:
-    image: roventics-edge:check
+    image: job-talk-frontend:host-check
+  gateway:
+    image: job-talk-gateway:host-check
     ports: !override []
     volumes: !override
-      - 'jobtalk_socket:/run/jobtalk:ro'
-      - '$($fixture.Replace('\', '/'))/certificates:/etc/letsencrypt:ro'
-      - '$($fixture.Replace('\', '/'))/challenges:/var/www/certbot:ro'
-      - '$($fixture.Replace('\', '/'))/htpasswd:/etc/nginx/auth/.htpasswd:ro'
-networks:
-  edge:
-    name: ${project}_network
-volumes:
-  jobtalk_socket:
-    name: ${project}_socket
-"@ | Set-Content -Encoding ASCII "$fixture/edge.yaml"
-    @"
-services:
-  legacy:
+      - backend_socket:/run/jobtalk:ro
+      - '${fixtureMount}/htpasswd:/etc/nginx/auth/.htpasswd:ro'
+  proxy:
     image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     volumes:
-      - '$($bundle.Replace('\', '/'))/migration/roventics-acme.conf:/etc/nginx/conf.d/default.conf:ro'
-      - '$($fixture.Replace('\', '/'))/certificates/live/roventics.com/fullchain.pem:/etc/nginx/certs/server.crt:ro'
-      - '$($fixture.Replace('\', '/'))/certificates/live/roventics.com/privkey.pem:/etc/nginx/certs/server.key:ro'
-    networks: [edge]
-  frontend:
-    image: roventics-frontend:edge-check
-    build: '$(([IO.Path]::GetFullPath((Join-Path $repo '../roventics/frontend'))).Replace('\', '/'))'
-    networks:
-      edge:
-        aliases: [roventics-frontend]
-  backend:
-    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
-    volumes:
-      - '$($fixture.Replace('\', '/'))/roventics-api.conf:/etc/nginx/conf.d/default.conf:ro'
-    networks:
-      edge:
-        aliases: [roventics-backend]
-networks:
-  edge:
-    external: true
-    name: ${project}_network
-"@ | Set-Content -Encoding ASCII "$fixture/roventics.yaml"
-    'server { listen 8080; location /api/ { return 200 "$request_uri|$host"; } }' | Set-Content -Encoding ASCII "$fixture/roventics-api.conf"
-    'policy-challenge' | Set-Content -Encoding ASCII "$fixture/challenges/.well-known/acme-challenge/check"
-    Compose $app @('config', '--quiet')
-    Compose $edge @('config', '--quiet')
-    if (-not $SkipBuild) {
-        Compose $app @('build', 'backend', 'frontend')
-        Compose $edge @('build', 'proxy')
-        Compose $rov @('build', 'frontend')
+      - '${fixtureMount}/vm.conf:/etc/nginx/conf.d/default.conf:ro'
+      - '${fixtureMount}/cert.pem:/fixtures/cert.pem:ro'
+      - '${fixtureMount}/key.pem:/fixtures/key.pem:ro'
+    networks: [web]
+    depends_on:
+      gateway:
+        condition: service_healthy
+"@ | Set-Content -Encoding ASCII "$fixture/test.yaml"
+    $hostConfig = [IO.File]::ReadAllText("$repo/nginx/vm-jobtalk.conf")
+    $hostConfig = $hostConfig.Replace('listen 80;', "listen 443 ssl;`n    ssl_certificate /fixtures/cert.pem;`n    ssl_certificate_key /fixtures/key.pem;")
+    $hostConfig = $hostConfig.Replace('http://127.0.0.1:8081', 'http://gateway:80')
+    $hostConfig += 'server { listen 80; server_name jobtalk.roventics.com; if ($host != "jobtalk.roventics.com") { return 444; } return 308 https://jobtalk.roventics.com$request_uri; }'
+    [IO.File]::WriteAllText("$fixture/vm.conf", $hostConfig)
+    Compose @('config', '--quiet')
+    $definition = docker compose --env-file "$fixture/test.env" -f "$repo/prod.docker-compose.yaml" config --format json | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'Could not validate production ports' }
+    $binding = $definition.services.gateway.ports
+    if ($binding.Count -ne 1 -or $binding[0].host_ip -ne '127.0.0.1' -or $binding[0].published -ne '8081') { throw 'Gateway must bind only localhost:8081' }
+    foreach ($service in @('backend', 'frontend', 'postgres')) {
+        if ($definition.services.$service.ports) { throw "$service publishes an unexpected host port" }
     }
-    $hash = docker run --rm --entrypoint openssl job-talk-backend:edge-check passwd -apr1 policy-staging-password
+    foreach ($network in $definition.networks.PSObject.Properties.Value) {
+        if ($network.external) { throw 'Production must not require an external network' }
+    }
+    if (-not $SkipBuild) { Compose @('build', 'backend', 'frontend', 'gateway') }
+    $hash = docker run --rm --entrypoint openssl job-talk-backend:host-check passwd -apr1 policy-staging-password
     if ($LASTEXITCODE -ne 0) { throw 'Could not create isolated staging password' }
     "staging:$hash" | Set-Content -Encoding ASCII "$fixture/htpasswd"
-    Certificate 'roventics.com'
-    Compose $app @('up', '-d', '--wait', 'postgres', 'backend', 'frontend')
-    # Edge must start even before the Roventics upstream containers exist.
-    Compose $edge @('up', '-d', '--wait', 'proxy')
-    Compose $rov @('up', '-d', '--wait')
-    Probe '--bootstrap'
-    Probe '--roventics'
-    Probe '--legacy-acme'
-    Certificate 'jobtalk.roventics.com'
-    Compose $edge @('exec', '-T', 'proxy', 'edge-reload')
-    Probe ''
-    # A stopped Job Talk frontend must not break edge startup or Roventics.
-    Compose $app @('stop', 'frontend')
-    Compose $edge @('restart', 'proxy')
-    Compose $edge @('up', '-d', '--wait', 'proxy')
-    Probe '--roventics'
-    Compose $app @('up', '-d', '--wait', '--force-recreate', 'frontend')
-    Start-Sleep -Seconds 6
-    Probe '--availability'
-    # Malformed renewed certificates must not take the currently serving apps down.
-    $certPath = "$fixture/certificates/live/jobtalk.roventics.com/fullchain.pem"
-    $goodCert = [IO.File]::ReadAllText($certPath)
-    [IO.File]::WriteAllText($certPath, 'invalid-certificate-for-isolated-test')
-    & docker compose @edge exec -T proxy sh -c 'edge-reload >/dev/null 2>&1'
-    if ($LASTEXITCODE -eq 0) { throw 'An invalid certificate was accepted' }
-    Probe '--availability'
-    [IO.File]::WriteAllText($certPath, $goodCert)
-    Certificate 'jobtalk.roventics.com'
-    Probe '--watch-certificate'
-    Probe '--availability'
-    $log = & docker compose @edge logs --no-color proxy 2>&1 | Out-String
-    if ($log -notmatch 'by zone "jobtalk_auth"' -or $log -notmatch 'by zone "jobtalk_api"') { throw 'Proxy rate-limit checks did not activate' }
-    Write-Output 'PASS: three independent stacks, both domains, private API/auth/policies, app outages/recreation, certificate activation and failed/valid reloads.'
+    docker run --rm --user 0 --entrypoint sh -v "${fixture}:/fixtures" job-talk-backend:host-check -c 'openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=jobtalk.roventics.com -keyout /fixtures/key.pem -out /fixtures/cert.pem 2>/dev/null'
+    if ($LASTEXITCODE -ne 0) { throw 'Could not create disposable certificate' }
+    Compose @('up', '-d', '--wait')
+    Compose @('exec', '-T', '-e', 'PYTHONPATH=/app', 'backend', 'python', '/checks/nginx-policy-probe.py')
+    $log = docker compose @compose logs --no-color gateway 2>&1 | Out-String
+    if ($log -notmatch 'by zone "jobtalk_auth"' -or $log -notmatch 'by zone "jobtalk_api"') { throw 'Gateway rate limits did not activate' }
+    Write-Output 'PASS: independent Compose, localhost-only gateway, host HTTPS routing and API/token protections.'
 } catch {
-    & docker compose @edge logs --tail=30 proxy
+    & docker compose @compose logs --tail=20 gateway proxy
     throw
 } finally {
-    # Only unique disposable projects; external shared production resources are not used.
-    & docker compose @rov down --volumes --remove-orphans
-    $cleanupFailed = $LASTEXITCODE -ne 0
-    & docker compose @edge down --remove-orphans
-    $cleanupFailed = $cleanupFailed -or $LASTEXITCODE -ne 0
-    & docker compose @app down --volumes --remove-orphans
-    if ($cleanupFailed -or $LASTEXITCODE -ne 0) { throw "Inspect isolated project $project and fixture $fixture; cleanup failed" }
+    & docker compose @compose down --volumes --remove-orphans
+    if ($LASTEXITCODE -ne 0) { throw "Inspect isolated project $project and fixture $fixture; cleanup failed" }
     $resolved = [IO.Path]::GetFullPath($fixture)
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     if (-not $resolved.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or (Split-Path $resolved -Leaf) -notmatch '^jobtalk-policy-[a-f0-9]{32}$') { throw 'Refusing unsafe fixture cleanup' }
