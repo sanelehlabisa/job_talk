@@ -30,7 +30,7 @@ function Brand() {
 }
 
 const DEV_MAILBOX_URL = import.meta.env.VITE_DEV_MAILBOX_URL;
-const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "support@example.com";
+const SUPPORT_EMAIL = "info@roventics.com";
 
 function PrivacyPage() {
   return (

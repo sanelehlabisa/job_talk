@@ -9,9 +9,8 @@ read_env_value() {
 }
 
 domain=$(read_env_value APP_DOMAIN)
-email=$(read_env_value TLS_EMAIL)
-htpasswd_path=$(read_env_value STAGING_HTPASSWD_PATH)
-htpasswd_path=${htpasswd_path:-./secrets/nginx/.htpasswd}
+email=$(read_env_value ADMIN_EMAIL)
+htpasswd_path=./secrets/nginx/.htpasswd
 
 test -n "$domain"
 test -n "$email"

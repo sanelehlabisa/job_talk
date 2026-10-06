@@ -47,6 +47,11 @@ and the user's final usability sign-off are still pending.
 
 The [current P0 tickets](TASKS.md#p0---current-ordered-usability-work) track progress:
 
+- JT-086/JT-087 reduce `.env` to app/admin, database, session security, SMTP and
+  Gemini. Support uses `info@roventics.com`; certificates reuse `ADMIN_EMAIL`.
+  Startup seeds only the local recruiter, never jobs. Users, hashed tokens and
+  login codes already live in the database. Production admin setup is an explicit
+  operator command; normal emailed-code login still applies.
 - JT-085 simplifies `.env`: one `APP_DOMAIN`, explicit SMTP settings, and no
   image tag, duplicated origins, port variables or browser API URL. Compose
   sets the ports; development Vite and production Nginx both route `/api`.
@@ -358,7 +363,7 @@ backend on port 8000.
 
 1. Select **I'm hiring** and enter `recruiter@example.com`.
 2. Open [Mailpit](http://localhost:8025), copy the six-digit code, and finish signing in.
-3. Confirm the seeded **Welder and Forklift Operator** job is available, then leave the recruiter session.
+3. Create and publish a job (or open one you already created), then leave the recruiter session.
 4. Select **I'm looking for work** and choose that role. No email, account, or password is required.
    You can also open a job directly at `http://localhost:3000/?job=<job-id>`.
 5. Say: "I have three years of welding and forklift experience in Cape Town."
@@ -371,8 +376,9 @@ Sessions last 24 hours by default and are kept in browser session storage, so
 closing the browser ends the browser-side session. Set `AUTH_SESSION_HOURS` in
 `.env` to change the server-side expiry.
 
-The development stack seeds `DEMO_RECRUITER_EMAIL` as an approved recruiter,
-publishes three demo jobs, and runs Mailpit as its inbox. FastAPI sends to
+The development stack seeds the fixed `recruiter@example.com` account as an
+approved recruiter and runs Mailpit as its inbox. It does not create jobs or
+change existing recruiter approval. FastAPI sends to
 `mailpit:1025` inside Compose and messages appear immediately at
 `http://localhost:8025`; no external SMTP account is needed locally. To review or
 approve another recruiter request:
@@ -465,15 +471,25 @@ during the cooldown leaves the current code valid. Configure these limits with
 `RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS` and
 `RECRUITER_CODE_REQUEST_MAX_PER_HOUR`.
 
-Re-run `python -m app.seed_jobs` inside the backend container whenever you want
-to restore the three demo job definitions. The command updates them without
-creating duplicates.
+Create jobs in the recruiter UI. The optional development-only
+`python -m app.seed_jobs` command still creates/refreshes three demo definitions
+when explicitly invoked; startup never runs it, and production refuses it.
+For a fresh VM, explicitly seed the configured admin with:
+
+```bash
+docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters seed
+```
+
+This creates only the `ADMIN_EMAIL` recruiter if missing; existing approval is
+preserved. Use the existing `approve <email>` command if you intend to change it.
+Sign in normally with an emailed code. Users, hashed session tokens/expiry and
+single-use login codes already use the database; no new tables are needed.
 
 ## Production environment contract
 
 Use one ignored `.env` per installation; `.env.example` is the only example.
 Both Compose files and operator scripts read `.env`. Its defaults are for local
-development. On the VM set the domain, secrets, SMTP and certificate email
+development. On the VM set the domain, admin email, secrets, SMTP and Gemini key
 as described in [production operations](docs/production-operations.md#prepare-a-release).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;
@@ -485,7 +501,6 @@ in `.env`. FastAPI validates the derived settings and refuses to start unless:
 - `PUBLIC_ORIGIN` is the HTTPS root of `APP_DOMAIN`;
 - `ALLOWED_HOSTS` contains the configured subdomain;
 - `CORS_ORIGINS` contains the public origin;
-- `TLS_EMAIL` is a monitored, non-placeholder address;
 - SMTP host, credentials, and sender address are non-placeholder values;
 - PostgreSQL uses a non-placeholder password of at least 16 characters; and
 - `SESSION_TOKEN_PEPPER` is a non-placeholder value of at least 32 characters.
@@ -498,8 +513,12 @@ Local Mailpit uses port 1025, `false`, and empty user/password fields.
 The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.
 
-Production Compose also requires `SUPPORT_EMAIL`. Set it to the monitored address
-shown on the privacy and safety page before building the frontend.
+Support links use `info@roventics.com`. Certificate registration reuses
+`ADMIN_EMAIL`; there is no separate support or TLS email variable. The staging
+password file is always `secrets/nginx/.htpasswd`; certificate reload is hourly.
+Generate a unique session pepper on each installation, for example with
+`python -c "import secrets; print(secrets.token_urlsafe(48))"`, and save it only
+in the ignored `.env`. Replacing it invalidates existing sessions and login codes.
 Production FastAPI listens only on a Unix socket shared with Nginx, with no TCP
 listener. The frontend and other containers cannot connect directly to the API.
 Nginx's public `/api/` route still accepts outside clients; private actions always
@@ -586,7 +605,7 @@ test database before Python starts (never run database-reset tests against the
 development backend's PostgreSQL connection):
 
 ```bash
-docker compose -f dev.docker-compose.yaml run --rm --no-deps -T -w /tmp -e PYTHONPATH=/app -e DATABASE_URL=sqlite:///./test_job_talk.db -e AI_PROVIDER=mock -e SEED_DEMO_JOBS=false --entrypoint /opt/venv/bin/pytest backend /app/app/tests -q -o cache_dir=/tmp/pytest-jobtalk
+docker compose -f dev.docker-compose.yaml run --rm --no-deps -T -w /tmp -e PYTHONPATH=/app -e DATABASE_URL=sqlite:///./test_job_talk.db -e AI_PROVIDER=mock --entrypoint /opt/venv/bin/pytest backend /app/app/tests -q -o cache_dir=/tmp/pytest-jobtalk
 ```
 
 For the frontend, run `npm run build` inside `frontend`.
@@ -714,8 +733,8 @@ any additional structured claims, and links back to the conversation for correct
 ## AI provider
 
 `backend/app/services/ai.py` keeps response generation behind one function and
-supports `mock`, `gemini` and `openai` providers. Mock mode remains the example default so
-tests are deterministic and a missing provider cannot stop the application. It
+retains a deterministic `mock` mode for tests. Both Compose files select Gemini;
+the only AI settings needed in `.env` are its key and model. The guided fallback
 shows the same concise guided questions used by the backend, without development
 context or message diagnostics.
 
@@ -724,11 +743,8 @@ context or message diagnostics.
 Put the key from Google AI Studio in the ignored `.env` file:
 
 ```dotenv
-AI_PROVIDER=gemini
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-3.5-flash-lite
-AI_MAX_OUTPUT_TOKENS=3000
-AI_MAX_CALLS_PER_CHAT=12
 ```
 
 Apply the settings, then open [the local UI](http://localhost:3000) and start a
@@ -749,31 +765,9 @@ The backend calls `generateContent` with minimal thinking and a JSON schema,
 using the existing bounded chat context and validation. Gemini proposes fields;
 the backend validates them, chooses the next question and calculates scores.
 The key is sent in a backend HTTP header, never in the browser or request URL.
-Provider failures use the guided fallback. Set `AI_PROVIDER=mock` and recreate
-the backend to return to deterministic testing.
-
-### OpenAI
-
-To use OpenAI locally, place these values in the ignored `.env` file and recreate
-the backend with the same Compose command:
-
-```dotenv
-AI_PROVIDER=openai
-OPENAI_API_KEY=your-project-api-key
-OPENAI_MODEL=gpt-4o-mini
-```
-
-A ChatGPT subscription does not supply application API usage. Create a project
-API key and configure separate API billing plus a hard monthly spend limit before
-enabling it for invited users. The key is passed only to the backend container.
-
-OpenAI requests use the Responses API with strict JSON output validation and
-`store: false`. They contain the selected job, structured draft, current message,
-and the complete message history from that authorized chat. Submission contact details and
-other chats are excluded. For recruiter turns, the model returns a reply and
-categorized role updates with exact quotes from the latest message. The backend
-rejects updates without that support, assigns all weights, recalculates readiness,
-and saves accepted measurable descriptions for review before publication.
+Provider failures use the guided fallback. Deterministic backend tests explicitly
+override `AI_PROVIDER=mock` on their disposable containers, as shown above.
+OpenAI credentials are not included in the environment or passed by Compose.
 
 Template-based recruiter updates can also quote earlier user messages to fill
 unanswered fields. If an older draft missed details, continue the same chat with

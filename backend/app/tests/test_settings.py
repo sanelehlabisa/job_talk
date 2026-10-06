@@ -15,14 +15,12 @@ def production_settings(**overrides) -> Settings:
         "allowed_hosts": "jobs.jobtalk.co.za",
         "cors_origins": "https://jobs.jobtalk.co.za",
         "forwarded_allow_ips": "127.0.0.1",
-        "tls_email": "ops@jobtalk.co.za",
+        "admin_email": "ops@jobtalk.co.za",
         "smtp_host": "smtp.provider.co.za",
         "smtp_port": 587,
         "smtp_user": "jobtalk-sender",
         "smtp_password": "smtp-secret-2026-long-value",
         "email_from": "login@jobtalk.co.za",
-        "demo_recruiter_email": None,
-        "seed_demo_jobs": False,
         "database_url": (
             "postgresql+psycopg://job_talk:"
             f"{PRODUCTION_PASSWORD}@postgres:5432/job_talk"
@@ -64,11 +62,8 @@ def test_development_keeps_api_docs_and_retention_is_bounded():
         ("session_token_pepper", "replace-with-at-least-32-random-characters"),
         ("database_url", "postgresql+psycopg://job_talk:postgres@postgres:5432/job_talk"),
         ("app_domain", "jobs.example.com"),
-        ("tls_email", "ops@example.com"),
         ("smtp_password", "replace-with-a-strong-smtp-password"),
         ("email_from", "login@example.com"),
-        ("demo_recruiter_email", "recruiter@jobtalk.co.za"),
-        ("seed_demo_jobs", True),
     ],
 )
 def test_unsafe_production_settings_are_rejected(name, value):

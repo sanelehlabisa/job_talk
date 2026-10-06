@@ -52,16 +52,12 @@ services:
       RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS: ${RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS:-60}
       RECRUITER_CODE_REQUEST_MAX_PER_HOUR: ${RECRUITER_CODE_REQUEST_MAX_PER_HOUR:-5}
       DEMO_DATA_RETENTION_DAYS: ${DEMO_DATA_RETENTION_DAYS:-30}
-      DEMO_RECRUITER_EMAIL: ${DEMO_RECRUITER_EMAIL:-recruiter@example.com}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      SEED_DEMO_JOBS: ${SEED_DEMO_JOBS:-true}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-job_talk}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
       SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:-dev-only-session-token-pepper}
-      AI_PROVIDER: ${AI_PROVIDER:-mock}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      AI_PROVIDER: gemini
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-20}
@@ -107,7 +103,6 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:-localhost}
       API_PROXY_TARGET: http://backend:8000
       VITE_DEV_MAILBOX_URL: http://${APP_DOMAIN:-localhost}:8025
-      VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@example.com}
       VITE_USE_POLLING: ${VITE_USE_POLLING:-true}
     command:
       - /bin/sh

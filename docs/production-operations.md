@@ -30,12 +30,12 @@ retain its existing volumes. Do not run that older project beside development.
    and derives the HTTPS public origin, allowed hosts and CORS origins.
    Replace the database password (at least 16 random URL-safe characters),
    session pepper (at least 32 random characters), `SMTP_HOST`, `SMTP_PORT`,
-   `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `SUPPORT_EMAIL` and `TLS_EMAIL`.
+   `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` and `ADMIN_EMAIL`.
    Use `SMTP_SECURE=false` for STARTTLS (usually port 587), or `true` for implicit
    TLS (usually 465). Authenticated SMTP requires encryption. Keep the selected
    Gemini key backend-only. Compose builds
    `DATABASE_URL` from the database fields; do not maintain a second URL.
-   Sections group app, database, sessions, email, AI, local demo and HTTPS
+   Sections group app/admin, database, sessions, SMTP and Gemini
    settings. Keep your computer's `.env` for development. No image tag or
    duplicated ports/API URL is needed; Compose names the locally built images.
    Record the checked-out Git commit when deploying.
@@ -56,10 +56,10 @@ ones still require an authorized session. Requiring HTTP Basic there would
 conflict with the app's `Authorization: Bearer ...` header. This uses Nginx's
 [per-location authentication override](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic).
 Keep the webpage gate enabled until the public-pilot safety checks pass.
-The ignored `STAGING_HTPASSWD_PATH` setting may point to a different file.
-Set `ADMIN_EMAIL` to the operator's approved recruiter address, if needed. Choose
-`AI_PROVIDER=gemini` with `GEMINI_API_KEY` and `GEMINI_MODEL` (or explicitly choose
-`mock` for a local configuration check). Never copy development database
+The staging file uses the fixed path above. Set `ADMIN_EMAIL` to the operator's
+monitored address; certificate registration reuses it. Support links use
+`info@roventics.com`. Compose selects Gemini using `GEMINI_API_KEY` and
+`GEMINI_MODEL`. Never copy development database
 credentials or publish ports for the backend, frontend or PostgreSQL.
 
 4. After DNS points to the VM, run the preflight without printing resolved
@@ -103,7 +103,7 @@ proxy to HTTPS, and validates the resulting Nginx configuration.
 
 The pinned `certbot-renew` service checks for renewal every 12 hours. Nginx
 hashes the mounted certificate each hour by default and reloads gracefully when
-the contents change. Change `CERTIFICATE_RELOAD_SECONDS` only when testing.
+the contents change. These schedules do not need `.env` overrides.
 Run a Let's Encrypt staging renewal test after the real certificate exists:
 
 ```sh
@@ -122,6 +122,18 @@ docker compose --env-file .env -f prod.docker-compose.yaml ps
 APP_DOMAIN=$(sed -n 's/^APP_DOMAIN=//p' .env | tr -d '\r')
 curl --fail --silent --show-error "https://$APP_DOMAIN/api/ready"
 ```
+
+Production startup creates no users or jobs. For the first operator login, run
+the explicit seed command once; it inserts only `ADMIN_EMAIL` if missing:
+
+```sh
+docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters seed
+```
+
+Existing approval is preserved. Use `python -m app.recruiters approve <email>`
+inside the backend only when intentionally approving that recruiter. The seeded
+admin still signs in with an emailed code; tokens and expiry are stored in the
+existing tables. Create the test job through the app.
 
 `postgres`, `backend`, and `frontend` must show healthy. The proxy becomes
 healthy only after both application services are healthy. In `docker compose

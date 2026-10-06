@@ -68,6 +68,40 @@ release. VM deployment and JT-060 user usability acceptance remain pending.
 The combined frontend production build passed before merging; conflicts were
 limited to documentation and resolved by retaining both tickets and checklists.
 
+### JT-086 - Minimal deployment settings and contacts
+
+- [x] Keep one short comment per `.env` section and only app/admin, database,
+  session pepper, SMTP and Gemini settings; preserve existing secrets.
+- [x] Generate a private random session pepper; use `info@roventics.com` for
+  support and reuse `ADMIN_EMAIL` for certificates. Remove redundant overrides.
+- [x] Update Compose, setup scripts/docs and verify configuration, mail and build.
+
+**Status:** Complete on `fix/simple-environment` (2026-10-06), awaiting merge
+approval. The environment has 14 settings with one-line section comments. A
+48-byte random pepper is saved only in ignored `.env`; existing credentials were
+retained. Development and fictional production Compose checks, script syntax and
+frontend build passed. Actual local requests confirmed old-token rejection after
+rotation and fresh admin login through Mailpit. No live SMTP, LLM or certificate
+requests were made. Support uses the simple email link; an issue submission/email
+workflow is deferred. No new notification service or dashboard.
+
+### JT-087 - Seed recruiter access without automatic jobs
+
+- [x] Reuse existing users, hashed expiring sessions and single-use code tables.
+- [x] Seed a fixed local recruiter without jobs; preserve existing approval state.
+- [x] Provide an explicit operator command to seed the configured admin on the
+  VM for testing, using normal email login. Never auto-seed production jobs/users.
+- [x] Verify repeated seeding and startup preserve existing jobs/applications.
+
+**Status:** Complete on `fix/simple-environment` (2026-10-06), awaiting merge
+approval. Thirty focused SQLite checks passed across recruiter seeding, settings,
+SMTP and token boundaries. Repeated seeding preserves pending/rejected approval
+and existing drafts, creates no job/token, and cannot promote a candidate.
+Production admin seeding is explicit and still requires emailed-code login.
+Local restart checks compared all saved jobs and applications before/after;
+record counts and content hashes were unchanged. No schema migration or login
+bypass. VM deployment and JT-060 user acceptance remain open.
+
 ### JT-085 - Simplify environment and SMTP configuration
 
 - [x] Keep one host setting, `APP_DOMAIN`; derive URLs/origin rules in Compose

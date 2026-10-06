@@ -213,3 +213,13 @@ Do not require image tags or duplicated API URLs in `.env`. Email settings are
 `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`.
 `SMTP_SECURE=false` uses STARTTLS when available; true uses implicit TLS.
 Never send SMTP credentials without encryption. Local Mailpit needs no credentials.
+
+Use one short comment per `.env` section. Keep only app/admin, database, session
+pepper, SMTP and Gemini settings there. Support links use `info@roventics.com`;
+certificate registration reuses `ADMIN_EMAIL`. Keep staging paths and renewal
+defaults in code/Compose. Generate private random session peppers, never commit them.
+Development startup seeds only `recruiter@example.com` if missing; preserve
+existing approvals and jobs. Production seeds nothing automatically. The explicit
+`python -m app.recruiters seed` operator command creates the configured admin
+if missing, with normal email login. Reuse existing users, hashed expiring sessions
+and login-code tables; do not add a second token store or bypass authentication.

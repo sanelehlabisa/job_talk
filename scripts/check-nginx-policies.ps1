@@ -29,13 +29,8 @@ SMTP_USER=policy-check
 SMTP_SECURE=false
 SMTP_PASSWORD=isolated-policy-mail-password
 EMAIL_FROM=policy-check@roventics.com
-TLS_EMAIL=policy-check@roventics.com
-SUPPORT_EMAIL=policy-check@roventics.com
-AI_PROVIDER=mock
 GEMINI_API_KEY=
-OPENAI_API_KEY=
-ADMIN_EMAIL=
-STAGING_HTPASSWD_PATH=$($fixture.Replace('\', '/'))/htpasswd
+ADMIN_EMAIL=policy-check@roventics.com
 "@ | Set-Content -Encoding ASCII "$fixture/test.env"
     @"
 services:
@@ -55,7 +50,6 @@ services:
       POSTGRES_PASSWORD: isolated-policy-database-password
       AI_PROVIDER: mock
       GEMINI_API_KEY: ''
-      OPENAI_API_KEY: ''
       SMTP_HOST: smtp.policy.invalid
     volumes:
       - '$($PSScriptRoot.Replace('\', '/')):/checks:ro'

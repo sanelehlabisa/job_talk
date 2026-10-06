@@ -31,20 +31,16 @@ command -v docker >/dev/null 2>&1 || fail "Docker is not installed"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is not available"
 
 for key in \
-    APP_DOMAIN TLS_EMAIL SMTP_HOST SMTP_USER SMTP_PASSWORD \
-    EMAIL_FROM SUPPORT_EMAIL POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
-    SESSION_TOKEN_PEPPER
+    APP_DOMAIN ADMIN_EMAIL SMTP_HOST SMTP_USER SMTP_PASSWORD \
+    EMAIL_FROM POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
+    SESSION_TOKEN_PEPPER GEMINI_API_KEY
 do
     require_value "$key"
 done
 
 domain=$(read_env_value APP_DOMAIN)
-htpasswd_path=$(read_env_value STAGING_HTPASSWD_PATH)
-htpasswd_path=${htpasswd_path:-./secrets/nginx/.htpasswd}
+htpasswd_path=./secrets/nginx/.htpasswd
 session_pepper=$(read_env_value SESSION_TOKEN_PEPPER)
-ai_provider=$(read_env_value AI_PROVIDER)
-openai_key=$(read_env_value OPENAI_API_KEY)
-gemini_key=$(read_env_value GEMINI_API_KEY)
 
 command -v git >/dev/null 2>&1 || fail "Git is not installed"
 current_commit=$(git rev-parse HEAD 2>/dev/null) || fail "release directory is not a Git checkout"
@@ -55,17 +51,6 @@ case "$domain" in
 esac
 test -f "$htpasswd_path" || fail "staging password file $htpasswd_path does not exist"
 test "${#session_pepper}" -ge 32 || fail "SESSION_TOKEN_PEPPER must contain at least 32 characters"
-
-case "$ai_provider" in
-    ""|mock) ;;
-    openai)
-        test -n "$openai_key" || fail "OPENAI_API_KEY is required when AI_PROVIDER=openai"
-        ;;
-    gemini)
-        test -n "$gemini_key" || fail "GEMINI_API_KEY is required when AI_PROVIDER=gemini"
-        ;;
-    *) fail "AI_PROVIDER must be mock, openai or gemini" ;;
-esac
 
 resolved_ips=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{ print $1 }' | sort -u || true)
 test -n "$resolved_ips" || fail "$domain does not resolve to an IPv4 address"

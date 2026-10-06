@@ -1,8 +1,8 @@
 # Privacy and safety operations
 
-The public `/privacy` page is the user-facing summary. The operator must replace
-`SUPPORT_EMAIL` with a monitored address before building the production frontend.
-Use that inbox for privacy, abuse, access, and deletion reports.
+The public `/privacy` page is the user-facing summary. Support links use
+`info@roventics.com`. Monitor that inbox for privacy, abuse, access and deletion
+reports; there is no support email environment setting.
 
 ## API access boundary
 

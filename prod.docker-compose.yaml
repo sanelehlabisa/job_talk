@@ -48,7 +48,6 @@ services:
       CORS_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN in .env}
       # Only Nginx shares this socket; trust its sanitized forwarded headers.
       FORWARDED_ALLOW_IPS: "*"
-      TLS_EMAIL: ${TLS_EMAIL:?Set TLS_EMAIL in .env}
       SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:?Set SMTP_USER in .env}
@@ -60,15 +59,12 @@ services:
       RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS: ${RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS:-60}
       RECRUITER_CODE_REQUEST_MAX_PER_HOUR: ${RECRUITER_CODE_REQUEST_MAX_PER_HOUR:-5}
       DEMO_DATA_RETENTION_DAYS: ${DEMO_DATA_RETENTION_DAYS:-30}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      SEED_DEMO_JOBS: "false"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
       SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:?Set SESSION_TOKEN_PEPPER in .env}
-      AI_PROVIDER: ${AI_PROVIDER:-mock}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      AI_PROVIDER: gemini
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-20}
@@ -110,7 +106,6 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_DEV_MAILBOX_URL: ""
-        VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:?Set SUPPORT_EMAIL in .env}
     restart: unless-stopped
     init: true
     read_only: true
@@ -150,12 +145,11 @@ services:
     read_only: true
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
-      CERTIFICATE_RELOAD_SECONDS: ${CERTIFICATE_RELOAD_SECONDS:-3600}
     volumes:
       - backend_socket:/run/jobtalk:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
-      - ${STAGING_HTPASSWD_PATH:-./secrets/nginx/.htpasswd}:/etc/nginx/auth/.htpasswd:ro
+      - ./secrets/nginx/.htpasswd:/etc/nginx/auth/.htpasswd:ro
     tmpfs:
       - /etc/nginx/conf.d:size=1m
       - /var/cache/nginx:size=16m

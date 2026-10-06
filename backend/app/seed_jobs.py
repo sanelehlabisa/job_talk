@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from . import models
 from .database import SessionLocal
+from .recruiters import DEMO_RECRUITER_EMAIL
 from .settings import get_settings
 from .services.criteria import normalize_target_profile
 
@@ -45,9 +46,9 @@ DEMO_JOBS = (
 
 def seed_jobs() -> int:
     settings = get_settings()
-    if not settings.demo_recruiter_email:
-        raise SystemExit("DEMO_RECRUITER_EMAIL is required to seed demo jobs")
-    email = str(settings.demo_recruiter_email).lower()
+    if settings.app_env == "production":
+        raise SystemExit("Demo job seeding is development-only; create production jobs in the app")
+    email = DEMO_RECRUITER_EMAIL
     created = 0
     with SessionLocal() as db:
         recruiter = db.scalar(select(models.User).where(models.User.email == email))

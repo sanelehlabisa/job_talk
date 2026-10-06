@@ -38,7 +38,6 @@ class Settings(BaseSettings):
         "http://localhost:5173,http://127.0.0.1:5173"
     )
     forwarded_allow_ips: str = "127.0.0.1"
-    tls_email: EmailStr | None = None
 
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
@@ -51,9 +50,7 @@ class Settings(BaseSettings):
     recruiter_code_request_cooldown_seconds: int = Field(default=60, ge=30, le=600)
     recruiter_code_request_max_per_hour: int = Field(default=5, ge=1, le=20)
     demo_data_retention_days: int = Field(default=30, ge=7, le=30)
-    demo_recruiter_email: EmailStr | None = None
     admin_email: EmailStr | None = None
-    seed_demo_jobs: bool = False
 
     database_url: str = "sqlite:///./job_talk.db"
     postgres_password: str | None = None
@@ -103,10 +100,6 @@ class Settings(BaseSettings):
             raise ValueError("CORS_ORIGINS must include PUBLIC_ORIGIN in production")
         if not self.forwarded_allow_ips.strip():
             raise ValueError("FORWARDED_ALLOW_IPS is required in production")
-        if self.tls_email is None:
-            raise ValueError("TLS_EMAIL is required in production")
-        if str(self.tls_email).lower().endswith("@example.com"):
-            raise ValueError("TLS_EMAIL must be replaced with a monitored address")
 
         if not self.smtp_host or not self.smtp_user or not self.smtp_password:
             raise ValueError("SMTP host and credentials are required in production")
@@ -114,8 +107,6 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_PASSWORD must be a strong non-placeholder value")
         if self.email_from is None or str(self.email_from).lower().endswith("@example.com"):
             raise ValueError("EMAIL_FROM must be a real sender address in production")
-        if self.demo_recruiter_email is not None or self.seed_demo_jobs:
-            raise ValueError("Demo recruiter and job seeding must be disabled in production")
 
         if is_weak_secret(self.session_token_pepper, 32):
             raise ValueError("SESSION_TOKEN_PEPPER must be a strong value of at least 32 characters")
