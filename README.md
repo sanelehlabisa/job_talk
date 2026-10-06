@@ -32,7 +32,7 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-The core hiring loop works locally. Completed work through JT-084 is merged into
+The core hiring loop works locally. Completed work through JT-087 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
 JT-077 adds production Nginx origin/host checks, request limits and security headers.
@@ -488,8 +488,9 @@ single-use login codes already use the database; no new tables are needed.
 ## Production environment contract
 
 Use one ignored `.env` per installation; `.env.example` is the only example.
-Both Compose files and operator scripts read `.env`. Its defaults are for local
-development. On the VM set the domain, admin email, secrets, SMTP and Gemini key
+Both Compose files and operator scripts read `.env`. The example contains blank
+values; fill them in for your installation. On the VM set the domain, admin email,
+secrets, SMTP and Gemini key
 as described in [production operations](docs/production-operations.md#prepare-a-release).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;

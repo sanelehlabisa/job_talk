@@ -1,7 +1,7 @@
 # Production Compose operations
 
-**Target:** `https://jobtalk.roventics.com`. The single `.env.example` includes
-development defaults and notes for the VM's `.env`. DNS, trusted
+**Target:** `https://jobtalk.roventics.com`. The single `.env.example` lists
+settings with blank values to fill in for the VM's `.env`. DNS, trusted
 TLS, real SMTP and the live hiring flow have not yet been verified on the VM.
 
 The production package keeps PostgreSQL and the built frontend on private

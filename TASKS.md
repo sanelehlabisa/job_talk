@@ -68,6 +68,11 @@ release. VM deployment and JT-060 user usability acceptance remain pending.
 The combined frontend production build passed before merging; conflicts were
 limited to documentation and resolved by retaining both tickets and checklists.
 
+**Merge approval (2026-10-06):** The user approved committing and pushing
+JT-085/JT-086/JT-087 to `master`, including the value-free `.env.example`.
+The private `.env` stays ignored. This merge does not change the pending VM
+deployment or JT-060 usability acceptance.
+
 ### JT-086 - Minimal deployment settings and contacts
 
 - [x] Keep one short comment per `.env` section and only app/admin, database,
@@ -76,8 +81,8 @@ limited to documentation and resolved by retaining both tickets and checklists.
   support and reuse `ADMIN_EMAIL` for certificates. Remove redundant overrides.
 - [x] Update Compose, setup scripts/docs and verify configuration, mail and build.
 
-**Status:** Complete on `fix/simple-environment` (2026-10-06), awaiting merge
-approval. The environment has 14 settings with one-line section comments. A
+**Status:** Complete on `fix/simple-environment` (2026-10-06), approved for
+`master`. The environment has 14 settings with one-line section comments. A
 48-byte random pepper is saved only in ignored `.env`; existing credentials were
 retained. Development and fictional production Compose checks, script syntax and
 frontend build passed. Actual local requests confirmed old-token rejection after
@@ -93,8 +98,8 @@ workflow is deferred. No new notification service or dashboard.
   VM for testing, using normal email login. Never auto-seed production jobs/users.
 - [x] Verify repeated seeding and startup preserve existing jobs/applications.
 
-**Status:** Complete on `fix/simple-environment` (2026-10-06), awaiting merge
-approval. Thirty focused SQLite checks passed across recruiter seeding, settings,
+**Status:** Complete on `fix/simple-environment` (2026-10-06), approved for
+`master`. Thirty focused SQLite checks passed across recruiter seeding, settings,
 SMTP and token boundaries. Repeated seeding preserves pending/rejected approval
 and existing drafts, creates no job/token, and cannot promote a candidate.
 Production admin seeding is explicit and still requires emailed-code login.
@@ -112,7 +117,7 @@ bypass. VM deployment and JT-060 user acceptance remain open.
   Mailpit, STARTTLS and implicit TLS without sending credentials in plain text.
 - [x] Verify both Compose configurations, frontend build and local email/API flow.
 
-**Status:** Complete on `fix/simple-environment` (2026-10-05), awaiting merge approval. The local
+**Status:** Complete on `fix/simple-environment` (2026-10-05), approved for `master` on 2026-10-06. The local
 ignored `.env` and example are grouped and simplified; existing credentials and
 AI settings are preserved. Eighteen isolated SMTP/settings checks passed.
 Example-only Compose checks confirmed single-host derivation, SMTP forwarding,
