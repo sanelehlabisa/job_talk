@@ -1,5 +1,13 @@
 # Production Compose operations
 
+**Shared VPS notice (2026-10-06):** The instructions below describe the existing
+standalone package. Do not use its public proxy/certificate startup commands on
+the VPS while Roventics already owns ports 80/443. The
+[four shared-edge tickets](../TASKS.md#p0---shared-vps-deployment-plan-review-only)
+are a plan for review, not implemented deployment instructions. They move public
+ports and TLS ownership to one VPS edge while preserving both apps and Job Talk's
+private backend socket. No VPS, DNS or certificate changes have been made here.
+
 **Target:** `https://jobtalk.roventics.com`. The single `.env.example` lists
 settings with blank values to fill in for the VM's `.env`. DNS, trusted
 TLS, real SMTP and the live hiring flow have not yet been verified on the VM.

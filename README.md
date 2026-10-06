@@ -32,6 +32,14 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
+**Shared VPS plan (review only, 2026-10-06):**
+[JT-088 through JT-091](TASKS.md#p0---shared-vps-deployment-plan-review-only)
+plan one shared Nginx/TLS owner for Roventics and Job Talk, the Job Talk subdomain
+and a Roventics product link. Implementation is not authorized yet. The current
+standalone Job Talk production proxy still binds 80/443; do not start it beside
+the existing Roventics listener. DNS prerequisite: add `jobtalk` A record pointing
+to `209.74.85.79` at the `roventics.com` DNS provider, after verifying the VPS IP.
+
 The core hiring loop works locally. Completed work through JT-087 is merged into
 the default branch, `master`, including the editable candidate form, discovery
 and Gemini ratings. JT-076 verifies token access, recruiter approval and logout.
