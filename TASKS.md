@@ -21,6 +21,10 @@ records implementation checks separately from the pending usability sign-off.
 
 ### JT-094 - Open the public app and remove staging configuration
 
+**Merge approved 2026-10-07:** The user approved merging and pushing to `master`.
+Pull the release and rebuild only the gateway to remove the deployed browser
+password prompt; existing database credentials and VPS certificates stay in place.
+
 - [x] Remove Nginx Basic Auth, the password-file mount and `htpasswd` preflight/setup.
 - [x] Keep recruiter approval, email-code login, API tokens and private data ownership.
 - [x] Remove duplicate production tuning overrides; require existing database/SMTP
