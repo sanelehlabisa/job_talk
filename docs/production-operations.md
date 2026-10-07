@@ -30,10 +30,19 @@ Value: 209.74.85.79
 TTL: default
 ```
 
+Add only the `jobtalk` record; leave existing `@`, `www`, mail and nameserver
+records unchanged. This address is the IPv4 address supplied for the VPS; confirm
+it in the VPS dashboard first. Use **A**, not AAAA: AAAA requires an IPv6 address
+and working IPv6 routing/listeners, which this deployment has not configured.
+Leave Job Talk's AAAA unset. If your DNS provider offers a proxy toggle, use
+DNS-only for this initial direct-to-VPS setup.
+
 Confirm the address belongs to this VPS and check for a conflicting AAAA record:
 
 ```sh
 dig NS roventics.com +short
+dig A jobtalk.roventics.com +short
+dig AAAA jobtalk.roventics.com +short
 getent ahostsv4 jobtalk.roventics.com
 ```
 
@@ -74,8 +83,8 @@ Keep it until both domains and renewal have passed. Use the separate
 
 ## 3. Clone or update each repository independently
 
-These changes are on feature branches awaiting merge approval. Use the branch
-names below until merged; then use `master`. For the existing VPS, set
+Deploy both repositories from `master`; the user approved merging this revision.
+For the existing VPS, set
 `roventics_repo` to the Compose working directory reported in step 2. Reuse that
 checkout so its `backend/.env` and `backend/private` mounts remain unchanged.
 Likewise reuse an existing Job Talk checkout if present.
@@ -86,8 +95,8 @@ Only clone a repository if it is not already installed:
 mkdir -p "$HOME/apps"
 roventics_repo="$HOME/apps/roventics" # Existing VPS: use inspected directory instead.
 jobtalk_repo="$HOME/apps/job_talk"
-git clone --branch fix/jobtalk-vhost https://github.com/sanelehlabisa/roventics.git "$roventics_repo"
-git clone --branch fix/existing-roventics-edge https://github.com/sanelehlabisa/job_talk.git "$jobtalk_repo"
+git clone --branch master https://github.com/sanelehlabisa/roventics.git "$roventics_repo"
+git clone --branch master https://github.com/sanelehlabisa/job_talk.git "$jobtalk_repo"
 ```
 
 For existing checkouts, preserve local files and inspect changes before pulling:
@@ -97,10 +106,10 @@ git -C "$roventics_repo" status --short
 git -C "$jobtalk_repo" status --short
 git -C "$roventics_repo" fetch origin
 git -C "$jobtalk_repo" fetch origin
-git -C "$roventics_repo" switch fix/jobtalk-vhost
-git -C "$jobtalk_repo" switch fix/existing-roventics-edge
-git -C "$roventics_repo" pull --ff-only
-git -C "$jobtalk_repo" pull --ff-only
+git -C "$roventics_repo" switch master
+git -C "$jobtalk_repo" switch master
+git -C "$roventics_repo" pull --ff-only origin master
+git -C "$jobtalk_repo" pull --ff-only origin master
 ```
 
 Keep each repository's ignored environment files. Job Talk's VM `.env` must use
@@ -167,6 +176,12 @@ certificate will not validate until step 6 completes; the root site retains
 its existing valid certificate.
 
 ## 6. Extend the existing certificate safely
+
+Both configured HTTPS sites use the same certificate at
+`/etc/letsencrypt/live/roventics.com/`, loaded only by the public Roventics Nginx.
+Their app containers do not need copies of its private key. The commands below
+extend its covered names to include Job Talk; this does not automatically cover
+future subdomains or other apps.
 
 Certbot requires every domain already on a certificate to be repeated when it is
 replaced. Read the `Domains:` line from `sudo certbot certificates`. If the
@@ -246,7 +261,8 @@ Ordinary Job Talk updates do not rebuild or restart Roventics:
 
 ```sh
 cd "$jobtalk_repo"
-git pull --ff-only
+git switch master
+git pull --ff-only origin master
 docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --wait
 ```
 
@@ -266,3 +282,4 @@ remain operator acceptance checks.
 
 References: [Docker port publishing](https://docs.docker.com/engine/network/port-publishing/)
 and [Certbot renewal hooks](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates).
+DNS record types: [A uses IPv4; AAAA uses IPv6](https://developers.cloudflare.com/dns/manage-dns-records/reference/dns-record-types/#a-and-aaaa).

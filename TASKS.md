@@ -25,10 +25,12 @@ routes the Job Talk hostname over the minimal `roventics_proxy` network. The VPS
 existing Certbot installation owns HTTPS. Preserve existing `.env` files,
 certificates and other applications. No VPS changes have been made by Codex.
 
-**Previous revision merged 2026-10-06:** The approved host-Nginx revision is on
-`master`. The corrected existing-Docker-proxy revision is on Job Talk's
-`fix/existing-roventics-edge` and Roventics' `fix/jobtalk-vhost`; it awaits new
-merge approval. Live DNS, certificates and public launch checks remain pending.
+**Merge approved 2026-10-07:** The user approved merging the corrected
+existing-Docker-proxy revision from Job Talk's `fix/existing-roventics-edge` and
+Roventics' `fix/jobtalk-vhost` into each repository's `master`. Deployment commands
+now clone/pull `master`, explain the IPv4 A record and shared certificate, and
+include the Roventics frontend update. The next work is the operator VPS sequence
+below; live DNS, certificates and public launch checks remain pending.
 
 ### JT-088 - Keep Job Talk Compose independent
 

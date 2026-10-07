@@ -40,6 +40,10 @@ checks. The VPS's existing Certbot installation owns HTTPS renewal. See the
 [server commands](docs/production-operations.md)
 and [deployment tickets](TASKS.md#p0---simple-vps-deployment). Existing environment
 files are unchanged; live DNS and server setup remain operator steps.
+Deploy both repositories from `master`. The guide includes the Roventics proxy
+and product-card updates plus one certificate covering both site names. Add only
+the `jobtalk` A record using the confirmed VPS IPv4 address; leave AAAA unset for
+this IPv4 setup and preserve the root site's DNS records.
 
 The core hiring loop works locally. Completed work through JT-087 is merged into
 the default branch, `master`, including the editable candidate form, discovery
