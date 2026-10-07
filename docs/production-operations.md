@@ -141,7 +141,7 @@ docker network inspect roventics_proxy >/dev/null 2>&1 || docker network create 
 
 cd "$jobtalk_repo"
 mkdir -p secrets/nginx
-chmod 700 secrets/nginx
+#chmod 700 secrets/nginx
 # A previous failed bind mount may have created an empty directory here.
 if [ -d secrets/nginx/.htpasswd ]; then rmdir secrets/nginx/.htpasswd; fi
 test -f secrets/nginx/.htpasswd || htpasswd -cB secrets/nginx/.htpasswd staging

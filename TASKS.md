@@ -21,6 +21,10 @@ records implementation checks separately from the pending usability sign-off.
 
 ### JT-093 - Accept the existing production database password
 
+**Merge approved 2026-10-07:** The user requested committing, pushing and merging
+all completed work into `master`, including the local deployment-guide edit.
+The uploaded server transcript remains local diagnostic material.
+
 - [x] Remove the application's 16-character database password minimum at the
   user's request; retain missing/placeholder rejection and credential consistency.
 - [x] Preserve environment files and the initialized PostgreSQL database; changing
