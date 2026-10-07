@@ -19,6 +19,16 @@ records implementation checks separately from the pending usability sign-off.
 
 ## P0 - Simple VPS deployment
 
+### JT-093 - Accept the existing production database password
+
+- [x] Remove the application's 16-character database password minimum at the
+  user's request; retain missing/placeholder rejection and credential consistency.
+- [x] Preserve environment files and the initialized PostgreSQL database; changing
+  only `.env` does not rotate an existing database role's password.
+- [x] All 24 settings tests pass in an isolated container with disposable SQLite,
+  including shorter valid credentials and missing/placeholder rejection.
+- [ ] Operator retries the production settings check and startup on the VPS.
+
 ### JT-092 - Recover the first VPS startup attempt
 
 **Merge approved 2026-10-07:** The user approved pushing and merging the tested

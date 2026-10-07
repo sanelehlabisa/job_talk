@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import pytest
 from pydantic import ValidationError
 
@@ -74,6 +76,24 @@ def test_unsafe_production_settings_are_rejected(name, value):
 def test_database_password_values_must_match():
     with pytest.raises(ValidationError, match="POSTGRES_PASSWORD must match"):
         production_settings(postgres_password="different-database-secret-value")
+
+
+def test_existing_database_password_has_no_app_owned_minimum_length():
+    credential = "a7!mP2$q"
+    settings = production_settings(
+        database_url=f"postgresql+psycopg://job_talk:{quote(credential, safe='')}@postgres:5432/job_talk",
+        postgres_password=credential,
+    )
+    assert settings.postgres_password == credential
+
+
+@pytest.mark.parametrize("credential", ["", "   ", "postgres", "password", "replace-with-database-password"])
+def test_database_still_rejects_missing_or_placeholder_credentials(credential):
+    with pytest.raises(ValidationError, match="database password must be a non-empty, non-placeholder"):
+        production_settings(
+            database_url=f"postgresql+psycopg://job_talk:{quote(credential, safe='')}@postgres:5432/job_talk",
+            postgres_password=credential,
+        )
 
 
 def test_smtp_provider_password_has_no_app_owned_minimum_length():

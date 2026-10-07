@@ -517,7 +517,7 @@ in `.env`. FastAPI validates the derived settings and refuses to start unless:
 - `ALLOWED_HOSTS` contains the configured subdomain;
 - `CORS_ORIGINS` contains the public origin;
 - SMTP host, credentials, and sender address are non-placeholder values;
-- PostgreSQL uses a non-placeholder password of at least 16 characters; and
+- PostgreSQL uses a non-empty, non-placeholder password matching the existing database; and
 - `SESSION_TOKEN_PEPPER` is a non-placeholder value of at least 32 characters.
 
 Email uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`

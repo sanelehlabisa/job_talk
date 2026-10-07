@@ -117,8 +117,8 @@ class Settings(BaseSettings):
         if not database.drivername.startswith("postgresql"):
             raise ValueError("Production DATABASE_URL must use PostgreSQL")
         database_password = database.password or ""
-        if is_weak_secret(database_password, 16):
-            raise ValueError("Production database password must be a strong value of at least 16 characters")
+        if is_weak_secret(database_password.strip(), 1):
+            raise ValueError("Production database password must be a non-empty, non-placeholder value")
         if self.postgres_password and self.postgres_password != database_password:
             raise ValueError("POSTGRES_PASSWORD must match the password in DATABASE_URL")
         if self.ai_provider == "openai" and (
