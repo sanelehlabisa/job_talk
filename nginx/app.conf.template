@@ -69,9 +69,6 @@ server {
     # Text-only chat and forms; the application has no uploads.
     client_max_body_size 128k;
 
-    auth_basic "Job Talk private staging";
-    auth_basic_user_file /etc/nginx/auth/.htpasswd;
-
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -84,16 +81,13 @@ server {
     add_header Cache-Control $jobtalk_cache_control always;
 
     location = /proxy-health {
-        auth_basic off;
         access_log off;
         default_type text/plain;
         return 200 "ok\n";
     }
 
     location /api/ {
-        # The API authenticates scoped Bearer tokens. Requiring HTTP Basic here
-        # would reject every signed-in user because both use Authorization.
-        auth_basic off;
+        # Private API operations authenticate scoped Bearer tokens in FastAPI.
         if ($jobtalk_bad_origin) { return 403; }
         if ($jobtalk_foreign_site) { return 403; }
         if ($jobtalk_bad_method) { return 405; }

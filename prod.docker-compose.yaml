@@ -49,27 +49,18 @@ services:
       # Only Nginx shares this socket; trust its sanitized forwarded headers.
       FORWARDED_ALLOW_IPS: "*"
       SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
-      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_PORT: ${SMTP_PORT:?Set SMTP_PORT in .env}
       SMTP_USER: ${SMTP_USER:?Set SMTP_USER in .env}
       SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP_PASSWORD in .env}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_SECURE: ${SMTP_SECURE:?Set SMTP_SECURE in .env}
       EMAIL_FROM: ${EMAIL_FROM:?Set EMAIL_FROM in .env}
-      RECRUITER_CODE_TTL_MINUTES: ${RECRUITER_CODE_TTL_MINUTES:-10}
-      RECRUITER_CODE_MAX_ATTEMPTS: ${RECRUITER_CODE_MAX_ATTEMPTS:-5}
-      RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS: ${RECRUITER_CODE_REQUEST_COOLDOWN_SECONDS:-60}
-      RECRUITER_CODE_REQUEST_MAX_PER_HOUR: ${RECRUITER_CODE_REQUEST_MAX_PER_HOUR:-5}
-      DEMO_DATA_RETENTION_DAYS: ${DEMO_DATA_RETENTION_DAYS:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-24}
       SESSION_TOKEN_PEPPER: ${SESSION_TOKEN_PEPPER:?Set SESSION_TOKEN_PEPPER in .env}
       AI_PROVIDER: gemini
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
-      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-20}
-      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-3000}
-      AI_MAX_CALLS_PER_CHAT: ${AI_MAX_CALLS_PER_CHAT:-12}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      GEMINI_MODEL: ${GEMINI_MODEL:?Set GEMINI_MODEL in .env}
     command:
       - uvicorn
       - app.main:app
@@ -148,7 +139,6 @@ services:
       - "127.0.0.1:8081:80"
     volumes:
       - backend_socket:/run/jobtalk:ro
-      - ./secrets/nginx/.htpasswd:/etc/nginx/auth/.htpasswd:ro
     tmpfs:
       - /etc/nginx/conf.d:size=2m
       - /var/cache/nginx:size=16m

@@ -19,6 +19,23 @@ records implementation checks separately from the pending usability sign-off.
 
 ## P0 - Simple VPS deployment
 
+### JT-094 - Open the public app and remove staging configuration
+
+- [x] Remove Nginx Basic Auth, the password-file mount and `htpasswd` preflight/setup.
+- [x] Keep recruiter approval, email-code login, API tokens and private data ownership.
+- [x] Remove duplicate production tuning overrides; require existing database/SMTP
+  credentials from `.env` and document how to update a stored database password.
+- [x] Require explicit values for every production Compose environment substitution.
+  Compose accepts a fully explicit disposable environment and rejects each missing
+  SMTP port/security setting and Gemini key/model with the relevant variable name.
+- [x] Document reusing the existing VPS certificate and skipping issuance when it
+  already covers Job Talk. Keep certificate ownership in the Roventics proxy.
+- [x] Update current setup/privacy documentation and agent instructions.
+- [x] Isolated HTTPS checks pass for public HTML/assets without a browser challenge,
+  private API token rejection, guest/recruiter login, logout, rate limits and the
+  existing Roventics routes. Test data/certificates were disposable; no live SMTP/AI.
+- [ ] Operator deploys the gateway update and confirms the app opens on the subdomain.
+
 ### JT-093 - Accept the existing production database password
 
 **Merge approved 2026-10-07:** The user requested committing, pushing and merging

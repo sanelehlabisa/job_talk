@@ -31,9 +31,9 @@ command -v docker >/dev/null 2>&1 || fail "Docker is not installed"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is not available"
 
 for key in \
-    APP_DOMAIN ADMIN_EMAIL SMTP_HOST SMTP_USER SMTP_PASSWORD \
+    APP_DOMAIN ADMIN_EMAIL SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASSWORD \
     EMAIL_FROM POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD \
-    SESSION_TOKEN_PEPPER GEMINI_API_KEY
+    SESSION_TOKEN_PEPPER GEMINI_API_KEY GEMINI_MODEL
 do
     require_value "$key"
 done
@@ -48,7 +48,6 @@ case "$domain" in
     *.*) ;;
     *) fail "APP_DOMAIN must be a fully qualified subdomain" ;;
 esac
-test -f ./secrets/nginx/.htpasswd || fail "Create secrets/nginx/.htpasswd for private staging first"
 docker network inspect roventics_proxy >/dev/null 2>&1 || fail "Create the roventics_proxy network before starting production"
 test "${#session_pepper}" -ge 32 || fail "SESSION_TOKEN_PEPPER must contain at least 32 characters"
 

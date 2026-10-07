@@ -180,7 +180,7 @@ message instead of pretending the session was revoked. Email codes are short-liv
 and single-use even under simultaneous verification requests; the code itself
 cannot authorize API calls. Nginx is the only production service with host ports,
 and requests to private API routes still require app authentication through it.
-The staging webpage password is an extra webpage gate, not the API's data guard.
+The webpage opens directly; recruiter email-code login and API tokens protect private data.
 See [privacy and access details](docs/privacy-and-safety.md).
 
 **Checked 2026-10-04:** 84 focused backend checks passed across isolated SQLite
@@ -526,14 +526,17 @@ and `EMAIL_FROM`. `SMTP_SECURE=false` supports STARTTLS (usually port 587);
 Local Mailpit uses port 1025, `false`, and empty user/password fields.
 Use the SMTP provider's actual password unchanged; Job Talk rejects blank/example
 credentials but does not impose a password length on external mail providers.
+Production Compose requires every installation value explicitly, including
+`SMTP_PORT`, `SMTP_SECURE`, `GEMINI_API_KEY` and `GEMINI_MODEL`; no `.env` fallback
+values are supplied. Leave your working database credentials unchanged.
 For first-deployment errors, see [startup recovery](docs/production-operations.md#recovering-the-reported-failed-deployment).
 
 The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.
 
 Support links use `info@roventics.com`. Certificate registration reuses
-`ADMIN_EMAIL`; there is no separate support or TLS email variable. Private staging
-uses `secrets/nginx/.htpasswd`. Certbot and its renewal timer run on the VM.
+`ADMIN_EMAIL`; there is no separate support or TLS email variable. No Nginx
+username/password or `.htpasswd` file is needed. Certbot and renewal run on the VM.
 Generate a unique session pepper on each installation, for example with
 `python -c "import secrets; print(secrets.token_urlsafe(48))"`, and save it only
 in the ignored `.env`. Replacing it invalidates existing sessions and login codes.
@@ -560,8 +563,8 @@ Rotating `SESSION_TOKEN_PEPPER` invalidates existing sessions. Replace it in the
 VM environment file and recreate only the backend service; users then sign in
 again. The frontend image does not need rebuilding.
 
-To rotate the PostgreSQL password, first take a backup, change the `job_talk`
-database role password in PostgreSQL, update `POSTGRES_PASSWORD` in `.env`
+To rotate the PostgreSQL password, first take a backup, change the role identified
+by `POSTGRES_USER` in PostgreSQL, update `POSTGRES_PASSWORD` in `.env`
 (Compose derives `DATABASE_URL`), then recreate the backend service. The
 production commands are in [production operations](docs/production-operations.md).
 
@@ -581,7 +584,7 @@ and database volume remain `job_talk_prod` / `job_talk_prod_job_talk_data`.
 docker compose --env-file .env -f prod.docker-compose.yaml up -d --build
 ```
 
-Create the private staging password file and `roventics_proxy` network before
+Create the `roventics_proxy` network before
 first startup as described in [production operations](docs/production-operations.md).
 The existing `roventics-nginx-1` container forwards the Job Talk hostname to the
 gateway's private network alias. Other services and data remain owned by their
@@ -590,8 +593,8 @@ respective Compose projects.
 One existing `.env` supplies the app settings. Job Talk owns no certificate
 volume or renewal service and requires no additional environment file.
 API routes retain backend Bearer-token, approval and ownership checks. The
-staging webpage password is separate from those checks. Deployment and final
-usability sign-off remain pending operator/user verification.
+webpage opens without a browser username/password dialog. The user reports the
+subdomain is reachable; full live hiring-flow acceptance remains pending.
 
 ## Database migrations and recovery
 
@@ -817,11 +820,10 @@ and branding remain deferred.
 
 ## Deployment goal: jobtalk.roventics.com
 
-The next milestone is the user's local usability acceptance. Deployment to a
-user-owned VM at `https://jobtalk.roventics.com` waits for that acceptance and an
-explicit request to resume. The production package is prepared and locally
-checked. Its staging webpage remains password-gated while the live domain,
-email and certificate are verified. The experiment then exposes
+The user reports the app is reachable on the VM at `https://jobtalk.roventics.com`.
+The temporary proxy password gate is removed at their request. Verify live email
+login, job publication, candidate submission and comparison before inviting users.
+The experiment exposes
 published job pages and scoped guest applications while recruiter data stays
 behind authenticated ownership checks.
 

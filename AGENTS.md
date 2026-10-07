@@ -223,8 +223,14 @@ Never send SMTP credentials without encryption. Local Mailpit needs no credentia
 
 Use one short comment per `.env` section. Keep only app/admin, database, session
 pepper, SMTP and Gemini settings there. Support links use `info@roventics.com`;
-certificate registration reuses `ADMIN_EMAIL`. Keep staging paths and renewal
-defaults in code/Compose. Generate private random session peppers, never commit them.
+certificate registration reuses `ADMIN_EMAIL`. The webpage opens directly; do not
+reintroduce proxy Basic Auth, a staging password file or extra login credentials.
+Production credentials come from `.env`; never substitute development passwords.
+Production Compose environment substitutions must require explicit values; do
+not add fallback values for SMTP, Gemini or other installation settings. Reuse
+the existing VPS certificate; extend its names only when Job Talk is not covered.
+Keep session/AI tuning defaults in backend code instead of duplicate production
+Compose overrides. Generate private random session peppers, never commit them.
 Development startup seeds only `recruiter@example.com` if missing; preserve
 existing approvals and jobs. Production seeds nothing automatically. The explicit
 `python -m app.recruiters seed` operator command creates the configured admin

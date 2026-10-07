@@ -52,6 +52,29 @@ Start the backend only after restore succeeds. Verify the health endpoint,
 recruiter login, job count, candidate count, and one known record before deleting
 the temporary Compose project and volume.
 
+## Update an existing database password
+
+`POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` come from your `.env`.
+The PostgreSQL image only initializes them when its data directory is empty.
+An existing database retains its stored password across container rebuilds.
+
+If you changed `.env` and see `password authentication failed`, connect through
+the database container's local socket, using its configured role:
+
+```sh
+docker compose --env-file .env -f prod.docker-compose.yaml exec postgres \
+  sh -c 'exec psql -U "$POSTGRES_USER" -d postgres'
+```
+
+At the psql prompt run `\password`, enter the same password now saved in `.env`
+twice (input is hidden), then `\q`. Do not include `.env` quoting characters.
+This updates the current role without deleting data. If the local login fails,
+stop and inspect that error; do not reset the database or remove its volume.
+Then run the normal production startup command and check `/api/ready`.
+
+For a planned rotation, take a backup first and update both the stored role
+password and `.env` together. Keep the existing working values during deployment.
+
 ## Upgrade and rollback
 
 1. Record the deployed Git commit and current database revision with

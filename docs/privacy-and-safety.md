@@ -33,8 +33,8 @@ and admin applicant views expose submitted snapshots, not full candidate chats.
 
 Job listings, guest-session creation, code requests/verification, health and
 anonymous visit counting are intentionally public endpoints. They do not list
-candidate chats or contact details. The staging HTTP Basic password applies to
-the webpage; API authorization remains the backend's responsibility.
+candidate chats or contact details. The webpage is public and opens without HTTP
+Basic authentication; private API authorization remains the backend's responsibility.
 
 **Verified 2026-10-04 (JT-076):** Every private route was exercised with missing,
 forged, expired and logged-out tokens and returned 401. Approval revocation,
@@ -121,8 +121,8 @@ requests. The backend also limits recruiter email codes per approved address.
 HTTPS includes a Content Security Policy, HSTS and framing restrictions; API
 responses are not cached. Proxy access logs exclude query strings and credentials.
 See [production request policies and their isolated check](production-operations.md#proxy-request-policies-jt-077).
-Keep the staging webpage password enabled until the operator is ready to monitor
-the support inbox.
+The temporary browser password gate was removed at the user's request. Monitor
+the support inbox during the public experiment.
 
 Application logs must contain operation names, record IDs when needed, status,
 and exception types only. Do not add message text, names, contact details,

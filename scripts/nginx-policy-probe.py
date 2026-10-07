@@ -1,5 +1,4 @@
 """Run only through check-nginx-policies.ps1 against its disposable database."""
-import base64
 from datetime import datetime, timedelta, timezone
 import http.client
 import json
@@ -16,7 +15,6 @@ assert os.environ.get("JOBTALK_POLICY_CHECK") == "1", "Isolated fixture required
 assert make_url(os.environ["DATABASE_URL"]).database == "jt077_policy_test"
 DOMAIN = "jobtalk.roventics.com"
 ORIGIN = f"https://{DOMAIN}"
-BASIC = "Basic " + base64.b64encode(b"staging:policy-staging-password").decode()
 
 
 class EdgeTLS(http.client.HTTPSConnection):
@@ -102,8 +100,8 @@ _, headers, _ = request("/", [301], tls=False)
 assert headers["Location"] == ORIGIN + "/"
 wrong_host()
 wrong_host(tls=False)
-request("/", [401])
-_, headers, html = request("/", [200], headers={"Authorization": BASIC})
+_, headers, html = request("/", [200])
+assert "www-authenticate" not in {key.lower() for key in headers}
 assert "script-src 'self'" in headers["Content-Security-Policy"]
 assert "connect-src 'self'" in headers["Content-Security-Policy"]
 assert headers["X-Frame-Options"] == "DENY"
@@ -111,11 +109,12 @@ assert "max-age=" in headers["Strict-Transport-Security"]
 assets = re.findall(r'(?:src|href)="(/assets/[^" ]+)"', html.decode())
 assert assets, "Production frontend assets missing"
 for asset in assets:
-    request(asset, [200], headers={"Authorization": BASIC})
+    _, asset_headers, _ = request(asset, [200])
+    assert "www-authenticate" not in {key.lower() for key in asset_headers}
 for path in ("/.env", "/.git/config", "/api/.env", "/docs", "/api/docs", "/openapi.json"):
     request(path, [404])
 request("/", [405], method="POST")
-print("PASS: HTTPS, staging gate, built assets, security headers and hidden paths")
+print("PASS: HTTPS, public app/assets without password prompts, security headers and hidden paths")
 
 for origin in ("https://foreign.invalid", "https://other.roventics.com", "null", "http://" + DOMAIN):
     request("/api/auth/guest", [403], method="POST", headers={"Origin": origin})

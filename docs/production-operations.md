@@ -115,21 +115,18 @@ git -C "$jobtalk_repo" pull --ff-only origin master
 Keep each repository's ignored environment files. Job Talk's VM `.env` must use
 `APP_DOMAIN=jobtalk.roventics.com` plus its real database, SMTP, session and
 Gemini values.
+Every production Compose environment reference requires an explicit non-empty
+value. In particular, fill `SMTP_PORT`, `SMTP_SECURE` (`true` or `false`) and
+`GEMINI_MODEL` with the settings you actually use; there are no silent fallbacks.
 For a fresh Job Talk clone only, copy `.env.example` to `.env` and fill its blank
 values before continuing. For a fresh Roventics installation, supply its own
 `backend/.env` and `backend/private` files. Never overwrite the live copies.
-The commands require Docker Compose v2, Certbot and `htpasswd` (Ubuntu package
-`apache2-utils`). The existing Roventics project must be named `roventics`, with
+The commands require Docker Compose v2 and Certbot. The existing Roventics
+project must be named `roventics`, with
 `roventics-frontend-1` and `roventics-backend-1`; the proxy uses these existing
 names so neither app container needs a restart for the proxy change.
 
 ## 4. Prepare Job Talk and the private proxy network
-
-On Ubuntu, install the missing staging-password utility once:
-
-```sh
-sudo apt-get update && sudo apt-get install -y apache2-utils
-```
 
 The subshell below stops at the first failure. Do not continue with proxy or TLS
 steps unless the app's readiness check succeeds.
@@ -140,12 +137,6 @@ set -eu
 docker network inspect roventics_proxy >/dev/null 2>&1 || docker network create roventics_proxy
 
 cd "$jobtalk_repo"
-mkdir -p secrets/nginx
-#chmod 700 secrets/nginx
-# A previous failed bind mount may have created an empty directory here.
-if [ -d secrets/nginx/.htpasswd ]; then rmdir secrets/nginx/.htpasswd; fi
-test -f secrets/nginx/.htpasswd || htpasswd -cB secrets/nginx/.htpasswd staging
-chmod 644 secrets/nginx/.htpasswd
 umask 022
 sh scripts/production-preflight.sh
 docker compose --env-file .env -f prod.docker-compose.yaml build backend
@@ -193,6 +184,11 @@ certificate will not validate until step 6 completes; the root site retains
 its existing valid certificate.
 
 ## 6. Extend the existing certificate safely
+
+Reuse the VPS's existing certificate. First run `sudo certbot certificates`: if
+the `roventics.com` certificate already covers `jobtalk.roventics.com` and is
+valid, skip issuance in this section and keep that certificate. The Job Talk
+stack neither generates a certificate nor runs its own Certbot service.
 
 Both configured HTTPS sites use the same certificate at
 `/etc/letsencrypt/live/roventics.com/`, loaded only by the public Roventics Nginx.
@@ -268,7 +264,9 @@ values. Use your actual SMTP password unchanged, not a padded or invented value.
 Quote literal passwords containing `$` in `.env` with single quotes to prevent
 Compose interpolation. No environment files were modified by this fix.
 
-Retry step 4 after updating the code and installing `apache2-utils`. Then verify
+The temporary staging password gate has since been removed: no `htpasswd`
+utility, password file or browser Basic Auth login is needed. Retry step 4 after
+updating the code. Then verify
 DNS in step 1 from the VPS before certificate issuance. The uploaded output
 shows the Roventics proxy configuration already passes `nginx -t`; do not
 recreate it again solely to fix a crashing Job Talk backend. Once Job Talk is
@@ -277,20 +275,34 @@ and 7 with the corrected Certbot commands. Old stopped Job Talk proxy/renewal
 containers reported as orphans do not explain this backend validation error;
 leave their volumes alone.
 
+Production database credentials are required from `.env`; there are no default
+production database usernames or passwords. PostgreSQL uses these values to
+initialize a new database only. For an existing volume, changing `.env` does not
+change the stored role password. If those values diverge, follow
+[database password recovery](database-operations.md#update-an-existing-database-password)
+instead of deleting the volume. Production session/AI tuning uses backend defaults
+without duplicate Compose overrides; `.env` keeps only installation settings.
+
 ## 8. Final browser checks
 
 1. Open `https://roventics.com` and its existing inquiry flow.
-2. Open `https://jobtalk.roventics.com` with the staging password.
+2. Open `https://jobtalk.roventics.com` directly; no browser password prompt should appear.
 3. Sign in as the approved recruiter through email code.
 4. Create and publish a job.
 5. Apply without an account and submit consent/contact details.
 6. Confirm candidate comparison and logout.
 
-Publish the Roventics card only after this passes. For public Job Talk launch,
-remove only the two server-level `auth_basic` lines from
-`job_talk/nginx/app.conf.template`, rebuild Job Talk's gateway and verify again.
-API token, approval, ownership and guest-scope checks remain required.
-Rebuild the gateway with the normal Job Talk startup command. Then publish the
+Publish the Roventics card only after this passes. API token, approval, ownership
+and guest-scope checks remain required. To remove an old deployed browser gate,
+rebuild only Job Talk's gateway after pulling the release containing this change:
+
+```sh
+cd "$jobtalk_repo"
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --no-deps gateway
+curl --fail -I https://jobtalk.roventics.com/
+```
+
+Expect HTTP 200 without `WWW-Authenticate`. Then publish the
 updated website card without restarting its backend:
 
 ```sh

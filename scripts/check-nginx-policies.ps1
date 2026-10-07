@@ -24,11 +24,14 @@ POSTGRES_PASSWORD=isolated-policy-database-password
 APP_DOMAIN=jobtalk.roventics.com
 SESSION_TOKEN_PEPPER=isolated-policy-session-pepper-more-than-32-characters
 SMTP_HOST=smtp.policy.invalid
+SMTP_PORT=587
+SMTP_SECURE=false
 SMTP_USER=policy-check
 SMTP_PASSWORD=isolated-policy-mail-password
 EMAIL_FROM=policy-check@roventics.com
 ADMIN_EMAIL=policy-check@roventics.com
-GEMINI_API_KEY=
+GEMINI_API_KEY=isolated-placeholder-never-used
+GEMINI_MODEL=gemini-3.5-flash-lite
 "@ | Set-Content -Encoding ASCII "$fixture/test.env"
     $fixtureMount = $fixture.Replace('\', '/')
     @"
@@ -47,9 +50,6 @@ services:
   gateway:
     image: job-talk-gateway:proxy-check
     ports: !override []
-    volumes: !override
-      - backend_socket:/run/jobtalk:ro
-      - '${fixtureMount}/htpasswd:/etc/nginx/auth/.htpasswd:ro'
   roventics_frontend:
     image: roventics-frontend:proxy-check
     build: '$((Join-Path $roventics 'frontend').Replace('\', '/'))'
@@ -89,9 +89,6 @@ networks:
     if (-not $SkipBuild) {
         Compose @('build', 'backend', 'frontend', 'gateway', 'roventics_frontend')
     }
-    $hash = docker run --rm --entrypoint openssl job-talk-backend:proxy-check passwd -apr1 policy-staging-password
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create isolated staging password' }
-    "staging:$hash" | Set-Content -Encoding ASCII "$fixture/htpasswd"
     docker run --rm --user 0 --entrypoint sh -v "${fixture}:/fixtures" job-talk-backend:proxy-check -c 'openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=roventics.com -addext subjectAltName=DNS:roventics.com,DNS:jobtalk.roventics.com -keyout /fixtures/certificates/live/roventics.com/privkey.pem -out /fixtures/certificates/live/roventics.com/fullchain.pem 2>/dev/null'
     if ($LASTEXITCODE -ne 0) { throw 'Could not create disposable certificate' }
     Compose @('up', '-d', '--wait')
