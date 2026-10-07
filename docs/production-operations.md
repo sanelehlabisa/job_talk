@@ -125,18 +125,35 @@ names so neither app container needs a restart for the proxy change.
 
 ## 4. Prepare Job Talk and the private proxy network
 
+On Ubuntu, install the missing staging-password utility once:
+
 ```sh
+sudo apt-get update && sudo apt-get install -y apache2-utils
+```
+
+The subshell below stops at the first failure. Do not continue with proxy or TLS
+steps unless the app's readiness check succeeds.
+
+```sh
+(
+set -eu
 docker network inspect roventics_proxy >/dev/null 2>&1 || docker network create roventics_proxy
 
 cd "$jobtalk_repo"
 mkdir -p secrets/nginx
 chmod 700 secrets/nginx
+# A previous failed bind mount may have created an empty directory here.
+if [ -d secrets/nginx/.htpasswd ]; then rmdir secrets/nginx/.htpasswd; fi
 test -f secrets/nginx/.htpasswd || htpasswd -cB secrets/nginx/.htpasswd staging
 chmod 644 secrets/nginx/.htpasswd
 umask 022
 sh scripts/production-preflight.sh
+docker compose --env-file .env -f prod.docker-compose.yaml build backend
+docker compose --env-file .env -f prod.docker-compose.yaml run --rm --no-deps \
+  --entrypoint python backend -c 'from app.settings import Settings; Settings(); print("Backend settings valid")'
 docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --wait
 curl --fail -H 'Host: jobtalk.roventics.com' http://127.0.0.1:8081/api/ready
+)
 ```
 
 Seed the configured admin once. This keeps normal emailed-code login:
@@ -187,9 +204,13 @@ Certbot requires every domain already on a certificate to be repeated when it is
 replaced. Read the `Domains:` line from `sudo certbot certificates`. If the
 current certificate contains only `roventics.com`, run:
 
+The reported VPS certificate uses ECDSA, so preserve it explicitly with
+`--key-type ecdsa`. If your inspected certificate uses RSA, use `--key-type rsa`
+instead. Check `certbot --version` and `sudo certbot certificates` first.
+
 ```sh
 sudo certbot certonly --webroot -w /var/www/certbot \
-  --cert-name roventics.com --expand \
+  --cert-name roventics.com --key-type ecdsa --expand \
   -d roventics.com -d jobtalk.roventics.com
 ```
 
@@ -197,7 +218,7 @@ If it already contains `www.roventics.com`, preserve it:
 
 ```sh
 sudo certbot certonly --webroot -w /var/www/certbot \
-  --cert-name roventics.com --expand \
+  --cert-name roventics.com --key-type ecdsa --expand \
   -d roventics.com -d www.roventics.com -d jobtalk.roventics.com
 ```
 
@@ -229,8 +250,32 @@ docker exec roventics-nginx-1 nginx -t
 docker exec roventics-nginx-1 nginx -s reload
 EOF
 sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-roventics-nginx.sh
-sudo certbot renew --dry-run --run-deploy-hooks
+sudo certbot renew --cert-name roventics.com --dry-run && \
+  sudo /etc/letsencrypt/renewal-hooks/deploy/reload-roventics-nginx.sh
 ```
+
+This separately tests renewal and the reload hook, and works with the older VPS
+Certbot that rejects `--run-deploy-hooks`. If reusing a differently named hook,
+use its path. Real successful renewals execute the installed deploy hook.
+
+### Recovering the reported failed deployment
+
+The 2026-10-07 VPS output identified four blockers: backend SMTP password length
+validation, missing `htpasswd`, unresolved `jobtalk.roventics.com`, and Certbot
+key-type/CLI-version mismatch. The SMTP validator now accepts provider credentials
+without an arbitrary minimum length; it still rejects empty and placeholder
+values. Use your actual SMTP password unchanged, not a padded or invented value.
+Quote literal passwords containing `$` in `.env` with single quotes to prevent
+Compose interpolation. No environment files were modified by this fix.
+
+Retry step 4 after updating the code and installing `apache2-utils`. Then verify
+DNS in step 1 from the VPS before certificate issuance. The uploaded output
+shows the Roventics proxy configuration already passes `nginx -t`; do not
+recreate it again solely to fix a crashing Job Talk backend. Once Job Talk is
+healthy, check its route using the `wget` command in step 5, then retry steps 6
+and 7 with the corrected Certbot commands. Old stopped Job Talk proxy/renewal
+containers reported as orphans do not explain this backend validation error;
+leave their volumes alone.
 
 ## 8. Final browser checks
 

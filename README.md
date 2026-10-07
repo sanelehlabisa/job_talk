@@ -524,6 +524,9 @@ Email uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`
 and `EMAIL_FROM`. `SMTP_SECURE=false` supports STARTTLS (usually port 587);
 `true` uses TLS immediately (usually 465). Credentials are sent only over TLS.
 Local Mailpit uses port 1025, `false`, and empty user/password fields.
+Use the SMTP provider's actual password unchanged; Job Talk rejects blank/example
+credentials but does not impose a password length on external mail providers.
+For first-deployment errors, see [startup recovery](docs/production-operations.md#recovering-the-reported-failed-deployment).
 
 The session pepper is used only by FastAPI to hash opaque session tokens before
 database storage. Keep it out of frontend build arguments and browser code.

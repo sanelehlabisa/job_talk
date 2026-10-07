@@ -27,7 +27,7 @@ def is_weak_secret(value: str, minimum_length: int) -> bool:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     app_env: Literal["development", "test", "production"] = "development"
     app_domain: str = "localhost"
@@ -103,8 +103,10 @@ class Settings(BaseSettings):
 
         if not self.smtp_host or not self.smtp_user or not self.smtp_password:
             raise ValueError("SMTP host and credentials are required in production")
-        if is_weak_secret(self.smtp_password, 16):
-            raise ValueError("SMTP_PASSWORD must be a strong non-placeholder value")
+        # SMTP credentials are issued by the mail provider, not by this app.
+        # Reject empty/example values without imposing our own password length.
+        if is_weak_secret(self.smtp_password.strip(), 1):
+            raise ValueError("SMTP_PASSWORD must be a non-empty, non-placeholder provider credential")
         if self.email_from is None or str(self.email_from).lower().endswith("@example.com"):
             raise ValueError("EMAIL_FROM must be a real sender address in production")
 

@@ -19,6 +19,22 @@ records implementation checks separately from the pending usability sign-off.
 
 ## P0 - Simple VPS deployment
 
+### JT-092 - Recover the first VPS startup attempt
+
+- [x] Diagnose the uploaded VPS logs: SMTP password validation blocks startup;
+  staging-password utility is missing, DNS lookup fails, and old Certbot rejects
+  key-type defaults and `--run-deploy-hooks`.
+- [x] Accept provider-issued SMTP password lengths; retain required credentials,
+  placeholder rejection, database/session checks and encrypted SMTP transport.
+- [x] Hide settings input values from validation tracebacks.
+- [x] Correct the runbook's prerequisites, stop-on-failure startup, settings check,
+  ECDSA preservation and older Certbot renewal test.
+- [x] All 18 settings regression tests pass in a one-off development container
+  with disposable SQLite selected before Python starts. No real SMTP/LLM call.
+- [x] Public resolver check now returns `209.74.85.79` for Job Talk; the VPS must
+  still verify its own DNS resolution before retrying issuance.
+- [ ] Operator retries startup, DNS, certificate issuance and browser login on VPS.
+
 **Direction corrected 2026-10-07:** Each application owns its Docker Compose
 stack. The existing `roventics-nginx-1` remains the only public listener and
 routes the Job Talk hostname over the minimal `roventics_proxy` network. The VPS's

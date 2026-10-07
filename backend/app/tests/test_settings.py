@@ -76,6 +76,26 @@ def test_database_password_values_must_match():
         production_settings(postgres_password="different-database-secret-value")
 
 
+def test_smtp_provider_password_has_no_app_owned_minimum_length():
+    credential = "a7!mP2$q"
+    settings = production_settings(smtp_password=credential)
+    assert settings.smtp_password == credential
+
+
+@pytest.mark.parametrize("credential", ["", "   ", "password", "change-me", "replace-with-smtp-password"])
+def test_smtp_still_rejects_missing_or_placeholder_credentials(credential):
+    with pytest.raises(ValidationError, match="SMTP"):
+        production_settings(smtp_password=credential)
+
+
+def test_settings_errors_do_not_echo_credentials():
+    credential = "provider-private-credential"
+    with pytest.raises(ValidationError) as exc:
+        production_settings(smtp_password=credential, session_token_pepper="short")
+    assert credential not in str(exc.value)
+    assert "input_value" not in str(exc.value)
+
+
 def test_openai_provider_requires_a_server_side_api_key_in_production():
     with pytest.raises(ValidationError, match="OPENAI_API_KEY is required"):
         production_settings(ai_provider="openai", openai_api_key="")
