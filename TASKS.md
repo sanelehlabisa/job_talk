@@ -21,6 +21,10 @@ records implementation checks separately from the pending usability sign-off.
 
 ### JT-092 - Recover the first VPS startup attempt
 
+**Merge approved 2026-10-07:** The user approved pushing and merging the tested
+startup fix into `master`. The operator can pull `master` and retry the corrected
+deployment steps; successful VPS startup and live email/HTTPS checks remain pending.
+
 - [x] Diagnose the uploaded VPS logs: SMTP password validation blocks startup;
   staging-password utility is missing, DNS lookup fails, and old Certbot rejects
   key-type defaults and `--run-deploy-hooks`.
