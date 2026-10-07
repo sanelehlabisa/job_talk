@@ -32,10 +32,12 @@ contract and intentionally narrow scope are in
 **Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
 This is the chosen destination, not confirmation that the service is live.
 
-**Simple VPS setup (2026-10-06):** Each app runs its own Docker Compose stack.
-Job Talk exposes only `127.0.0.1:8081`; Nginx installed on the VM routes
-`jobtalk.roventics.com` to it and manages HTTPS with Certbot. There is no shared
-Docker proxy or cross-project network. See the [server commands](docs/production-operations.md)
+**Simple VPS setup (revised 2026-10-07):** Each app runs its own Docker Compose
+stack. The existing `roventics-nginx-1` container remains the only public proxy
+on 80/443. It reaches Job Talk's gateway through the small external
+`roventics_proxy` network; the gateway also binds `127.0.0.1:8081` for VPS-only
+checks. The VPS's existing Certbot installation owns HTTPS renewal. See the
+[server commands](docs/production-operations.md)
 and [deployment tickets](TASKS.md#p0---simple-vps-deployment). Existing environment
 files are unchanged; live DNS and server setup remain operator steps.
 
@@ -502,7 +504,8 @@ as described in [production operations](docs/production-operations.md).
 Compose derives the database URL from `POSTGRES_DB`, `POSTGRES_USER` and
 `POSTGRES_PASSWORD`. Set the host once as `APP_DOMAIN=jobtalk.roventics.com`;
 production Compose derives the HTTPS origin, allowed hosts and CORS origins.
-It also selects production mode. VM Nginx owns public 80/443; the app gateway publishes localhost:8081. Images
+It also selects production mode. The existing Roventics Nginx container owns
+public 80/443; the app gateway publishes localhost:8081. Images
 build from the checked-out code with Compose-managed names; no image tag goes
 in `.env`. FastAPI validates the derived settings and refuses to start unless:
 
@@ -571,14 +574,14 @@ and database volume remain `job_talk_prod` / `job_talk_prod_job_talk_data`.
 docker compose --env-file .env -f prod.docker-compose.yaml up -d --build
 ```
 
-Create the private staging password file before first startup as described in
-[production operations](docs/production-operations.md). Then install the single
-[`nginx/vm-jobtalk.conf`](nginx/vm-jobtalk.conf) site on the VM. Host Nginx forwards
-the entire subdomain to localhost:8081; VM Certbot supplies HTTPS and renewal.
-Other apps manage their own Compose stacks and host Nginx sites independently.
+Create the private staging password file and `roventics_proxy` network before
+first startup as described in [production operations](docs/production-operations.md).
+The existing `roventics-nginx-1` container forwards the Job Talk hostname to the
+gateway's private network alias. Other services and data remain owned by their
+respective Compose projects.
 
-One existing `.env` supplies the app settings. No certificate volume, shared
-network, Docker renewal service or additional environment file is required.
+One existing `.env` supplies the app settings. Job Talk owns no certificate
+volume or renewal service and requires no additional environment file.
 API routes retain backend Bearer-token, approval and ownership checks. The
 staging webpage password is separate from those checks. Deployment and final
 usability sign-off remain pending operator/user verification.

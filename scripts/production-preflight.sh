@@ -49,6 +49,7 @@ case "$domain" in
     *) fail "APP_DOMAIN must be a fully qualified subdomain" ;;
 esac
 test -f ./secrets/nginx/.htpasswd || fail "Create secrets/nginx/.htpasswd for private staging first"
+docker network inspect roventics_proxy >/dev/null 2>&1 || fail "Create the roventics_proxy network before starting production"
 test "${#session_pepper}" -ge 32 || fail "SESSION_TOKEN_PEPPER must contain at least 32 characters"
 
 resolved_ips=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{ print $1 }' | sort -u || true)
@@ -64,4 +65,4 @@ docker compose --env-file "$env_file" -f "$compose_file" config --quiet || \
 echo "Production preflight passed for $domain."
 echo "Release commit: $current_commit"
 echo "DNS IPv4: $(echo "$resolved_ips" | paste -sd, -)"
-echo "Next: start Job Talk and install its VM Nginx site using the runbook in docs/production-operations.md"
+echo "Next: start Job Talk and follow the existing Roventics proxy runbook in docs/production-operations.md"

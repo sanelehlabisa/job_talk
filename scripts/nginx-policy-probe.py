@@ -31,6 +31,35 @@ class EdgeTLS(http.client.HTTPSConnection):
         )
 
 
+def roventics_check():
+    connection = EdgeTLS("roventics.com")
+    connection.request("GET", "/", headers={"Host": "roventics.com"})
+    response = connection.getresponse()
+    html = response.read().decode()
+    assert response.status == 200
+    assert "https://jobtalk.roventics.com" in html
+    assert "AI-assisted recruitment platform" in html
+    connection.close()
+
+    connection = EdgeTLS("roventics.com")
+    connection.request("GET", "/api/check?keep=query", headers={"Host": "roventics.com"})
+    response = connection.getresponse()
+    body = response.read().decode()
+    assert response.status == 200 and body == "/api/check?keep=query|roventics.com"
+    connection.close()
+
+    for host in ("roventics.com", DOMAIN):
+        connection = http.client.HTTPConnection("proxy", 80, timeout=8)
+        connection.request("GET", "/.well-known/acme-challenge/check", headers={"Host": host})
+        response = connection.getresponse()
+        assert response.status == 200 and response.read().strip() == b"policy-challenge"
+        connection.close()
+    print("PASS: existing site, API route, product card and both ACME hostnames")
+
+
+roventics_check()
+
+
 # Even a process inside the backend container cannot use a TCP API listener.
 for host in ("127.0.0.1", "backend"):
     try:
@@ -69,7 +98,7 @@ def wrong_host(tls=True):
     raise AssertionError("Unexpected Host was accepted")
 
 
-_, headers, _ = request("/", [308], tls=False)
+_, headers, _ = request("/", [301], tls=False)
 assert headers["Location"] == ORIGIN + "/"
 wrong_host()
 wrong_host(tls=False)

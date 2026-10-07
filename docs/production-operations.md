@@ -1,140 +1,268 @@
-# Deploy Job Talk behind VM Nginx
+# Deploy Job Talk through the existing Roventics proxy
 
-Each application owns its Docker Compose stack. The VM owns public routing and
-HTTPS. Job Talk needs only this route:
+The VPS keeps its current public edge:
 
 ```text
-Browser -> VM Nginx (80/443) -> 127.0.0.1:8081 -> Job Talk gateway
-                                                   |-- frontend
-                                                   `-- private API socket -> database
+Internet -> roventics-nginx-1 (80/443)
+              |-- roventics.com -> existing Roventics services
+              `-- jobtalk.roventics.com -> jobtalk-gateway:80
 ```
 
-No shared Docker stack, external network or certificate volumes. Existing `.env`
-files are preserved. The examples below assume an Ubuntu/Debian VM with Docker
-and host Nginx. They are instructions, not a record of a live deployment.
+Each repository owns its own Compose project, environment, services and data.
+The only shared resource is the private `roventics_proxy` Docker network between
+the existing public proxy and Job Talk's gateway. Job Talk also publishes
+`127.0.0.1:8081` for checks made directly on the VPS. It never publishes 80/443.
+The network is needed because Docker's host-gateway address cannot reach a
+service published only on the host's loopback address.
 
-**Existing server:** earlier notes showed `roventics-nginx-1` owning 80/443.
-Host Nginx must become the public listener before using this setup. Preserve the
-existing website's routes and certificates during that separate server change;
-do not blindly stop its container or start a second listener on the same ports.
-This repository supplies only Job Talk's site configuration.
+These are operator commands, not a record of a live deployment. Do not use
+`docker system prune`, `docker compose down -v`, or stop unrelated containers.
+Never replace an existing `.env` with `.env.example`.
 
-## 1. DNS
+## 1. Add and verify DNS
 
-At the DNS provider for `roventics.com`, add an A record named `jobtalk` pointing
-to `209.74.85.79`, after confirming that this is your VPS address. Preserve other
-records. Check any conflicting AAAA record. There is no Linux command required
-to create the subdomain.
+At the DNS provider for `roventics.com`, add:
+
+```text
+Type: A
+Name: jobtalk
+Value: 209.74.85.79
+TTL: default
+```
+
+Confirm the address belongs to this VPS and check for a conflicting AAAA record:
 
 ```sh
+dig NS roventics.com +short
 getent ahostsv4 jobtalk.roventics.com
 ```
 
-## 2. Start this app
+## 2. Inspect the running VPS before changing it
 
-Keep the VM's existing `.env` with `APP_DOMAIN=jobtalk.roventics.com` and its real
-SMTP, Gemini, database and session settings. Do not replace it with the local
-computer's file. Back up an existing database before upgrading; see
-[database operations](database-operations.md). The project/database volume names
-are unchanged. The application has no dependency on the other website's Compose.
+The commands below assume the reported container name is still correct. Stop if
+the names, certificate path, Compose directory or renewal mechanism differ.
 
 ```sh
-cd ~/apps/job_talk
-# Install apache2-utils if htpasswd is unavailable. It prompts for a password.
+docker ps --format 'table {{.Names}}\t{{.Ports}}'
+docker inspect roventics-nginx-1 --format '{{json .Mounts}}'
+docker inspect roventics-nginx-1 --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }} {{ index .Config.Labels "com.docker.compose.project.config_files" }}'
+docker exec roventics-nginx-1 nginx -T > /tmp/roventics-nginx-before.txt
+sudo certbot certificates
+systemctl list-timers --all | grep -i certbot || true
+sudo crontab -l
+sudo test -r /etc/letsencrypt/live/roventics.com/fullchain.pem
+sudo test -r /etc/letsencrypt/live/roventics.com/privkey.pem
+```
+
+Back up the live Nginx configuration, Compose file, certificate state and both
+applications' data before proceeding. The repository expects the certificate
+name to be `roventics.com`. If Certbot reports another name, update the two paths
+in `roventics/nginx/nginx.conf` before deploying it.
+
+```sh
+umask 077
+deployment_backup="$HOME/backups/jobtalk-edge-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$deployment_backup"
+docker cp roventics-nginx-1:/etc/nginx/conf.d/default.conf "$deployment_backup/roventics-nginx.conf"
+docker inspect roventics-nginx-1 --format '{{.Image}}' > "$deployment_backup/nginx-image-id"
+sudo tar -C /etc -czf "$deployment_backup/letsencrypt.tar.gz" letsencrypt
+```
+
+Copy the live Compose file reported by Docker inspection into the same directory.
+Keep it until both domains and renewal have passed. Use the separate
+[database backup procedure](database-operations.md) for Job Talk data.
+
+## 3. Clone or update each repository independently
+
+These changes are on feature branches awaiting merge approval. Use the branch
+names below until merged; then use `master`. For the existing VPS, set
+`roventics_repo` to the Compose working directory reported in step 2. Reuse that
+checkout so its `backend/.env` and `backend/private` mounts remain unchanged.
+Likewise reuse an existing Job Talk checkout if present.
+
+Only clone a repository if it is not already installed:
+
+```sh
+mkdir -p "$HOME/apps"
+roventics_repo="$HOME/apps/roventics" # Existing VPS: use inspected directory instead.
+jobtalk_repo="$HOME/apps/job_talk"
+git clone --branch fix/jobtalk-vhost https://github.com/sanelehlabisa/roventics.git "$roventics_repo"
+git clone --branch fix/existing-roventics-edge https://github.com/sanelehlabisa/job_talk.git "$jobtalk_repo"
+```
+
+For existing checkouts, preserve local files and inspect changes before pulling:
+
+```sh
+git -C "$roventics_repo" status --short
+git -C "$jobtalk_repo" status --short
+git -C "$roventics_repo" fetch origin
+git -C "$jobtalk_repo" fetch origin
+git -C "$roventics_repo" switch fix/jobtalk-vhost
+git -C "$jobtalk_repo" switch fix/existing-roventics-edge
+git -C "$roventics_repo" pull --ff-only
+git -C "$jobtalk_repo" pull --ff-only
+```
+
+Keep each repository's ignored environment files. Job Talk's VM `.env` must use
+`APP_DOMAIN=jobtalk.roventics.com` plus its real database, SMTP, session and
+Gemini values.
+For a fresh Job Talk clone only, copy `.env.example` to `.env` and fill its blank
+values before continuing. For a fresh Roventics installation, supply its own
+`backend/.env` and `backend/private` files. Never overwrite the live copies.
+The commands require Docker Compose v2, Certbot and `htpasswd` (Ubuntu package
+`apache2-utils`). The existing Roventics project must be named `roventics`, with
+`roventics-frontend-1` and `roventics-backend-1`; the proxy uses these existing
+names so neither app container needs a restart for the proxy change.
+
+## 4. Prepare Job Talk and the private proxy network
+
+```sh
+docker network inspect roventics_proxy >/dev/null 2>&1 || docker network create roventics_proxy
+
+cd "$jobtalk_repo"
 mkdir -p secrets/nginx
 chmod 700 secrets/nginx
 test -f secrets/nginx/.htpasswd || htpasswd -cB secrets/nginx/.htpasswd staging
 chmod 644 secrets/nginx/.htpasswd
+umask 022
 sh scripts/production-preflight.sh
-docker compose --env-file .env -f prod.docker-compose.yaml up -d --build
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --wait
 curl --fail -H 'Host: jobtalk.roventics.com' http://127.0.0.1:8081/api/ready
-# First installation only: creates the configured admin, retaining normal email login.
+```
+
+Seed the configured admin once. This keeps normal emailed-code login:
+
+```sh
 docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters seed
 ```
 
-Only the app gateway publishes a port, on localhost:8081. Database and backend
-have no host TCP listeners. Keep Docker Engine current for localhost binding
-isolation. VM Nginx overwrites client forwarding headers; the app gateway trusts
-private Docker source addresses for the client IP used by its request limits.
-Tokens, approval and record ownership remain backend requirements.
+## 5. Recreate only the Roventics Nginx container
 
-If an older Job Talk proxy is still running, remove its obsolete listener only
-as part of your reviewed server migration. Do not use `down -v` or touch another
-application. The removed shared-edge implementation was never deployed by us.
-
-## 3. Add one VM Nginx site
-
-On a VM where host Nginx already handles the existing website:
+The updated Compose connects the proxy to `roventics_proxy` and mounts the VPS's
+`/etc/letsencrypt` and `/var/www/certbot` read-only. Its Nginx configuration keeps
+the current Roventics routes and adds the Job Talk hostname. Recreating this one
+container is required for the mounts and network; frontend and backend stay up.
+On a fresh Roventics installation only, start those two services first with
+`docker compose -f docker-compose.yaml up -d --build backend frontend` from its
+checkout. This VPS already has them running. The certificate paths checked in
+step 2 must exist before starting the proxy.
 
 ```sh
-cd ~/apps/job_talk
-# Back up an existing Job Talk site before replacing it, especially after Certbot.
-sudo cp nginx/vm-jobtalk.conf /etc/nginx/sites-available/jobtalk
-sudo ln -sfn /etc/nginx/sites-available/jobtalk /etc/nginx/sites-enabled/jobtalk
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-The site forwards the whole hostname to localhost:8081, preserving `/api/`.
-It does not change the other website's site files. This initial HTTP config is
-for certificate setup; use the app only over HTTPS after the next step.
-
-## 4. HTTPS and automatic renewal
-
-Install Certbot's Nginx package if it is not already present. Use the same admin
-email already configured for Job Talk when Certbot asks for the registration email.
-No new environment variable is needed.
-
-```sh
-sudo apt-get update
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d jobtalk.roventics.com --redirect
-sudo systemctl enable --now certbot.timer
-sudo certbot renew --dry-run
-systemctl list-timers --all | grep certbot
-```
-
-Certbot installs the certificate and redirect in the host site and stores TLS
-state under `/etc/letsencrypt`. Its timer renews automatically; there is no
-application renewal container or custom watcher. Use the installed scheduler
-instead if this VM already uses another Certbot installation. Never run duplicate
-renewal schedulers. The manual renewal check is simply `sudo certbot renew`.
-
-Do not overwrite Certbot's modified site with the original HTTP file during
-ordinary app updates. Back up VM Nginx configuration and certificates separately
-from application data.
-
-## 5. Verify, then update normally
-
-```sh
-curl --fail https://jobtalk.roventics.com/api/ready
+sudo mkdir -p /var/www/certbot
+cd "$roventics_repo"
+docker compose -f docker-compose.yaml config --quiet
+docker compose -f docker-compose.yaml build nginx
+docker compose -f docker-compose.yaml run --rm --no-deps nginx nginx -t
+docker compose -f docker-compose.yaml up -d --no-deps nginx
+docker exec roventics-nginx-1 nginx -t
 curl --fail https://roventics.com/
+docker exec roventics-nginx-1 wget -q -O- \
+  --header='Host: jobtalk.roventics.com' http://jobtalk-gateway/api/ready
 ```
 
-Test emailed recruiter login, job publication, candidate application, comparison
-and logout in the browser. Keep private staging until the user accepts the flow.
-For public launch, remove only the server-level `auth_basic` and
-`auth_basic_user_file` lines in `nginx/app.conf.template`, rebuild the gateway,
-and verify an anonymous browser can open the app. API token controls stay intact.
+Do not recreate the proxy if the preflight `nginx -t` fails. There is a brief
+public-proxy restart; both application containers keep running. Always run
+`docker exec roventics-nginx-1 nginx -t` before a reload. Job Talk's HTTPS
+certificate will not validate until step 6 completes; the root site retains
+its existing valid certificate.
 
-Ordinary app updates need only:
+## 6. Extend the existing certificate safely
+
+Certbot requires every domain already on a certificate to be repeated when it is
+replaced. Read the `Domains:` line from `sudo certbot certificates`. If the
+current certificate contains only `roventics.com`, run:
 
 ```sh
-cd ~/apps/job_talk
-docker compose --env-file .env -f prod.docker-compose.yaml up -d --build
+sudo certbot certonly --webroot -w /var/www/certbot \
+  --cert-name roventics.com --expand \
+  -d roventics.com -d jobtalk.roventics.com
 ```
 
-Keep the previous app images/commit for rollback and never remove database volumes.
-Changing Job Talk should not require restarting VM Nginx or the other application.
-If a site change fails, restore that site's backup, run `nginx -t`, then reload.
+If it already contains `www.roventics.com`, preserve it:
+
+```sh
+sudo certbot certonly --webroot -w /var/www/certbot \
+  --cert-name roventics.com --expand \
+  -d roventics.com -d www.roventics.com -d jobtalk.roventics.com
+```
+
+Preserve every existing certificate domain, including any not shown in these
+examples. If an existing name such as `www` does not resolve here, fix its DNS
+before issuance; do not silently drop it. Do not delete the working certificate.
+After issuance:
+
+```sh
+docker exec roventics-nginx-1 nginx -t
+docker exec roventics-nginx-1 nginx -s reload
+curl --fail https://roventics.com/
+curl --fail https://jobtalk.roventics.com/api/ready
+```
+
+## 7. Keep the existing Certbot scheduler
+
+Use the scheduler found in step 2. Do not add a second timer or cron job. Inspect
+existing renewal hooks first; replace any old hook that stops Nginx for standalone
+renewal now that HTTP validation uses webroot. If a deploy hook already reloads
+this container, reuse it. Otherwise add this one so renewed certificates load:
+
+```sh
+sudo install -d -m 755 /etc/letsencrypt/renewal-hooks/deploy
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-roventics-nginx.sh >/dev/null <<'EOF'
+#!/bin/sh
+set -eu
+docker exec roventics-nginx-1 nginx -t
+docker exec roventics-nginx-1 nginx -s reload
+EOF
+sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-roventics-nginx.sh
+sudo certbot renew --dry-run --run-deploy-hooks
+```
+
+## 8. Final browser checks
+
+1. Open `https://roventics.com` and its existing inquiry flow.
+2. Open `https://jobtalk.roventics.com` with the staging password.
+3. Sign in as the approved recruiter through email code.
+4. Create and publish a job.
+5. Apply without an account and submit consent/contact details.
+6. Confirm candidate comparison and logout.
+
+Publish the Roventics card only after this passes. For public Job Talk launch,
+remove only the two server-level `auth_basic` lines from
+`job_talk/nginx/app.conf.template`, rebuild Job Talk's gateway and verify again.
+API token, approval, ownership and guest-scope checks remain required.
+Rebuild the gateway with the normal Job Talk startup command. Then publish the
+updated website card without restarting its backend:
+
+```sh
+cd "$roventics_repo"
+docker compose -f docker-compose.yaml up -d --build --no-deps frontend
+docker exec roventics-nginx-1 nginx -t
+docker exec roventics-nginx-1 nginx -s reload
+```
+
+## Updates and rollback
+
+Ordinary Job Talk updates do not rebuild or restart Roventics:
+
+```sh
+cd "$jobtalk_repo"
+git pull --ff-only
+docker compose --env-file .env -f prod.docker-compose.yaml up -d --build --wait
+```
+
+If the public proxy change fails, restore the backed-up Roventics Nginx files,
+run `nginx -t`, and recreate or reload only `roventics-nginx-1`. Keep the latest
+valid `/etc/letsencrypt` data and never remove application database volumes.
 
 ## Local verification
 
-Run `powershell -ExecutionPolicy Bypass -File scripts/check-nginx-policies.ps1`.
-It checks the real Compose definition for localhost-only ports and no external
-network, then exercises an isolated app behind simulated VM Nginx with self-signed
-TLS. It checks frontend assets, API policies, tokens, email-code redemption and
-logout using a disposable database and no SMTP/AI calls. Live DNS, trusted
-issuance, renewal and the actual hiring flow still need server/user verification.
+`scripts/check-nginx-policies.ps1` uses an isolated Compose fixture, disposable
+PostgreSQL and certificates. It runs Job Talk's production services and the
+actual Roventics Nginx configuration/frontend, with a simulated Roventics API.
+Private routing, both hostname/ACME routes, token scope, logout and rate limits
+passed on 2026-10-07. It does not verify live SMTP, Gemini, DNS, the existing VPS
+containers or Let's Encrypt. Existing website inquiries and the live hiring flow
+remain operator acceptance checks.
 
-References: [Certbot Nginx and renewal](https://eff-certbot.readthedocs.io/en/stable/using.html),
-[Docker localhost port publishing](https://docs.docker.com/engine/network/port-publishing/).
+References: [Docker port publishing](https://docs.docker.com/engine/network/port-publishing/)
+and [Certbot renewal hooks](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates).

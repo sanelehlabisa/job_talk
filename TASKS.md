@@ -19,44 +19,51 @@ records implementation checks separately from the pending usability sign-off.
 
 ## P0 - Simple VPS deployment
 
-**Direction corrected 2026-10-06:** Each application owns its Docker Compose
-stack. Nginx installed on the VM routes hostnames to each app's localhost port;
-VM Certbot owns HTTPS. The previous shared Docker edge, cross-project network,
-certificate volumes and renewal watcher are removed. Preserve existing `.env`
-files and other applications. No VPS changes have been made.
+**Direction corrected 2026-10-07:** Each application owns its Docker Compose
+stack. The existing `roventics-nginx-1` remains the only public listener and
+routes the Job Talk hostname over the minimal `roventics_proxy` network. The VPS's
+existing Certbot installation owns HTTPS. Preserve existing `.env` files,
+certificates and other applications. No VPS changes have been made by Codex.
 
-**Merge approved 2026-10-06:** The user requested committing and pushing this
-completed work to `master`, including the Roventics card and removal of its
-shared-deployment changes. This approves the repository merges; live DNS,
-certificate setup, VM cutover and public launch checks remain pending below.
+**Previous revision merged 2026-10-06:** The approved host-Nginx revision is on
+`master`. The corrected existing-Docker-proxy revision is on Job Talk's
+`fix/existing-roventics-edge` and Roventics' `fix/jobtalk-vhost`; it awaits new
+merge approval. Live DNS, certificates and public launch checks remain pending.
 
 ### JT-088 - Keep Job Talk Compose independent
 
 - [x] App-owned frontend, backend, database and small HTTP gateway.
 - [x] Only the gateway publishes `127.0.0.1:8081`; backend stays Unix-socket-only.
-- [x] All networks and volumes are project-owned; no shared edge dependency.
+- [x] All volumes remain project-owned; only a private proxy network is shared
+  between `roventics-nginx-1` and Job Talk's gateway.
 - [x] Preserve database volume identity and existing environment files.
 - [x] Verify the simplified stack's routing, token checks and request policies locally.
-  Passed isolated Compose/HTTPS checks on 2026-10-06, using a simulated VM proxy,
-  self-signed certificate, disposable PostgreSQL and mock AI. No live VPS/CA test.
+  Passed isolated Compose/HTTPS checks on 2026-10-07 using the actual Roventics
+  Nginx configuration and frontend, a simulated Roventics API, disposable
+  PostgreSQL, self-signed certificates and mock AI. Both hostname routes, ACME
+  paths, Job Talk login/logout, token scope and rate limits passed. No live
+  VPS, SMTP, Gemini or certificate-authority verification in this check.
+  Roventics development Compose validation, Nginx image build and startup with a
+  disposable self-signed certificate also passed; production keeps VPS-managed
+  certificates. Existing environment files were preserved.
 
-### JT-089 - Let the VM manage HTTPS
+### JT-089 - Keep HTTPS in the existing VPS Certbot setup
 
 - [x] Remove application certificate containers, shared edge and custom renewal scripts.
-- [x] Document VM Nginx/Certbot installation, issuance and renewal dry-run commands.
+- [x] Document central certificate expansion, existing scheduler reuse, deploy
+  hook and renewal dry-run commands.
 - [ ] Operator verifies trusted issuance and automatic renewal on the VPS.
 
 ### JT-090 - Connect the Job Talk subdomain
 
-- [x] Supply one VM Nginx site pointing to `127.0.0.1:8081`.
+- [x] Add a Job Talk virtual host to the existing Roventics Docker Nginx.
 - [x] Preserve app origin, rate, token, ownership and recruiter-approval controls.
 - [x] Document DNS and one-command app startup in `docs/production-operations.md`.
 - [ ] Operator configures DNS and checks both existing site and Job Talk after reload.
 - [ ] User accepts the live hiring flow before inviting real candidates.
 
 DNS prerequisite: `jobtalk.roventics.com` A record to `209.74.85.79`, after
-confirming the VPS address. Earlier VPS notes reported a Docker Nginx already
-owning 80/443; moving that listener to VM Nginx is a separate server setup step.
+confirming the VPS address. The existing Docker Nginx continues owning 80/443.
 Do not stop the existing website blindly or run competing public listeners.
 
 ### JT-091 - Roventics product card

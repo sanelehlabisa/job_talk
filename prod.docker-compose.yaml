@@ -154,7 +154,10 @@ services:
       - /var/cache/nginx:size=16m
       - /var/run:size=1m
       - /tmp:size=16m
-    networks: [web]
+    networks:
+      web:
+      public_proxy:
+        aliases: [jobtalk-gateway]
     depends_on:
       frontend:
         condition: service_healthy
@@ -167,6 +170,9 @@ services:
 
 networks:
   web:
+  public_proxy:
+    external: true
+    name: roventics_proxy
   database:
     internal: true
   outbound:

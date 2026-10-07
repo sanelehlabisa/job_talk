@@ -144,7 +144,8 @@ The primary experiment must support this sequence:
 - Prefer a small, understandable implementation over extra infrastructure.
 - Keep public ports bound to localhost in the development stack.
 - Treat the backend and database as private services in production. Only the
-  app gateway may publish a localhost port; VM Nginx owns public 80/443.
+  app gateway may publish a localhost port; the existing `roventics-nginx-1`
+  container owns public 80/443.
 - Production FastAPI binds only to the Unix socket shared with Nginx. Do not add
   a backend TCP listener or mount that socket into other application services.
   This prevents direct network access; public proxy URLs still require normal
@@ -200,11 +201,12 @@ Local development uses `dev.docker-compose.yaml`. Always pass it explicitly with
 `docker compose -f dev.docker-compose.yaml ...` so development and production
 commands cannot be confused.
 Production uses `docker compose --env-file .env -f prod.docker-compose.yaml ...`.
-Each app owns its Compose project. Job Talk's gateway binds only
-`127.0.0.1:8081`; the VM's installed Nginx owns public 80/443 and routes the
-subdomain there. TLS and Certbot renewal belong to the VM. Do not add a shared
-Docker edge, cross-project network or shared certificate volumes. The backend
-socket is shared only with Job Talk's own gateway; the database stays private.
+Each app owns its Compose project. Job Talk's gateway binds `127.0.0.1:8081` for
+VPS checks and joins only the external `roventics_proxy` network so the existing
+`roventics-nginx-1` public proxy can reach it by alias. This small proxy network
+is the sole cross-project resource. TLS and renewal belong to the VPS's existing
+Certbot installation. The backend socket is shared only with Job Talk's own
+gateway; the database stays private.
 Follow `docs/production-operations.md`. Preserve existing app environments/data
 and other websites. Live DNS, certificates and VM listener changes are operator
 steps. Use isolated disposable resources for production tests.
