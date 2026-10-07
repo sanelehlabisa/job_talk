@@ -43,7 +43,7 @@ from .services.criteria import normalize_target_profile
 from .services.matching import is_recommended, match_profiles, rank_jobs, summarize_match, discovery_overlap, MIN_DISCOVERY_SCORE
 from .services.ai import generate_reply, generate_turn, guided_reply, rate_candidate
 from .services.ratings import RATINGS_KEY, evidence_profile
-from .services.email import send_recruiter_login_code
+from .services.email import send_recruiter_login_code, send_recruiter_access_request
 from .services.job_templates import (
     JobDraft, new_job_draft, starter_templates, apply_draft_updates,
     draft_can_publish, draft_profile, draft_question, fallback_draft_updates,
@@ -287,8 +287,21 @@ def request_recruiter_code(
     if not user:
         user = models.User(email=email, role="recruiter", approval_status="pending")
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            # Another request may have created the same email first.
+            db.rollback()
+            user = db.scalar(select(models.User).where(models.User.email == email))
+            if user is None:
+                raise
+        else:
+            db.refresh(user)
+            try:
+                send_recruiter_access_request(user.email, user.created_at)
+            except Exception as exc:
+                # Preserve the pending request, without logging email/SMTP details.
+                logger.warning("Could not notify admin of recruiter access request (%s)", type(exc).__name__)
 
     if user.role == "recruiter" and user.approval_status == "approved":
         now = datetime.now(timezone.utc)

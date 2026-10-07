@@ -1324,6 +1324,9 @@ def test_approved_recruiter_signs_in_with_single_use_email_code(monkeypatch):
 
 def test_unknown_recruiter_request_stays_pending_without_revealing_status(monkeypatch):
     sent = []
+    notifications = []
+    monkeypatch.setattr("app.main.send_recruiter_access_request",
+                        lambda email, created: notifications.append((email, created)))
     monkeypatch.setattr(
         "app.main.send_recruiter_login_code",
         lambda recipient, code: sent.append((recipient, code)),
@@ -1335,9 +1338,29 @@ def test_unknown_recruiter_request_stays_pending_without_revealing_status(monkey
         )
         assert response.status_code == 202
         assert sent == []
+        repeated = client.post("/api/auth/recruiter/request-code", json={"email": "pending@example.com"})
+        assert repeated.json() == response.json()
+        assert len(notifications) == 1
+        assert notifications[0][0] == "pending@example.com"
     with SessionLocal() as db:
         user = db.scalar(select(models.User).where(models.User.email == "pending@example.com"))
         assert user.approval_status == "pending"
+
+
+def test_admin_notification_failure_preserves_pending_request(monkeypatch, caplog):
+    def fail_notification(*args):
+        raise RuntimeError("smtp-private-data-must-not-be-logged")
+    monkeypatch.setattr("app.main.send_recruiter_access_request", fail_notification)
+    with TestClient(app) as client:
+        response = client.post("/api/auth/recruiter/request-code", json={"email": "new-pending@example.com"})
+        assert response.status_code == 202
+    with SessionLocal() as db:
+        user = db.scalar(select(models.User).where(models.User.email == "new-pending@example.com"))
+        assert user.approval_status == "pending"
+        assert db.scalar(select(func.count(models.RecruiterLoginCode.id))) == 0
+    assert "Could not notify admin" in caplog.text
+    assert "smtp-private-data" not in caplog.text
+    assert "new-pending@example.com" not in caplog.text
 
 
 def test_recruiter_code_requests_hide_approval_state_and_limit_email(monkeypatch):

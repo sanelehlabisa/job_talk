@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,3 +59,27 @@ def test_smtp_does_not_send_credentials_without_tls(monkeypatch):
         email.send_recruiter_login_code("recruiter@example.com", "123456")
     smtp.login.assert_not_called()
     smtp.send_message.assert_not_called()
+
+
+def test_access_request_contains_only_request_details_and_targets_admin(monkeypatch):
+    monkeypatch.setattr(email, "get_settings", lambda: SimpleNamespace(
+        admin_email="owner@example.com", email_from="login@example.com",
+    ))
+    messages = []
+    monkeypatch.setattr(email, "_send_message", messages.append)
+    email.send_recruiter_access_request("new@example.com", datetime(2026, 10, 7, tzinfo=timezone.utc))
+    message = messages[0]
+    assert message["To"] == "owner@example.com"
+    assert message["From"] == "login@example.com"
+    assert "new@example.com" in message.get_content()
+    assert "2026-10-07T00:00:00+00:00" in message.get_content()
+    assert "pending approval" in message.get_content()
+    assert "not yet been verified" in message.get_content()
+
+
+def test_access_request_without_admin_does_not_send(monkeypatch):
+    monkeypatch.setattr(email, "get_settings", lambda: SimpleNamespace(admin_email=None))
+    transport = MagicMock()
+    monkeypatch.setattr(email, "_send_message", transport)
+    email.send_recruiter_access_request("new@example.com", datetime.now(timezone.utc))
+    transport.assert_not_called()

@@ -65,14 +65,16 @@ Preserve submitted evidence, requirements and scores; distinguish applications
 made against earlier criteria from the current comparison. Closing recruitment
 still stops applications and does not hide the recruiter's chat.
 
-## Current usability priority (2026-10-03)
+## Current usability priority (2026-10-07)
 
-VM deployment is paused. The user authorized production Compose/HTTPS preparation
-in JT-070, which passed isolated local checks. The chosen production address is
-`https://jobtalk.roventics.com`; it is not yet verified live. JT-071 records current
-readiness and environment organization. Follow `TASKS.md`. Completed demos are engineering
-evidence; only the user's manual acceptance in JT-060 establishes usability.
-Resume deployment only when the user explicitly asks after accepting the flow.
+The user confirmed deployment and admin email-code login work at
+`https://jobtalk.roventics.com`. Prioritize a few real testers and feedback on the
+core hiring loop. Follow `TASKS.md`; completed demos remain engineering evidence,
+and full manual usability acceptance in JT-060 is still separate.
+New recruiter access requests notify `ADMIN_EMAIL` through existing SMTP only
+when the pending account is first created. Keep approval manual and never include
+login codes or candidate data in those notifications. No notification queue or
+automatic retry: failed email leaves the request in the existing recruiter list.
 
 The current implementation uses three fixed templates and the existing database,
 AI boundary, authentication, discovery chat, and comparison views. Templates are

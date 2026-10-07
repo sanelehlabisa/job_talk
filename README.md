@@ -20,6 +20,7 @@ Candidates will open a published job and apply without an account, using a secur
 guest application session. The implementation subtasks and acceptance checks are
 in [`TASKS.md`](TASKS.md); the pitch, demo, video, distribution, and measurement
 plan are in [`docs/experiment-launch.md`](docs/experiment-launch.md).
+Ready-to-use LinkedIn and Reddit copy is in [`docs/launch/README.md`](docs/launch/README.md).
 
 The current build target is one complete loop: **Define -> Apply -> Score ->
 Compare.** Recruiter criteria use one shared structure throughout the product;
@@ -27,10 +28,11 @@ candidate evidence and match explanations reference those same stable keys. The
 contract and intentionally narrow scope are in
 [`docs/core-mvp.md`](docs/core-mvp.md).
 
-## Current status: deployment preparation and usability sign-off
+## Current status: deployed early experiment
 
-**Planned production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
-This is the chosen destination, not confirmation that the service is live.
+**Production address:** [https://jobtalk.roventics.com](https://jobtalk.roventics.com).
+The user confirmed the app and admin email-code login work on the VPS on
+2026-10-07. Broader recruiter/candidate usability feedback remains the next step.
 
 **Simple VPS setup (revised 2026-10-07):** Each app runs its own Docker Compose
 stack. The existing `roventics-nginx-1` container remains the only public proxy
@@ -492,6 +494,17 @@ For a fresh VM, explicitly seed the configured admin with:
 ```bash
 docker compose --env-file .env -f prod.docker-compose.yaml exec backend python -m app.recruiters seed
 ```
+
+The first request from a new recruiter email creates a pending account and sends
+`ADMIN_EMAIL` an access-request notification using the existing SMTP settings.
+It includes the submitted email and request time; the address is not yet verified.
+Repeated requests for that account do not send another admin notification.
+Approval stays manual; existing pending accounts are not notified retroactively.
+If notification delivery fails, the request stays pending and a redacted warning
+is logged. Review the pending list with `python -m app.recruiters list`, then
+approve the chosen address with `python -m app.recruiters approve EMAIL` using
+the same production `docker compose ... exec backend` prefix. There is no
+background retry queue or automatic approval.
 
 This creates only the `ADMIN_EMAIL` recruiter if missing; existing approval is
 preserved. Use the existing `approve <email>` command if you intend to change it.

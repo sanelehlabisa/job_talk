@@ -12,12 +12,24 @@ The product hypothesis is:
 > Recruiters will find conversational applications and structured candidate
 > comparison useful enough to try again or request continued access.
 
-VM deployment remains paused (2026-10-03). The user has authorized local
-production Compose/HTTPS preparation in JT-070. Passing a scripted scenario is
-engineering evidence, not the user's usability approval. Ticket status below
-records implementation checks separately from the pending usability sign-off.
+The user confirmed deployment and admin sign-in work on 2026-10-07. The next
+priority is a few real testers and feedback. Scripted scenarios remain engineering
+evidence; full recruiter/candidate usability sign-off is separate.
 
 ## P0 - Simple VPS deployment
+
+### JT-095 - Recruiter access notifications and launch copy
+
+- [x] Draft concise LinkedIn project/post and Reddit feedback-request copy.
+- [x] Notify the configured admin once when a new pending recruiter is created,
+  using existing SMTP and saved request time; repeated requests do not resend.
+- [x] Keep approval manual and preserve the generic login response; SMTP failure
+  keeps the pending account and logs no email address or credential details.
+- [x] 17 focused email/recruiter tests pass with disposable SQLite and mocked
+  delivery, covering notification content, duplicate suppression, failure handling,
+  TLS transport, login-code limits and existing sign-in. No real email was sent.
+- [ ] Operator deploys the backend update and checks one real access-request email.
+- [ ] Invite 2–3 testers and record feedback on the complete hiring loop.
 
 ### JT-094 - Open the public app and remove staging configuration
 
