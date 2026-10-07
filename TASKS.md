@@ -20,6 +20,10 @@ evidence; full recruiter/candidate usability sign-off is separate.
 
 ### JT-095 - Recruiter access notifications and launch copy
 
+**Merge approved 2026-10-07:** The user approved committing and merging into
+`master`. Pull the release and rebuild the backend on the VPS, then use a new
+recruiter email to verify the admin notification and manual approval flow.
+
 - [x] Draft concise LinkedIn project/post and Reddit feedback-request copy.
 - [x] Notify the configured admin once when a new pending recruiter is created,
   using existing SMTP and saved request time; repeated requests do not resend.
