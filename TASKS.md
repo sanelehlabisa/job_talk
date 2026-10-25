@@ -18,6 +18,24 @@ evidence; full recruiter/candidate usability sign-off is separate.
 
 ## P0 - Simple VPS deployment
 
+### JT-096 - Minimal public search discovery
+
+Requested alongside the Roventics website cleanup (Task 086). Implemented on
+`codex/086-search-discovery`. On 25 October 2026 the user approved committing,
+merging and pushing this work to master. VPS deployment remains an operator step.
+
+- [x] Add descriptive app title, summary and sharing metadata with the existing logo.
+- [x] Add robots.txt and a sitemap listing only the public homepage; preserve
+  private access controls and avoid a root canonical on the separate privacy page.
+- [x] Build the production frontend and verify packaged metadata, sitemap XML,
+  robots, logo and JavaScript using never-started extraction containers.
+- [x] Remove owned verification resources; preserve source services/data and the
+  existing local server-output.md file. No dependencies or proxy settings changed.
+- [ ] Publish the approved frontend and submit its sitemap in Search Console.
+
+Evidence is retained in sibling Monitor `.tmp/task086/seo-packaged-results.json`;
+the README describes the discovery scope. Search indexing is not guaranteed.
+
 ### JT-095 - Recruiter access notifications and launch copy
 
 **Merge approved 2026-10-07:** The user approved committing and merging into

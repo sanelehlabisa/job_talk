@@ -850,3 +850,13 @@ icons; the supplied `roventics-logo.png` accompanies the Roventics footer credit
 Job Talk is the primary product name.
 The supplied `frontend/public/branding/jobtalk-logo.png` is shared by the app's
 brand header and browser favicon. The old JobTalk and Roventics SVGs have been removed.
+
+## Search discovery
+
+The public entry has a descriptive title, summary and sharing metadata. Vite
+copies `frontend/public/robots.txt` and `sitemap.xml` into the production build.
+The sitemap lists only `https://jobtalk.roventics.com/`; submit its sitemap URL
+in the verified Search Console property after deployment. API crawl preferences
+do not replace authentication or guarantee indexing. Private chats, applications
+and recruiter workspaces are not sitemap entries. The public privacy page keeps
+its own URL; no homepage canonical is forced onto other application routes.
