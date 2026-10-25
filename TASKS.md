@@ -18,6 +18,21 @@ evidence; full recruiter/candidate usability sign-off is separate.
 
 ## P0 - Simple VPS deployment
 
+### JT-097 - Readable sign-in emails
+
+Requested with Monitor Task 088; keep the current login and SMTP paths.
+The user approved committing, merging and pushing to master on 25 October 2026;
+VPS deployment remains an operator step.
+
+- [x] Add compact monochrome HTML with a selectable contiguous code, expiry,
+  non-sharing guidance and Roventics footer; retain a plain-text alternative.
+- [x] Escape HTML input; do not add scripts, fake copy buttons or code-bearing links.
+- [x] Seven focused mocked-email tests pass, covering MIME roundtrip, HTML escaping,
+  code/expiry consistency, unchanged SMTP/TLS and existing admin notifications.
+- [ ] Operator deploys and checks the email in the intended inbox clients.
+
+No authentication, dependency, reminder or recruiter-notification changes.
+
 ### JT-096 - Minimal public search discovery
 
 Requested alongside the Roventics website cleanup (Task 086). Implemented on

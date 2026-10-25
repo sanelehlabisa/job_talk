@@ -860,3 +860,12 @@ in the verified Search Console property after deployment. API crawl preferences
 do not replace authentication or guarantee indexing. Private chats, applications
 and recruiter workspaces are not sitemap entries. The public privacy page keeps
 its own URL; no homepage canonical is forced onto other application routes.
+
+## Sign-in email presentation
+
+Recruiter login codes use a compact black, white and gray HTML email with a
+plain-text alternative. The code stays selectable, and the message shows its
+existing expiry, a do-not-share warning and a Roventics team footer. The public
+company logo is optional remote content; text remains usable when images are
+blocked. No script-based copy button or code-bearing URL is included because
+email-client support is unreliable. SMTP, approval and login behavior are unchanged.

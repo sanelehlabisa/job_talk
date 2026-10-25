@@ -1,4 +1,6 @@
 from types import SimpleNamespace
+from email import policy
+from email.parser import BytesParser
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -41,7 +43,18 @@ def test_mailpit_starttls_and_implicit_tls(monkeypatch, secure, starttls, authen
     message = smtp.send_message.call_args.args[0]
     assert message["From"] == "login@example.com"
     assert message["To"] == "recruiter@example.com"
-    assert "123456" in message.get_content()
+    parsed = BytesParser(policy=policy.default).parsebytes(message.as_bytes())
+    assert [part.get_content_type() for part in parsed.iter_parts()] == ["text/plain", "text/html"]
+    plain_body = parsed.get_body(preferencelist=("plain",)).get_content()
+    html_body = parsed.get_body(preferencelist=("html",)).get_content()
+    for body in (plain_body, html_body):
+        assert "123456" in body and "10 minutes" in body
+        assert "Do not share this code with anyone." in body
+        assert "Use it only to sign in yourself." in body
+        assert "The Roventics team" in body
+    assert "Select the code to copy." not in html_body
+    assert '<script' not in html_body and 'onclick' not in html_body
+    assert 'https://roventics.com/images/logo.png' in html_body
 
 
 def test_smtp_does_not_send_credentials_without_tls(monkeypatch):
@@ -83,3 +96,19 @@ def test_access_request_without_admin_does_not_send(monkeypatch):
     monkeypatch.setattr(email, "_send_message", transport)
     email.send_recruiter_access_request("new@example.com", datetime.now(timezone.utc))
     transport.assert_not_called()
+
+
+def test_login_html_escapes_code_without_changing_plain_text(monkeypatch):
+    monkeypatch.setattr(email, "get_settings", lambda: SimpleNamespace(
+        smtp_host="smtp.test.invalid", email_from="login@example.com",
+        recruiter_code_ttl_minutes=7,
+    ))
+    messages = []
+    monkeypatch.setattr(email, "_send_message", messages.append)
+    email.send_recruiter_login_code("recruiter@example.com", '<code>&"')
+    message = BytesParser(policy=policy.default).parsebytes(messages[0].as_bytes())
+    assert '<code>&"' in message.get_body(preferencelist=("plain",)).get_content()
+    html_body = message.get_body(preferencelist=("html",)).get_content()
+    assert "&lt;code&gt;&amp;&quot;" in html_body
+    assert '<code>' not in html_body
+    assert "7 minutes" in html_body
